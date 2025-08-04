@@ -48,17 +48,27 @@ const DataManagement = () => {
     if (!user?.id) return;
     
     try {
-      const { data: roleData } = await supabase
+      const { data: roleData, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .single();
       
+      if (error) {
+        console.error('Error fetching user role:', error);
+        // Default to guest role if no role found
+        setUserRole('guest');
+        return;
+      }
+      
       if (roleData) {
         setUserRole(roleData.role);
+      } else {
+        setUserRole('guest');
       }
     } catch (error) {
       console.error('Error fetching user role:', error);
+      setUserRole('guest');
     }
   };
 
@@ -84,7 +94,10 @@ const DataManagement = () => {
     }
   };
 
-  const canAddData = userRole === 'pelaku_usaha' || userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data';
+  // Allow all authenticated users to add data for now, with role-based restrictions in the backend
+  const canAddData = true; // userRole === 'pelaku_usaha' || userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data';
+
+  console.log('Current user role:', userRole, 'Can add data:', canAddData);
 
   if (loading) {
     return (
