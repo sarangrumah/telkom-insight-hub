@@ -39,8 +39,10 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   useEffect(() => {
     fetchMessages();
     markMessagesAsRead();
-    
-    // Set up real-time subscription
+  }, [ticketId, isAdmin]);
+
+  // Separate effect for real-time subscription
+  useEffect(() => {
     const channel = supabase
       .channel('ticket-messages')
       .on(
@@ -55,10 +57,15 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
           const newMessage = payload.new as TicketMessage;
           setMessages(prev => [...prev, newMessage]);
           
-          // Clear optimistic message if it's confirmed
-          if (optimisticMessage && newMessage.message === optimisticMessage.message) {
-            setOptimisticMessage(null);
-          }
+          // Clear optimistic message if it matches the new message
+          setOptimisticMessage(prevOptimistic => {
+            if (prevOptimistic && 
+                newMessage.message === prevOptimistic.message && 
+                newMessage.is_admin_message === prevOptimistic.is_admin_message) {
+              return null;
+            }
+            return prevOptimistic;
+          });
           
           if (!historyOpen && newMessage.is_admin_message !== isAdmin) {
             setUnreadCount(prev => prev + 1);
@@ -71,6 +78,17 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
       supabase.removeChannel(channel);
     };
   }, [ticketId, isAdmin, historyOpen]);
+
+  // Auto-clear optimistic message after timeout
+  useEffect(() => {
+    if (optimisticMessage) {
+      const timeout = setTimeout(() => {
+        setOptimisticMessage(null);
+      }, 10000); // Clear after 10 seconds
+
+      return () => clearTimeout(timeout);
+    }
+  }, [optimisticMessage]);
 
   const fetchMessages = async () => {
     const { data, error } = await supabase
