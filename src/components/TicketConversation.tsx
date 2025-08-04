@@ -33,6 +33,7 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [optimisticMessage, setOptimisticMessage] = useState<TicketMessage | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,8 +52,15 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
           filter: `ticket_id=eq.${ticketId}`
         },
         (payload) => {
-          setMessages(prev => [...prev, payload.new as TicketMessage]);
-          if (!historyOpen && payload.new.is_admin_message !== isAdmin) {
+          const newMessage = payload.new as TicketMessage;
+          setMessages(prev => [...prev, newMessage]);
+          
+          // Clear optimistic message if it's confirmed
+          if (optimisticMessage && newMessage.message === optimisticMessage.message) {
+            setOptimisticMessage(null);
+          }
+          
+          if (!historyOpen && newMessage.is_admin_message !== isAdmin) {
             setUnreadCount(prev => prev + 1);
           }
         }
@@ -100,17 +108,40 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
 
     setLoading(true);
     
+    // Create optimistic message for immediate feedback
+    const tempMessage: TicketMessage = {
+      id: 'temp-' + Date.now(),
+      ticket_id: ticketId,
+      user_id: '',
+      message: newMessage,
+      is_admin_message: isAdmin,
+      file_url: fileUrl || undefined,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    
+    // Show optimistic message immediately
+    setOptimisticMessage(tempMessage);
+    const currentMessage = newMessage;
+    const currentFile = fileUrl;
+    setNewMessage('');
+    setFileUrl('');
+    
     const { error } = await supabase
       .from('ticket_messages')
       .insert({
         ticket_id: ticketId,
         user_id: (await supabase.auth.getUser()).data.user?.id,
-        message: newMessage,
+        message: currentMessage,
         is_admin_message: isAdmin,
-        file_url: fileUrl || null
+        file_url: currentFile || null
       });
 
     if (error) {
+      // Restore message on error and clear optimistic
+      setNewMessage(currentMessage);
+      setFileUrl(currentFile);
+      setOptimisticMessage(null);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -118,18 +149,18 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
       });
       console.error('Error sending message:', error);
     } else {
-      setNewMessage('');
-      setFileUrl('');
       toast({
         title: "Message sent",
-        description: "Your message has been sent successfully",
+        description: isAdmin ? "Your admin response has been sent" : "Your message has been sent successfully",
       });
     }
     
     setLoading(false);
   };
 
-  const latestMessage = messages[messages.length - 1];
+  // Use optimistic message if available, otherwise latest actual message
+  const displayMessages = optimisticMessage ? [...messages, optimisticMessage] : messages;
+  const latestMessage = displayMessages[displayMessages.length - 1];
 
   return (
     <div className="space-y-4">
@@ -140,17 +171,22 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">Latest Message</CardTitle>
               <div className="flex items-center gap-2">
-                {latestMessage.is_admin_message ? (
-                  <Badge variant="secondary" className="text-xs">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Admin
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs">
-                    <User className="w-3 h-3 mr-1" />
-                    User
-                  </Badge>
-                )}
+                 {latestMessage.is_admin_message ? (
+                   <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                     <Shield className="w-3 h-3 mr-1" />
+                     Admin Response
+                   </Badge>
+                 ) : (
+                   <Badge variant="outline" className="text-xs">
+                     <User className="w-3 h-3 mr-1" />
+                     User
+                   </Badge>
+                 )}
+                 {optimisticMessage && latestMessage.id.startsWith('temp-') && (
+                   <Badge variant="secondary" className="text-xs">
+                     Sending...
+                   </Badge>
+                 )}
                 <span className="text-xs text-muted-foreground">
                   <Clock className="w-3 h-3 inline mr-1" />
                   {format(new Date(latestMessage.created_at), 'MMM dd, HH:mm')}
@@ -158,19 +194,21 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
               </div>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm text-foreground">{latestMessage.message}</p>
-            {latestMessage.file_url && (
-              <Button
-                variant="link"
-                size="sm"
-                className="p-0 h-auto mt-2"
-                onClick={() => window.open(latestMessage.file_url, '_blank')}
-              >
-                View Attachment
-              </Button>
-            )}
-          </CardContent>
+           <CardContent className={`pt-0 ${latestMessage.is_admin_message ? 'bg-primary/5 rounded-lg' : ''}`}>
+             <p className={`text-sm ${latestMessage.is_admin_message ? 'font-medium text-foreground' : 'text-foreground'}`}>
+               {latestMessage.message}
+             </p>
+             {latestMessage.file_url && (
+               <Button
+                 variant="link"
+                 size="sm"
+                 className="p-0 h-auto mt-2"
+                 onClick={() => window.open(latestMessage.file_url, '_blank')}
+               >
+                 View Attachment
+               </Button>
+             )}
+           </CardContent>
         </Card>
       )}
 
@@ -222,29 +260,34 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
             </Button>
           </CollapsibleTrigger>
           
-          <CollapsibleContent className="space-y-2 mt-4">
-            {messages.map((message) => (
+           <CollapsibleContent className="space-y-2 mt-4">
+             {displayMessages.map((message) => (
               <div
                 key={message.id}
-                className={`p-3 rounded-lg ${
-                  message.is_admin_message
-                    ? 'bg-primary/10 border-l-4 border-primary ml-8'
-                    : 'bg-muted mr-8'
-                }`}
+                 className={`p-3 rounded-lg ${
+                   message.is_admin_message
+                     ? 'bg-primary/10 border-l-4 border-primary ml-8 shadow-sm'
+                     : 'bg-muted mr-8'
+                 } ${message.id.startsWith('temp-') ? 'opacity-75' : ''}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {message.is_admin_message ? (
-                      <Badge variant="secondary" className="text-xs">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Admin
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs">
-                        <User className="w-3 h-3 mr-1" />
-                        User
-                      </Badge>
-                    )}
+                     {message.is_admin_message ? (
+                       <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                         <Shield className="w-3 h-3 mr-1" />
+                         Admin
+                       </Badge>
+                     ) : (
+                       <Badge variant="outline" className="text-xs">
+                         <User className="w-3 h-3 mr-1" />
+                         User
+                       </Badge>
+                     )}
+                     {message.id.startsWith('temp-') && (
+                       <Badge variant="secondary" className="text-xs ml-1">
+                         Sending...
+                       </Badge>
+                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(message.created_at), 'MMM dd, yyyy HH:mm')}
