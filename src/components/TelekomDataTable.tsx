@@ -145,23 +145,23 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handlePreview(item.file_url!)}
-                          className="h-7 px-2 text-xs"
+                          className="h-8 px-3 text-xs"
                         >
                           <Eye className="h-3 w-3 mr-1" />
                           Preview
                         </Button>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => handleDownload(item.file_url!)}
-                          className="h-7 px-2 text-xs"
+                          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                         >
-                          <Download className="h-3 w-3 mr-1" />
+                          <Download className="h-4 w-4 mr-1" />
                           Download
                         </Button>
                       </div>
