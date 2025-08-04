@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
-import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database } from "lucide-react";
+import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database, HelpCircle, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface DashboardProps {
@@ -117,10 +117,36 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
           <MapPin className="mr-2 h-4 w-4" />
           Data Map
         </Button>
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start"
+          onClick={() => window.location.href = '/faq'}
+        >
+          <HelpCircle className="mr-2 h-4 w-4" />
+          FAQ
+        </Button>
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start"
+          onClick={() => window.location.href = '/support'}
+        >
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Support
+        </Button>
         <Button variant="ghost" className="w-full justify-start">
           <Users className="mr-2 h-4 w-4" />
           User Management
         </Button>
+        {(userRole === 'super_admin' || userRole === 'internal_admin') && (
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start"
+            onClick={() => window.location.href = '/admin/faq'}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            FAQ Management
+          </Button>
+        )}
         <Button variant="ghost" className="w-full justify-start">
           <Settings className="mr-2 h-4 w-4" />
           Settings
