@@ -16,24 +16,19 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const acceptedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'image/png',
-    'image/jpeg',
-    'image/jpg'
-  ];
+  const acceptedTypes = ['application/pdf'];
 
   const maxFileSize = 10 * 1024 * 1024; // 10MB
 
   const uploadFile = async (file: File) => {
-    if (!acceptedTypes.includes(file.type)) {
+    // Validate file type (MIME type and extension)
+    const isValidMimeType = file.type === 'application/pdf';
+    const isValidExtension = file.name.toLowerCase().endsWith('.pdf');
+    
+    if (!isValidMimeType || !isValidExtension) {
       toast({
         title: "Error",
-        description: "File type not supported. Please upload PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, or JPEG files.",
+        description: "Only PDF files are allowed. Please upload a valid PDF file.",
         variant: "destructive",
       });
       return;
@@ -192,7 +187,7 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
           <div>
             <p className="text-sm font-medium">Click to upload or drag and drop</p>
             <p className="text-xs text-muted-foreground">
-              PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG (max 10MB)
+              PDF files only (max 10MB)
             </p>
           </div>
         </div>
