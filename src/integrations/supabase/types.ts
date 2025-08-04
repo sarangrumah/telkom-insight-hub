@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data_source: string | null
+          file_url: string | null
           id: string
           latitude: number | null
           license_date: string | null
@@ -130,6 +131,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_source?: string | null
+          file_url?: string | null
           id?: string
           latitude?: number | null
           license_date?: string | null
@@ -145,6 +147,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_source?: string | null
+          file_url?: string | null
           id?: string
           latitude?: number | null
           license_date?: string | null

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { Edit, Trash2, MoreHorizontal, File, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AddEditTelekomDataDialog } from "./AddEditTelekomDataDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
@@ -89,6 +89,7 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
               <TableHead>Region</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>License Date</TableHead>
+              <TableHead>File</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
@@ -103,6 +104,21 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
                 <TableCell>{getStatusBadge(item.status || 'active')}</TableCell>
                 <TableCell>
                   {item.license_date ? format(new Date(item.license_date), 'MMM dd, yyyy') : 'N/A'}
+                </TableCell>
+                <TableCell>
+                  {item.file_url ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(item.file_url!, '_blank')}
+                      className="flex items-center gap-1"
+                    >
+                      <File className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell>{format(new Date(item.created_at), 'MMM dd, yyyy')}</TableCell>
                 <TableCell>

@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { FileUpload } from "./FileUpload";
 import type { Database } from "@/integrations/supabase/types";
 
 type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
@@ -26,6 +27,7 @@ const formSchema = z.object({
   status: z.enum(["active", "inactive", "pending"]).default("active"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  file_url: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -58,6 +60,7 @@ export const AddEditTelekomDataDialog = ({
       status: "active",
       latitude: undefined,
       longitude: undefined,
+      file_url: "",
     },
   });
 
@@ -72,6 +75,7 @@ export const AddEditTelekomDataDialog = ({
         status: (data.status as "active" | "inactive" | "pending") || "active",
         latitude: data.latitude ? Number(data.latitude) : undefined,
         longitude: data.longitude ? Number(data.longitude) : undefined,
+        file_url: data.file_url || "",
       });
     } else {
       form.reset({
@@ -83,6 +87,7 @@ export const AddEditTelekomDataDialog = ({
         status: "active",
         latitude: undefined,
         longitude: undefined,
+        file_url: "",
       });
     }
   }, [data, form]);
@@ -109,6 +114,7 @@ export const AddEditTelekomDataDialog = ({
         license_date: values.license_date || null,
         license_number: values.license_number || null,
         region: values.region || null,
+        file_url: values.file_url || null,
       };
 
       if (data) {
@@ -316,6 +322,24 @@ export const AddEditTelekomDataDialog = ({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="file_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attachment (Optional)</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={loading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
