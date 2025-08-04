@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TicketConversation } from "@/components/TicketConversation";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -421,6 +422,12 @@ const AdminTickets = () => {
                                     </SelectContent>
                                   </Select>
                                 </div>
+                              </div>
+                              
+                              {/* Admin Conversation Component */}
+                              <div className="border-t pt-6">
+                                <h4 className="font-medium mb-4">Admin Response & Conversation</h4>
+                                <TicketConversation ticketId={ticket.id} isAdmin={true} />
                               </div>
                             </div>
                           </CardContent>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { TicketConversation } from "@/components/TicketConversation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -380,24 +381,32 @@ const Support = () => {
                       <Collapsible open={expandedTickets.has(ticket.id)}>
                         <CollapsibleContent>
                           <CardContent>
-                            <div className="space-y-4">
-                              <div>
-                                <h4 className="font-medium mb-2">Description</h4>
-                                <p className="text-muted-foreground whitespace-pre-wrap">{ticket.description}</p>
-                              </div>
-                              {ticket.file_url && (
+                            <div className="space-y-6">
+                              <div className="space-y-4">
                                 <div>
-                                  <h4 className="font-medium mb-2">Attachment</h4>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => downloadFile(ticket.file_url!)}
-                                  >
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download Document
-                                  </Button>
+                                  <h4 className="font-medium mb-2">Description</h4>
+                                  <p className="text-muted-foreground whitespace-pre-wrap">{ticket.description}</p>
                                 </div>
-                              )}
+                                {ticket.file_url && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Attachment</h4>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => downloadFile(ticket.file_url!)}
+                                    >
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Download Document
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Conversation Component */}
+                              <div className="border-t pt-6">
+                                <h4 className="font-medium mb-4">Conversation</h4>
+                                <TicketConversation ticketId={ticket.id} isAdmin={false} />
+                              </div>
                             </div>
                           </CardContent>
                         </CollapsibleContent>
