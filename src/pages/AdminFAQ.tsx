@@ -33,11 +33,13 @@ const AdminFAQ = () => {
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
   const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [editingCategory, setEditingCategory] = useState<FAQCategory | null>(null);
+  const [isEditFAQOpen, setIsEditFAQOpen] = useState(false);
+  const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false);
 
   const [newFAQ, setNewFAQ] = useState({
     question: "",
     answer: "",
-    category_id: "",
+    category_id: "none",
     is_active: true,
     file_url: null as string | null
   });
@@ -158,7 +160,7 @@ const AdminFAQ = () => {
         .insert({
           question: newFAQ.question.trim(),
           answer: newFAQ.answer.trim(),
-          category_id: newFAQ.category_id || null,
+          category_id: newFAQ.category_id === "none" ? null : newFAQ.category_id,
           is_active: newFAQ.is_active,
           file_url: newFAQ.file_url
         });
@@ -170,7 +172,7 @@ const AdminFAQ = () => {
         description: "FAQ created successfully",
       });
 
-      setNewFAQ({ question: "", answer: "", category_id: "", is_active: true, file_url: null });
+      setNewFAQ({ question: "", answer: "", category_id: "none", is_active: true, file_url: null });
       setIsCreateFAQOpen(false);
       fetchFAQs();
     } catch (error) {
@@ -271,6 +273,123 @@ const AdminFAQ = () => {
     }
   };
 
+  const updateFAQ = async () => {
+    if (!editingFAQ || !editingFAQ.question.trim() || !editingFAQ.answer.trim()) {
+      toast({
+        title: "Error",
+        description: "Question and answer are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('faqs')
+        .update({
+          question: editingFAQ.question.trim(),
+          answer: editingFAQ.answer.trim(),
+          category_id: editingFAQ.category_id === "none" ? null : editingFAQ.category_id,
+          is_active: editingFAQ.is_active,
+          file_url: editingFAQ.file_url
+        })
+        .eq('id', editingFAQ.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "FAQ updated successfully",
+      });
+
+      setEditingFAQ(null);
+      setIsEditFAQOpen(false);
+      fetchFAQs();
+    } catch (error) {
+      console.error('Error updating FAQ:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update FAQ",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateCategory = async () => {
+    if (!editingCategory || !editingCategory.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Category name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('faq_categories')
+        .update({
+          name: editingCategory.name.trim(),
+          description: editingCategory.description?.trim() || null
+        })
+        .eq('id', editingCategory.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Category updated successfully",
+      });
+
+      setEditingCategory(null);
+      setIsEditCategoryOpen(false);
+      fetchCategories();
+    } catch (error) {
+      console.error('Error updating category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    // Check if category has associated FAQs
+    const associatedFAQs = faqs.filter(faq => faq.category_id === categoryId);
+    if (associatedFAQs.length > 0) {
+      toast({
+        title: "Error", 
+        description: `Cannot delete category. It has ${associatedFAQs.length} associated FAQ(s).`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('faq_categories')
+        .delete()
+        .eq('id', categoryId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Category deleted successfully",
+      });
+
+      fetchCategories();
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return "General";
     const category = categories.find(cat => cat.id === categoryId);
@@ -362,7 +481,7 @@ const AdminFAQ = () => {
                             <SelectValue placeholder="Select a category (optional)" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No Category</SelectItem>
+                            <SelectItem value="none">No Category</SelectItem>
                             {categories.map((category) => (
                               <SelectItem key={category.id} value={category.id}>
                                 {category.name}
@@ -434,6 +553,19 @@ const AdminFAQ = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingFAQ({
+                                ...faq,
+                                category_id: faq.category_id || "none"
+                              });
+                              setIsEditFAQOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -532,6 +664,7 @@ const AdminFAQ = () => {
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -540,6 +673,41 @@ const AdminFAQ = () => {
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>{category.description || "No description"}</TableCell>
                       <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setIsEditCategoryOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Category</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this category? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteCategory(category.id)}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -548,6 +716,125 @@ const AdminFAQ = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit FAQ Dialog */}
+      <Dialog open={isEditFAQOpen} onOpenChange={setIsEditFAQOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit FAQ</DialogTitle>
+            <DialogDescription>
+              Update the frequently asked question
+            </DialogDescription>
+          </DialogHeader>
+          {editingFAQ && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-question">Question</Label>
+                <Input
+                  id="edit-question"
+                  placeholder="Enter the question"
+                  value={editingFAQ.question}
+                  onChange={(e) => setEditingFAQ({ ...editingFAQ, question: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-answer">Answer</Label>
+                <Textarea
+                  id="edit-answer"
+                  placeholder="Enter the answer"
+                  value={editingFAQ.answer}
+                  onChange={(e) => setEditingFAQ({ ...editingFAQ, answer: e.target.value })}
+                  rows={4}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-category">Category</Label>
+                <Select 
+                  value={editingFAQ.category_id || "none"} 
+                  onValueChange={(value) => setEditingFAQ({ ...editingFAQ, category_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Category</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-file">Document (optional)</Label>
+                <FileUpload
+                  value={editingFAQ.file_url}
+                  onChange={(fileUrl) => setEditingFAQ({ ...editingFAQ, file_url: fileUrl })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Upload a PDF document for users to download
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-is_active"
+                  checked={editingFAQ.is_active}
+                  onCheckedChange={(checked) => setEditingFAQ({ ...editingFAQ, is_active: checked })}
+                />
+                <Label htmlFor="edit-is_active">Active</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditFAQOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={updateFAQ}>Update FAQ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={isEditCategoryOpen} onOpenChange={setIsEditCategoryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Category</DialogTitle>
+            <DialogDescription>
+              Update the FAQ category
+            </DialogDescription>
+          </DialogHeader>
+          {editingCategory && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-category-name">Name</Label>
+                <Input
+                  id="edit-category-name"
+                  placeholder="Category name"
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-category-description">Description</Label>
+                <Textarea
+                  id="edit-category-description"
+                  placeholder="Category description (optional)"
+                  value={editingCategory.description || ""}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditCategoryOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={updateCategory}>Update Category</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
