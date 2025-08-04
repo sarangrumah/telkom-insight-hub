@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
-import { BarChart3, Users, MapPin, Settings, LogOut, Menu } from "lucide-react";
+import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface DashboardProps {
@@ -104,6 +104,14 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
         <Button variant="ghost" className="w-full justify-start">
           <BarChart3 className="mr-2 h-4 w-4" />
           Dashboard
+        </Button>
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start"
+          onClick={() => window.location.href = '/data-management'}
+        >
+          <Database className="mr-2 h-4 w-4" />
+          Data Management
         </Button>
         <Button variant="ghost" className="w-full justify-start">
           <MapPin className="mr-2 h-4 w-4" />
