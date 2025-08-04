@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
 import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database, HelpCircle, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 
 interface DashboardProps {
   user: User;
@@ -20,6 +21,7 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
   const [telkomData, setTelkomData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { counts } = useUnreadTicketCount();
 
   useEffect(() => {
     fetchUserData();
@@ -132,6 +134,11 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
         >
           <MessageSquare className="mr-2 h-4 w-4" />
           Support
+          {counts.userTickets > 0 && (
+            <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
+              {counts.userTickets}
+            </Badge>
+          )}
         </Button>
         <Button variant="ghost" className="w-full justify-start">
           <Users className="mr-2 h-4 w-4" />
@@ -154,6 +161,11 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
             >
               <MessageSquare className="mr-2 h-4 w-4" />
               Ticket Management
+              {counts.adminTickets > 0 && (
+                <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
+                  {counts.adminTickets}
+                </Badge>
+              )}
             </Button>
           </>
         )}

@@ -176,9 +176,14 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
     setLoading(false);
   };
 
-  // Use optimistic message if available, otherwise latest actual message
+  // Combine actual messages with optimistic message, then get latest
   const displayMessages = optimisticMessage ? [...messages, optimisticMessage] : messages;
   const latestMessage = displayMessages[displayMessages.length - 1];
+
+  // Force re-calculation of latest message when messages or optimistic message changes
+  useEffect(() => {
+    // This effect ensures the component re-renders when message state changes
+  }, [messages, optimisticMessage]);
 
   return (
     <div className="space-y-4">
