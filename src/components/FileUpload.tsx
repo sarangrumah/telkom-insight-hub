@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { Upload, File, X, Download } from 'lucide-react';
+import { Upload, File, X, Download, CheckCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,7 +13,10 @@ interface FileUploadProps {
 
 export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [fileInfo, setFileInfo] = useState<{ name: string; size: number; uploadedAt: Date } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -44,6 +48,8 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
     }
 
     setUploading(true);
+    setUploadProgress(0);
+    setUploadSuccess(false);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -51,9 +57,13 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
         throw new Error('User not authenticated');
       }
 
+      setUploadProgress(25);
+
       const timestamp = new Date().getTime();
       const fileName = `${timestamp}-${file.name}`;
       const filePath = `${user.id}/telekom-data/${fileName}`;
+
+      setUploadProgress(50);
 
       const { data, error } = await supabase.storage
         .from('documents')
@@ -63,20 +73,34 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
         throw error;
       }
 
+      setUploadProgress(75);
+
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(data.path);
 
+      setUploadProgress(100);
+      
+      // Store file info for display
+      setFileInfo({
+        name: file.name,
+        size: file.size,
+        uploadedAt: new Date()
+      });
+
       onChange(publicUrl);
+      setUploadSuccess(true);
+      
       toast({
         title: "Success",
-        description: "File uploaded successfully!",
+        description: `${file.name} uploaded successfully!`,
       });
     } catch (error) {
       console.error('Error uploading file:', error);
+      setUploadProgress(0);
       toast({
-        title: "Error",
-        description: "Failed to upload file. Please try again.",
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload file. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -113,6 +137,17 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
 
   const removeFile = () => {
     onChange(null);
+    setFileInfo(null);
+    setUploadSuccess(false);
+    setUploadProgress(0);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const downloadFile = () => {
@@ -129,27 +164,52 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
 
   if (value) {
     return (
-      <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-        <File className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm flex-1 truncate">{getFileName(value)}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={downloadFile}
-          disabled={disabled}
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={removeFile}
-          disabled={disabled}
-        >
-          <X className="h-4 w-4" />
-        </Button>
+      <div className="space-y-3">
+        {uploadSuccess && (
+          <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-700 font-medium">File uploaded successfully!</span>
+          </div>
+        )}
+        
+        <div className="flex items-center gap-3 p-4 border rounded-md bg-muted/50">
+          <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-md">
+            <FileText className="h-5 w-5 text-red-600" />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{getFileName(value)}</p>
+            {fileInfo && (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>Size: {formatFileSize(fileInfo.size)}</p>
+                <p>Uploaded: {fileInfo.uploadedAt.toLocaleString()}</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={downloadFile}
+              disabled={disabled}
+              className="flex items-center gap-1"
+            >
+              <Download className="h-3 w-3" />
+              Download
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={removeFile}
+              disabled={disabled}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -177,14 +237,22 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
       />
       
       {uploading ? (
-        <div className="flex flex-col items-center gap-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <p className="text-sm text-muted-foreground">Uploading...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-full">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-sm font-medium">Uploading PDF...</p>
+            <Progress value={uploadProgress} className="w-48" />
+            <p className="text-xs text-muted-foreground">{uploadProgress}% complete</p>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2">
-          <Upload className="h-8 w-8 text-muted-foreground" />
-          <div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center justify-center w-12 h-12 bg-muted rounded-full">
+            <Upload className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <div className="text-center">
             <p className="text-sm font-medium">Click to upload or drag and drop</p>
             <p className="text-xs text-muted-foreground">
               PDF files only (max 10MB)

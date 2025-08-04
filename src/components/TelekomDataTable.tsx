@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, MoreHorizontal, File, Download } from "lucide-react";
+import { Edit, Trash2, MoreHorizontal, File, Download, Eye, FileText, Calendar } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AddEditTelekomDataDialog } from "./AddEditTelekomDataDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { PDFPreviewModal } from "./PDFPreviewModal";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -21,6 +22,7 @@ interface TelekomDataTableProps {
 export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: TelekomDataTableProps) => {
   const [editingData, setEditingData] = useState<TelekomData | null>(null);
   const [deletingData, setDeletingData] = useState<TelekomData | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
 
   const canEdit = (item: TelekomData) => {
     if (userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data') {
@@ -68,6 +70,21 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
     );
   };
 
+  const getFileName = (url: string) => {
+    const parts = url.split('/');
+    const fileName = parts[parts.length - 1];
+    return fileName.split('-').slice(1).join('-'); // Remove timestamp prefix
+  };
+
+  const handlePreview = (fileUrl: string) => {
+    const fileName = getFileName(fileUrl);
+    setPreviewFile({ url: fileUrl, name: fileName });
+  };
+
+  const handleDownload = (fileUrl: string) => {
+    window.open(fileUrl, '_blank');
+  };
+
   if (data.length === 0) {
     return (
       <div className="text-center py-12">
@@ -89,7 +106,7 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
               <TableHead>Region</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>License Date</TableHead>
-              <TableHead>File</TableHead>
+              <TableHead>Document</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
@@ -107,17 +124,55 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
                 </TableCell>
                 <TableCell>
                   {item.file_url ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(item.file_url!, '_blank')}
-                      className="flex items-center gap-1"
-                    >
-                      <File className="h-4 w-4" />
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-8 h-8 bg-red-50 rounded-md">
+                          <FileText className="h-4 w-4 text-red-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate max-w-[120px]">
+                            {getFileName(item.file_url)}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <File className="h-3 w-3" />
+                              PDF Document
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(item.created_at), 'MMM dd')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePreview(item.file_url!)}
+                          className="h-7 px-2 text-xs"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Preview
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(item.file_url!)}
+                          className="h-7 px-2 text-xs"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
-                    "-"
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="flex items-center justify-center w-8 h-8 bg-muted rounded-md">
+                        <File className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm">No document</span>
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>{format(new Date(item.created_at), 'MMM dd, yyyy')}</TableCell>
@@ -169,6 +224,13 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
           setDeletingData(null);
           onDataChange();
         }}
+      />
+
+      <PDFPreviewModal
+        open={!!previewFile}
+        onOpenChange={(open) => !open && setPreviewFile(null)}
+        fileUrl={previewFile?.url || ""}
+        fileName={previewFile?.name || ""}
       />
     </>
   );
