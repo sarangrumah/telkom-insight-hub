@@ -138,14 +138,24 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
           User Management
         </Button>
         {(userRole === 'super_admin' || userRole === 'internal_admin') && (
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start"
-            onClick={() => window.location.href = '/admin/faq'}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            FAQ Management
-          </Button>
+          <>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start"
+              onClick={() => window.location.href = '/admin/faq'}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              FAQ Management
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start"
+              onClick={() => window.location.href = '/admin/tickets'}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Ticket Management
+            </Button>
+          </>
         )}
         <Button variant="ghost" className="w-full justify-start">
           <Settings className="mr-2 h-4 w-4" />

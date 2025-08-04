@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { FileUpload } from "@/components/FileUpload";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -38,7 +39,7 @@ const AdminFAQ = () => {
     answer: "",
     category_id: "",
     is_active: true,
-    file_url: ""
+    file_url: null as string | null
   });
 
   const [newCategory, setNewCategory] = useState({
@@ -159,7 +160,7 @@ const AdminFAQ = () => {
           answer: newFAQ.answer.trim(),
           category_id: newFAQ.category_id || null,
           is_active: newFAQ.is_active,
-          file_url: newFAQ.file_url.trim() || null
+          file_url: newFAQ.file_url
         });
 
       if (error) throw error;
@@ -169,7 +170,7 @@ const AdminFAQ = () => {
         description: "FAQ created successfully",
       });
 
-      setNewFAQ({ question: "", answer: "", category_id: "", is_active: true, file_url: "" });
+      setNewFAQ({ question: "", answer: "", category_id: "", is_active: true, file_url: null });
       setIsCreateFAQOpen(false);
       fetchFAQs();
     } catch (error) {
@@ -371,13 +372,14 @@ const AdminFAQ = () => {
                         </Select>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="file_url">File URL (optional)</Label>
-                        <Input
-                          id="file_url"
-                          placeholder="https://example.com/document.pdf"
+                        <Label htmlFor="file">Document (optional)</Label>
+                        <FileUpload
                           value={newFAQ.file_url}
-                          onChange={(e) => setNewFAQ({ ...newFAQ, file_url: e.target.value })}
+                          onChange={(fileUrl) => setNewFAQ({ ...newFAQ, file_url: fileUrl })}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Optional: Upload a PDF document for users to download
+                        </p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Switch

@@ -8,6 +8,7 @@ import DataManagement from "./pages/DataManagement";
 import FAQ from "./pages/FAQ";
 import Support from "./pages/Support";
 import AdminFAQ from "./pages/AdminFAQ";
+import AdminTickets from "./pages/AdminTickets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/faq" element={<FAQ />} />
           <Route path="/support" element={<Support />} />
           <Route path="/admin/faq" element={<AdminFAQ />} />
+          <Route path="/admin/tickets" element={<AdminTickets />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

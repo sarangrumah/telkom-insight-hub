@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, FileText, ArrowLeft } from "lucide-react";
+import { Search, FileText, ArrowLeft, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/useAuth";
@@ -199,15 +199,14 @@ const FAQ = () => {
                       <p className="text-muted-foreground whitespace-pre-wrap">{faq.answer}</p>
                       {faq.file_url && (
                         <div>
-                          <a
-                            href={faq.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-primary hover:underline"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(faq.file_url, '_blank')}
                           >
-                            <FileText className="mr-2 h-4 w-4" />
-                            View Related Document
-                          </a>
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Document
+                          </Button>
                         </div>
                       )}
                     </div>
