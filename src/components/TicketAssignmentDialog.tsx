@@ -47,7 +47,7 @@ export function TicketAssignmentDialog({
   const { toast } = useToast();
   
   const [adminUsers, setAdminUsers] = useState<Profile[]>([]);
-  const [selectedAssignee, setSelectedAssignee] = useState(currentAssignee || "");
+  const [selectedAssignee, setSelectedAssignee] = useState(currentAssignee || "unassigned");
   const [notes, setNotes] = useState("");
   const [assignmentHistory, setAssignmentHistory] = useState<AssignmentHistory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export function TicketAssignmentDialog({
     if (open) {
       fetchAdminUsers();
       fetchAssignmentHistory();
-      setSelectedAssignee(currentAssignee || "");
+      setSelectedAssignee(currentAssignee || "unassigned");
     }
   }, [open, ticketId, currentAssignee]);
 
@@ -131,8 +131,8 @@ export function TicketAssignmentDialog({
 
     setLoading(true);
     try {
-      // If unassigning (selectedAssignee is empty)
-      if (!selectedAssignee && currentAssignee) {
+      // If unassigning (selectedAssignee is "unassigned")
+      if (selectedAssignee === "unassigned" && currentAssignee) {
         // Update current assignment as unassigned
         const { error: unassignError } = await supabase
           .from('ticket_assignments')
@@ -161,7 +161,7 @@ export function TicketAssignmentDialog({
         });
       } 
       // If assigning to someone new
-      else if (selectedAssignee) {
+      else if (selectedAssignee && selectedAssignee !== "unassigned") {
         // If there's a current assignee, mark their assignment as ended
         if (currentAssignee && currentAssignee !== selectedAssignee) {
           await supabase
@@ -279,7 +279,7 @@ export function TicketAssignmentDialog({
                   <SelectValue placeholder="Select an admin user" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {adminUsers.map((admin) => (
                     <SelectItem key={admin.user_id} value={admin.user_id}>
                       {admin.full_name}
