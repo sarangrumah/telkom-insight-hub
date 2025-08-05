@@ -8,19 +8,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { MapPin, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { SERVICE_TYPE_HIERARCHY, getSubServices } from '@/constants/serviceTypes';
+import { fetchServices, fetchSubServices, getSubServicesForService, type Service, type SubService } from '@/constants/serviceTypes';
 
 type TelekomData = {
   id: string;
   company_name: string;
-  service_type: string;
-  sub_service_type: string | null;
+  sub_service_id: string | null;
   status: string;
   region: string;
   latitude: number;
   longitude: number;
   license_date: string;
   license_number: string;
+  sub_service?: {
+    id: string;
+    name: string;
+    service: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  } | null;
 };
 
 const DataMap = () => {
@@ -29,7 +37,9 @@ const DataMap = () => {
   const [data, setData] = useState<TelekomData[]>([]);
   const [filteredData, setFilteredData] = useState<TelekomData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
+  const [services, setServices] = useState<Service[]>([]);
+  const [subServices, setSubServices] = useState<SubService[]>([]);
+  const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [subServiceFilter, setSubServiceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [mapboxToken, setMapboxToken] = useState<string>('');
@@ -49,7 +59,7 @@ const DataMap = () => {
   useEffect(() => {
     const initializeApp = async () => {
       setLoading(true);
-      await fetchData();
+      await Promise.all([fetchData(), loadServices()]);
       
       // Try to get token from Supabase first
       const token = await fetchMapboxToken();
@@ -64,7 +74,7 @@ const DataMap = () => {
 
   useEffect(() => {
     filterData();
-  }, [data, serviceTypeFilter, subServiceFilter, statusFilter]);
+  }, [data, serviceFilter, subServiceFilter, statusFilter]);
 
   useEffect(() => {
     if (data.length > 0 && mapboxToken && !map.current) {
@@ -78,11 +88,43 @@ const DataMap = () => {
     }
   }, [filteredData]);
 
+  const loadServices = async () => {
+    try {
+      const [servicesData, subServicesData] = await Promise.all([
+        fetchServices(),
+        fetchSubServices()
+      ]);
+      setServices(servicesData);
+      setSubServices(subServicesData);
+    } catch (error) {
+      console.error('Error loading services:', error);
+    }
+  };
+
   const fetchData = async () => {
     try {
       const { data: telekomData, error } = await supabase
         .from('telekom_data')
-        .select('id, company_name, service_type, sub_service_type, status, region, latitude, longitude, license_date, license_number')
+        .select(`
+          id, 
+          company_name, 
+          sub_service_id, 
+          status, 
+          region, 
+          latitude, 
+          longitude, 
+          license_date, 
+          license_number,
+          sub_service:sub_services(
+            id,
+            name,
+            service:services(
+              id,
+              name,
+              code
+            )
+          )
+        `)
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
 
@@ -101,12 +143,14 @@ const DataMap = () => {
   const filterData = () => {
     let filtered = data;
     
-    if (serviceTypeFilter !== 'all') {
-      filtered = filtered.filter(item => item.service_type === serviceTypeFilter);
+    if (serviceFilter !== 'all') {
+      filtered = filtered.filter(item => 
+        item.sub_service?.service?.id === serviceFilter
+      );
     }
     
     if (subServiceFilter !== 'all') {
-      filtered = filtered.filter(item => item.sub_service_type === subServiceFilter);
+      filtered = filtered.filter(item => item.sub_service_id === subServiceFilter);
     }
     
     if (statusFilter !== 'all') {
@@ -131,8 +175,9 @@ const DataMap = () => {
         properties: {
           id: item.id,
           company_name: item.company_name,
-          service_type: item.service_type,
-          sub_service_type: item.sub_service_type,
+          service_type: item.sub_service?.service?.code || 'unknown',
+          service_name: item.sub_service?.service?.name || 'Unknown Service',
+          sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
           status: item.status,
           region: item.region,
           license_date: item.license_date,
@@ -178,8 +223,9 @@ const DataMap = () => {
           properties: {
             id: item.id,
             company_name: item.company_name,
-            service_type: item.service_type,
-            sub_service_type: item.sub_service_type,
+            service_type: item.sub_service?.service?.code || 'unknown',
+            service_name: item.sub_service?.service?.name || 'Unknown Service',
+            sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
             status: item.status,
             region: item.region,
             license_date: item.license_date,
@@ -225,8 +271,8 @@ const DataMap = () => {
         .setHTML(`
           <div class="p-2">
             <h3 class="font-semibold">${properties.company_name}</h3>
-            <p class="text-sm text-gray-600">Service: ${properties.service_type}</p>
-            ${properties.sub_service_type ? `<p class="text-sm text-gray-600">Sub-service: ${properties.sub_service_type}</p>` : ''}
+            <p class="text-sm text-gray-600">Service: ${properties.service_name}</p>
+            <p class="text-sm text-gray-600">Sub-service: ${properties.sub_service_name}</p>
             <p class="text-sm text-gray-600">Status: ${properties.status}</p>
             <p class="text-sm text-gray-600">Region: ${properties.region}</p>
             ${properties.license_number ? `<p class="text-sm text-gray-600">License: ${properties.license_number}</p>` : ''}
@@ -245,17 +291,17 @@ const DataMap = () => {
   };
 
   const clearFilters = () => {
-    setServiceTypeFilter('all');
+    setServiceFilter('all');
     setSubServiceFilter('all');
     setStatusFilter('all');
   };
 
-  const availableSubServices = serviceTypeFilter === 'all' 
+  const availableSubServices = serviceFilter === 'all' 
     ? [] 
-    : getSubServices(serviceTypeFilter);
+    : subServices.filter(ss => ss.service_id === serviceFilter);
 
-  const handleServiceTypeChange = (value: string) => {
-    setServiceTypeFilter(value);
+  const handleServiceChange = (value: string) => {
+    setServiceFilter(value);
     setSubServiceFilter('all'); // Reset sub-service filter when main service changes
   };
 
@@ -326,17 +372,15 @@ const DataMap = () => {
             <span className="text-sm font-medium">Filters:</span>
           </div>
           
-          <Select value={serviceTypeFilter} onValueChange={handleServiceTypeChange}>
+          <Select value={serviceFilter} onValueChange={handleServiceChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Main Service Type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Main Services</SelectItem>
-              {Object.keys(SERVICE_TYPE_HIERARCHY).map((serviceType) => (
-                <SelectItem key={serviceType} value={serviceType}>
-                  {serviceType === 'jasa' ? 'JASA' : 
-                   serviceType === 'jaringan' ? 'JARINGAN' : 
-                   'TELEKOMUNIKASI KHUSUS'}
+              {services.map((service) => (
+                <SelectItem key={service.id} value={service.id}>
+                  {service.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -345,7 +389,7 @@ const DataMap = () => {
           <Select 
             value={subServiceFilter} 
             onValueChange={setSubServiceFilter}
-            disabled={serviceTypeFilter === 'all'}
+            disabled={serviceFilter === 'all'}
           >
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Sub Service Type" />
@@ -353,8 +397,8 @@ const DataMap = () => {
             <SelectContent>
               <SelectItem value="all">All Sub Services</SelectItem>
               {availableSubServices.map((subService) => (
-                <SelectItem key={subService} value={subService}>
-                  {subService.length > 50 ? `${subService.substring(0, 50)}...` : subService}
+                <SelectItem key={subService.id} value={subService.id}>
+                  {subService.name.length > 50 ? `${subService.name.substring(0, 50)}...` : subService.name}
                 </SelectItem>
               ))}
             </SelectContent>

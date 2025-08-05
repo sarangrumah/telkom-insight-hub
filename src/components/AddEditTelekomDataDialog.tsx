@@ -12,15 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { FileUpload } from "./FileUpload";
 import type { Database } from "@/integrations/supabase/types";
-import { getSubServices } from "@/constants/serviceTypes";
+import { fetchServices, fetchSubServices, getSubServicesForService, type Service, type SubService } from "@/constants/serviceTypes";
 
 type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
 type TelekomDataInsert = Database["public"]["Tables"]["telekom_data"]["Insert"];
 
 const formSchema = z.object({
   company_name: z.string().min(1, "Company name is required"),
-  service_type: z.enum(["jasa", "jaringan", "telekomunikasi_khusus", "isr", "tarif", "sklo", "lko"]),
-  sub_service_type: z.string().optional(),
+  sub_service_id: z.string().min(1, "Sub-service is required"),
   license_number: z.string().optional(),
   license_date: z.string().optional(),
   region: z.string().optional(),
@@ -48,15 +47,16 @@ export const AddEditTelekomDataDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [selectedServiceType, setSelectedServiceType] = useState<string>("");
-  const [availableSubServices, setAvailableSubServices] = useState<readonly string[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [subServices, setSubServices] = useState<SubService[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
+  const [availableSubServices, setAvailableSubServices] = useState<SubService[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       company_name: "",
-      service_type: "jasa",
-      sub_service_type: "",
+      sub_service_id: "",
       license_number: "",
       license_date: "",
       region: "",
@@ -68,15 +68,28 @@ export const AddEditTelekomDataDialog = ({
   });
 
   useEffect(() => {
-    if (data) {
-      const serviceType = data.service_type as "jasa" | "jaringan" | "telekomunikasi_khusus" | "isr" | "tarif" | "sklo" | "lko";
-      setSelectedServiceType(serviceType);
-      setAvailableSubServices(getSubServices(serviceType));
+    const loadData = async () => {
+      const [servicesData, subServicesData] = await Promise.all([
+        fetchServices(),
+        fetchSubServices()
+      ]);
+      setServices(servicesData);
+      setSubServices(subServicesData);
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (data && subServices.length > 0) {
+      const subService = subServices.find(ss => ss.id === data.sub_service_id);
+      if (subService) {
+        setSelectedServiceId(subService.service_id);
+        setAvailableSubServices(subServices.filter(ss => ss.service_id === subService.service_id));
+      }
       
       form.reset({
         company_name: data.company_name,
-        service_type: serviceType,
-        sub_service_type: data.sub_service_type || "",
+        sub_service_id: data.sub_service_id || "",
         license_number: data.license_number || "",
         license_date: data.license_date || "",
         region: data.region || "",
@@ -85,14 +98,10 @@ export const AddEditTelekomDataDialog = ({
         longitude: data.longitude ? Number(data.longitude) : undefined,
         file_url: data.file_url || "",
       });
-    } else {
-      setSelectedServiceType("jasa");
-      setAvailableSubServices(getSubServices("jasa"));
-      
+    } else if (!data) {
       form.reset({
         company_name: "",
-        service_type: "jasa",
-        sub_service_type: "",
+        sub_service_id: "",
         license_number: "",
         license_date: "",
         region: "",
@@ -101,8 +110,10 @@ export const AddEditTelekomDataDialog = ({
         longitude: undefined,
         file_url: "",
       });
+      setSelectedServiceId("");
+      setAvailableSubServices([]);
     }
-  }, [data, form]);
+  }, [data, form, subServices]);
 
   const onSubmit = async (values: FormData) => {
     if (!user?.id) {
@@ -116,10 +127,14 @@ export const AddEditTelekomDataDialog = ({
 
     setLoading(true);
     try {
+      // Find the selected sub-service to get the main service for backwards compatibility
+      const selectedSubService = subServices.find(ss => ss.id === values.sub_service_id);
+      
       const submitData: TelekomDataInsert = {
         company_name: values.company_name,
-        service_type: values.service_type,
-        sub_service_type: values.sub_service_type || null,
+        sub_service_id: values.sub_service_id,
+        service_type: selectedSubService?.service?.code as any || 'jasa', // Keep for backwards compatibility
+        sub_service_type: selectedSubService?.name || null, // Keep for backwards compatibility
         status: values.status,
         created_by: user.id,
         latitude: values.latitude || null,
@@ -205,29 +220,28 @@ export const AddEditTelekomDataDialog = ({
 
               <FormField
                 control={form.control}
-                name="service_type"
-                render={({ field }) => (
+                name="company_name"
+                render={() => (
                   <FormItem>
-                    <FormLabel>Service Type *</FormLabel>
-                    <Select onValueChange={(value) => {
-                      field.onChange(value);
-                      setSelectedServiceType(value);
-                      setAvailableSubServices(getSubServices(value));
-                      form.setValue("sub_service_type", ""); // Reset sub-service when main service changes
-                    }} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select service type" />
-                        </SelectTrigger>
-                      </FormControl>
+                    <FormLabel>Main Service Type *</FormLabel>
+                    <Select 
+                      value={selectedServiceId} 
+                      onValueChange={(value) => {
+                        setSelectedServiceId(value);
+                        const filtered = subServices.filter(ss => ss.service_id === value);
+                        setAvailableSubServices(filtered);
+                        form.setValue("sub_service_id", ""); // Reset sub-service when main service changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select main service type" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="jasa">Jasa</SelectItem>
-                        <SelectItem value="jaringan">Jaringan</SelectItem>
-                        <SelectItem value="telekomunikasi_khusus">Telekomunikasi Khusus</SelectItem>
-                        <SelectItem value="isr">ISR</SelectItem>
-                        <SelectItem value="tarif">Tarif</SelectItem>
-                        <SelectItem value="sklo">SKLO</SelectItem>
-                        <SelectItem value="lko">LKO</SelectItem>
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -239,10 +253,10 @@ export const AddEditTelekomDataDialog = ({
                 <div className="md:col-span-2">
                   <FormField
                     control={form.control}
-                    name="sub_service_type"
+                    name="sub_service_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sub Service Type</FormLabel>
+                        <FormLabel>Sub Service Type *</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -251,8 +265,8 @@ export const AddEditTelekomDataDialog = ({
                           </FormControl>
                           <SelectContent className="max-h-60">
                             {availableSubServices.map((subService) => (
-                              <SelectItem key={subService} value={subService}>
-                                {subService}
+                              <SelectItem key={subService.id} value={subService.id}>
+                                {subService.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

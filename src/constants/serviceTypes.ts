@@ -1,62 +1,101 @@
-// Service type hierarchy mapping
-export const SERVICE_TYPE_HIERARCHY = {
-  JASA: [
-    'Sertifikat Penyelenggaraan Jasa Panggilan Terkelola (Calling Card)',
-    'Sertifikat Penyelenggaraan Jasa Konten SMS Premium',
-    'Izin Penyelenggaraan Jasa teleponi dasar melalui jaringan telekomunikasi',
-    'Izin Penyelenggaraan Jasa Pusat Panggilan Informasi (Call Center)',
-    'Izin Penyelenggaraan Jasa Gerbang Akses Internet (Network Access Point/NAP)',
-    'Izin Penyelenggaraan Jasa Televisi Protokol Internet (Internet Protocol Television/IPTV)',
-    'Izin Penyelenggaraan Jasa Sistem Komunikasi Data',
-    'Izin Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    'Izin Penyelenggaraan Jasa Internet Teleponi untuk Keperluan Publik (ITKP)',
-    'Izin Penyelenggaraan Jasa teleponi dasar melalui satelit yang telah memperoleh Hak Labuh (Landing Right)',
-    'Sertifikat Penyelenggaraan Jasa Panggilan Premium (Premium Call)'
-  ],
-  JARINGAN: [
-    'Izin Penyelenggaraan Jaringan Tetap Tertutup melalui Media Fiber Optik Terestrial',
-    'Izin Penyelenggaraan Jaringan Tetap Tertutup melalui Media Satelit',
-    'Izin Penyelenggaraan Jaringan Tetap Tertutup melalui Media Fiber Optik Sistem Komunikasi Kabel Laut (SKKL)',
-    'Izin Penyelenggaraan Jaringan Tetap Lokal Berbasis Packet Switched melalui Media Fiber Optik',
-    'Izin Penyelenggaraan Jaringan Tetap Tertutup melalui Media VSAT',
-    'Izin Penyelenggaraan Jaringan Bergerak Satelit',
-    'Izin Penyelenggaraan Jaringan Tetap Tertutup melalui Media Microwave (MW) Link',
-    'Izin Penyelenggaraan Jaringan Tetap Lokal Berbasis Packet Switched melalui Media Non-Kabel (BWA)',
-    'Izin Penyelenggaraan Jaringan Bergerak Terestrial Radio Trunking',
-    'Izin Penyelenggaraan Jaringan Tetap Lokal Berbasis Circuit Switched melalui Media Fiber Optik'
-  ],
-  TELEKOMUNIKASI_KHUSUS: [
-    'Izin Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Sendiri'
-  ]
-} as const;
+import { supabase } from "@/integrations/supabase/client";
 
-// Get sub-services for a main service type
-export const getSubServices = (serviceType: string): readonly string[] => {
-  switch (serviceType.toUpperCase()) {
-    case 'JASA':
-      return SERVICE_TYPE_HIERARCHY.JASA;
-    case 'JARINGAN':
-      return SERVICE_TYPE_HIERARCHY.JARINGAN;
-    case 'TELEKOMUNIKASI_KHUSUS':
-      return SERVICE_TYPE_HIERARCHY.TELEKOMUNIKASI_KHUSUS;
-    default:
-      return [];
+// Types for the new database structure
+export interface Service {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+}
+
+export interface SubService {
+  id: string;
+  service_id: string;
+  name: string;
+  code: string;
+  description?: string;
+  service?: Service;
+}
+
+// Cache for services and sub-services
+let servicesCache: Service[] | null = null;
+let subServicesCache: SubService[] | null = null;
+
+// Fetch all services from database
+export async function fetchServices(): Promise<Service[]> {
+  if (servicesCache) return servicesCache;
+  
+  const { data, error } = await supabase
+    .from('services')
+    .select('*')
+    .order('name');
+    
+  if (error) {
+    console.error('Error fetching services:', error);
+    return [];
   }
-};
+  
+  servicesCache = data || [];
+  return servicesCache;
+}
 
-// Get main service type from sub-service
-export const getMainServiceType = (subService: string): string => {
-  for (const [mainType, subServices] of Object.entries(SERVICE_TYPE_HIERARCHY)) {
-    if ((subServices as readonly string[]).includes(subService)) {
-      return mainType.toLowerCase();
-    }
+// Fetch all sub-services from database
+export async function fetchSubServices(): Promise<SubService[]> {
+  if (subServicesCache) return subServicesCache;
+  
+  const { data, error } = await supabase
+    .from('sub_services')
+    .select(`
+      *,
+      service:services(*)
+    `)
+    .order('name');
+    
+  if (error) {
+    console.error('Error fetching sub-services:', error);
+    return [];
   }
-  return '';
-};
+  
+  subServicesCache = data || [];
+  return subServicesCache;
+}
 
-// All sub-services flattened
-export const ALL_SUB_SERVICES = [
-  ...SERVICE_TYPE_HIERARCHY.JASA,
-  ...SERVICE_TYPE_HIERARCHY.JARINGAN,
-  ...SERVICE_TYPE_HIERARCHY.TELEKOMUNIKASI_KHUSUS
-];
+// Get sub-services for a specific service
+export async function getSubServicesForService(serviceId: string): Promise<SubService[]> {
+  const { data, error } = await supabase
+    .from('sub_services')
+    .select('*')
+    .eq('service_id', serviceId)
+    .order('name');
+    
+  if (error) {
+    console.error('Error fetching sub-services for service:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+// Clear cache (useful for refreshing data)
+export function clearServiceCache() {
+  servicesCache = null;
+  subServicesCache = null;
+}
+
+// Helper function to get service by code
+export async function getServiceByCode(code: string): Promise<Service | null> {
+  const services = await fetchServices();
+  return services.find(s => s.code === code) || null;
+}
+
+// Helper function to get sub-service by ID
+export async function getSubServiceById(id: string): Promise<SubService | null> {
+  const subServices = await fetchSubServices();
+  return subServices.find(ss => ss.id === id) || null;
+}
+
+// Legacy function for backward compatibility - now loads from database
+export const getSubServices = async (serviceCode: string): Promise<string[]> => {
+  const subServices = await getSubServicesForService(serviceCode);
+  return subServices.map(ss => ss.name);
+};

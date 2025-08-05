@@ -109,6 +109,71 @@ export type Database = {
         }
         Relationships: []
       }
+      services: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sub_services: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telekom_data: {
         Row: {
           company_name: string
@@ -124,6 +189,7 @@ export type Database = {
           region: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status: string | null
+          sub_service_id: string | null
           sub_service_type: string | null
           updated_at: string
         }
@@ -141,6 +207,7 @@ export type Database = {
           region?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status?: string | null
+          sub_service_id?: string | null
           sub_service_type?: string | null
           updated_at?: string
         }
@@ -158,10 +225,19 @@ export type Database = {
           region?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: string | null
+          sub_service_id?: string | null
           sub_service_type?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "telekom_data_sub_service_id_fkey"
+            columns: ["sub_service_id"]
+            isOneToOne: false
+            referencedRelation: "sub_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_assignments: {
         Row: {
