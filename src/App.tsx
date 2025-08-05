@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Homepage from "./pages/Homepage";
 import PublicRegister from "./pages/PublicRegister";
 import SearchResults from "./pages/SearchResults";
+import PublicDataView from "./pages/PublicDataView";
 import AppLayout from "./components/AppLayout";
 import { useAuth } from "./hooks/useAuth";
 import AuthPage from "./components/AuthPage";
@@ -24,6 +25,7 @@ const queryClient = new QueryClient();
 const PublicRoutes = () => (
   <Routes>
     <Route path="/" element={<Homepage />} />
+    <Route path="/public-data" element={<PublicDataView />} />
     <Route path="/register" element={<PublicRegister />} />
     <Route path="/search" element={<SearchResults />} />
     <Route path="/faq" element={<FAQ />} />
