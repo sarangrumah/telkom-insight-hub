@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
-import { BarChart3, Users, MapPin } from "lucide-react";
+import { BarChart3, Users, MapPin, TrendingUp } from "lucide-react";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
+import DataVisualization from "./DataVisualization";
 
 interface DashboardProps {
   user: User;
@@ -155,38 +157,61 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
           </Card>
         </div>
 
-        {/* Recent data */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Telecommunications Data</CardTitle>
-            <CardDescription>
-              Latest entries in the system
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {telkomData.length > 0 ? (
-              <div className="space-y-4">
-                {telkomData.slice(0, 5).map((data, index) => (
-                  <div key={data.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{data.company_name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Service: {data.service_type} | Region: {data.region || 'N/A'}
-                      </p>
-                    </div>
-                    <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
-                      {data.status}
-                    </Badge>
+        {/* Data Visualization Tabs */}
+        <Tabs defaultValue="overview" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Telecommunications Data</CardTitle>
+                <CardDescription>
+                  Latest entries in the system
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {telkomData.length > 0 ? (
+                  <div className="space-y-4">
+                    {telkomData.slice(0, 5).map((data, index) => (
+                      <div key={data.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{data.company_name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Service: {data.service_type} | Region: {data.region || 'N/A'}
+                          </p>
+                        </div>
+                        <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
+                          {data.status}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                No telecommunications data available
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No telecommunications data available
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <DataVisualization 
+              summaryStats={{
+                totalLicenses: telkomData.length,
+                activeOperators: telkomData.filter(d => d.status === 'active').length,
+                totalApplications: 456,
+                pendingApprovals: 23
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
