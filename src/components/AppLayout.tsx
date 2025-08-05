@@ -105,9 +105,9 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
 
       <nav className="flex-1 p-4 space-y-2">
         <Button 
-          variant={isActive('/') ? "default" : "ghost"} 
+          variant={isActive('/dashboard') ? "default" : "ghost"} 
           className="w-full justify-start"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
         >
           <BarChart3 className="mr-2 h-4 w-4" />
           Dashboard
