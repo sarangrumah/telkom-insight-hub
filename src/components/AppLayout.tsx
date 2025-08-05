@@ -134,12 +134,12 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
         </Button>
         
         <Button 
-          variant="ghost" 
+          variant={isActive('/data-visualization') ? "default" : "ghost"} 
           className="w-full justify-start"
-          onClick={() => navigate('/data-map')}
+          onClick={() => navigate('/data-visualization')}
         >
-          <MapPin className="mr-2 h-4 w-4" />
-          Data Map
+          <BarChart3 className="mr-2 h-4 w-4" />
+          Data Visualization
         </Button>
         
         <Button 
