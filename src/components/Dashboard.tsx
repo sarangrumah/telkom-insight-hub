@@ -1,15 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
-import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database, HelpCircle, MessageSquare } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { BarChart3, Users, MapPin } from "lucide-react";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
-import { NotificationSettings } from "./NotificationSettings";
 
 interface DashboardProps {
   user: User;
@@ -84,112 +81,6 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
     }
   };
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to logout",
-        variant: "destructive",
-      });
-    } else {
-      onLogout();
-    }
-  };
-
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b">
-        <h2 className="text-lg font-semibold">Telkom Insight Hub</h2>
-        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user?.email || 'User'}</p>
-        <Badge variant="secondary" className="mt-2">
-          {userRole}
-        </Badge>
-      </div>
-
-      <nav className="flex-1 p-4 space-y-2">
-        <Button variant="ghost" className="w-full justify-start">
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Dashboard
-        </Button>
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start"
-          onClick={() => window.location.href = '/data-management'}
-        >
-          <Database className="mr-2 h-4 w-4" />
-          Data Management
-        </Button>
-        <Button variant="ghost" className="w-full justify-start">
-          <MapPin className="mr-2 h-4 w-4" />
-          Data Map
-        </Button>
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start"
-          onClick={() => window.location.href = '/faq'}
-        >
-          <HelpCircle className="mr-2 h-4 w-4" />
-          FAQ
-        </Button>
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start"
-          onClick={() => window.location.href = '/support'}
-        >
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Support
-          {counts.userTickets > 0 && (
-            <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
-              {counts.userTickets}
-            </Badge>
-          )}
-        </Button>
-        <Button variant="ghost" className="w-full justify-start">
-          <Users className="mr-2 h-4 w-4" />
-          User Management
-        </Button>
-        {(userRole === 'super_admin' || userRole === 'internal_admin') && (
-          <>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => window.location.href = '/admin/faq'}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              FAQ Management
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => window.location.href = '/admin/tickets'}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Ticket Management
-              {counts.adminTickets > 0 && (
-                <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
-                  {counts.adminTickets}
-                </Badge>
-              )}
-            </Button>
-          </>
-        )}
-        <Button variant="ghost" className="w-full justify-start">
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </Button>
-      </nav>
-
-      <div className="p-4 border-t space-y-2">
-        <NotificationSettings />
-        <Button onClick={handleLogout} variant="outline" className="w-full">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-    </div>
-  );
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -202,120 +93,93 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile sidebar */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
-              {sidebarContent}
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
-
-      <div className="lg:flex">
-        {/* Desktop sidebar */}
-        <div className="hidden lg:block w-80 border-r bg-card">
-          {sidebarContent}
+    <div className="p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome to your telecommunications data insight hub
+          </p>
         </div>
 
-        {/* Main content */}
-        <div className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold">Dashboard</h1>
-              <p className="text-muted-foreground">
-                Welcome to your telecommunications data insight hub
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{telkomData.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Telecommunications data entries
               </p>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Stats cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{telkomData.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Telecommunications data entries
-                  </p>
-                </CardContent>
-              </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Services</CardTitle>
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {telkomData.filter(d => d.status === 'active').length}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Currently active services
+              </p>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Services</CardTitle>
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {telkomData.filter(d => d.status === 'active').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Currently active services
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">User Status</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {profile?.is_validated ? "Validated" : "Pending"}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Account validation status
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent data */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Telecommunications Data</CardTitle>
-                <CardDescription>
-                  Latest entries in the system
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {telkomData.length > 0 ? (
-                  <div className="space-y-4">
-                    {telkomData.slice(0, 5).map((data, index) => (
-                      <div key={data.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <h4 className="font-medium">{data.company_name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Service: {data.service_type} | Region: {data.region || 'N/A'}
-                          </p>
-                        </div>
-                        <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
-                          {data.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No telecommunications data available
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">User Status</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {profile?.is_validated ? "Validated" : "Pending"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Account validation status
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Recent data */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Telecommunications Data</CardTitle>
+            <CardDescription>
+              Latest entries in the system
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {telkomData.length > 0 ? (
+              <div className="space-y-4">
+                {telkomData.slice(0, 5).map((data, index) => (
+                  <div key={data.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">{data.company_name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Service: {data.service_type} | Region: {data.region || 'N/A'}
+                      </p>
+                    </div>
+                    <Badge variant={data.status === 'active' ? 'default' : 'secondary'}>
+                      {data.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No telecommunications data available
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
