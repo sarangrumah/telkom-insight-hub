@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus } from "lucide-react";
 import { TelekomDataTable } from "@/components/TelekomDataTable";
 import { AddEditTelekomDataDialog } from "@/components/AddEditTelekomDataDialog";
+import { ExcelImportDialog } from "@/components/ExcelImportDialog";
+import { ExcelExportButton } from "@/components/ExcelExportButton";
+import { LocationMigration } from "@/components/LocationMigration";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -17,6 +20,7 @@ const DataManagement = () => {
   const [data, setData] = useState<TelekomData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
@@ -77,7 +81,11 @@ const DataManagement = () => {
       setLoading(true);
       const { data: telekomData, error } = await supabase
         .from('telekom_data')
-        .select('*')
+        .select(`
+          *,
+          province:provinces(id, name),
+          kabupaten:kabupaten(id, name, type)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -119,12 +127,23 @@ const DataManagement = () => {
             Manage telecommunications data entries
           </p>
         </div>
-        {canAddData && (
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add New Data
-          </Button>
-        )}
+        <div className="flex gap-2">
+          <ExcelExportButton />
+          {canAddData && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsImportDialogOpen(true)}
+              >
+                Import Excel
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add New Data
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <Card>
@@ -149,6 +168,19 @@ const DataManagement = () => {
         onOpenChange={setIsAddDialogOpen}
         onSuccess={fetchData}
       />
+
+      <ExcelImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        onImportComplete={fetchData}
+      />
+
+      {/* Show migration tool for admin users */}
+      {(userRole === 'super_admin' || userRole === 'internal_admin') && (
+        <div className="flex justify-center">
+          <LocationMigration />
+        </div>
+      )}
     </div>
   );
 };

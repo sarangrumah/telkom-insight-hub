@@ -18,6 +18,8 @@ import { ExcelColumnMapper } from './ExcelColumnMapper';
 import { ExcelDataPreview } from './ExcelDataPreview';
 import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ExcelImportDialogProps {
   open: boolean;
@@ -40,6 +42,7 @@ export const ExcelImportDialog: React.FC<ExcelImportDialogProps> = ({
   onOpenChange,
   onImportComplete,
 }) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState('upload');
   const [file, setFile] = useState<File | null>(null);
   const [excelData, setExcelData] = useState<ExcelRow[]>([]);
@@ -176,9 +179,47 @@ export const ExcelImportDialog: React.FC<ExcelImportDialogProps> = ({
   };
 
   const processBatch = async (batch: ExcelRow[]) => {
-    // Implementation will be added in the next step
-    // This is a placeholder for batch processing logic
-    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const processedBatch = batch.map(row => {
+      const mappedRow: any = {
+        created_by: user?.id,
+        data_source: 'excel_import'
+      };
+      
+      // Map Excel columns to database fields
+      Object.entries(columnMapping).forEach(([dbField, excelColumn]) => {
+        if (excelColumn && row[excelColumn]) {
+          let value = row[excelColumn];
+          
+          // Handle specific field transformations
+          if (dbField === 'license_date' && value) {
+            // Convert Excel date to YYYY-MM-DD format
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              mappedRow[dbField] = date.toISOString().split('T')[0];
+            }
+          } else if (dbField === 'latitude' || dbField === 'longitude') {
+            // Convert to number
+            const numValue = parseFloat(value);
+            if (!isNaN(numValue)) {
+              mappedRow[dbField] = numValue;
+            }
+          } else {
+            mappedRow[dbField] = value;
+          }
+        }
+      });
+      
+      return mappedRow;
+    });
+    
+    const { error } = await supabase
+      .from('telekom_data')
+      .insert(processedBatch);
+      
+    if (error) {
+      throw new Error(`Failed to insert batch: ${error.message}`);
+    }
   };
 
   const resetDialog = () => {

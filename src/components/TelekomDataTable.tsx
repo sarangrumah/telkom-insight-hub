@@ -104,7 +104,8 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
               <TableHead>Service Type</TableHead>
               <TableHead>Sub Service</TableHead>
               <TableHead>License Number</TableHead>
-              <TableHead>Region</TableHead>
+              <TableHead>Province</TableHead>
+              <TableHead>Kabupaten/Kota</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>License Date</TableHead>
               <TableHead>Document</TableHead>
@@ -127,7 +128,15 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
                   )}
                 </TableCell>
                 <TableCell>{item.license_number || 'N/A'}</TableCell>
-                <TableCell>{item.region || 'N/A'}</TableCell>
+                <TableCell>
+                  {(item as any).province?.name || item.region || 'N/A'}
+                </TableCell>
+                <TableCell>
+                  {(item as any).kabupaten ? 
+                    `${(item as any).kabupaten.name} (${(item as any).kabupaten.type})` : 
+                    'N/A'
+                  }
+                </TableCell>
                 <TableCell>{getStatusBadge(item.status || 'active')}</TableCell>
                 <TableCell>
                   {item.license_date ? format(new Date(item.license_date), 'MMM dd, yyyy') : 'N/A'}
