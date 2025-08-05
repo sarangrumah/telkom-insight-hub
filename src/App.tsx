@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardPage from "./components/DashboardPage";
 import DataManagement from "./pages/DataManagement";
+import DataMap from "./pages/DataMap";
 import FAQ from "./pages/FAQ";
 import Support from "./pages/Support";
 import AdminFAQ from "./pages/AdminFAQ";
@@ -39,6 +40,7 @@ const AuthenticatedRoutes = () => {
       <Routes>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/data-management" element={<DataManagement />} />
+        <Route path="/data-map" element={<DataMap />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/support" element={<Support />} />
         <Route path="/admin/faq" element={<AdminFAQ />} />
@@ -67,6 +69,7 @@ const AppRoutes = () => {
   // Check if user is trying to access authenticated routes
   const isAuthenticatedRoute = window.location.pathname.startsWith('/dashboard') || 
                               window.location.pathname.startsWith('/data-management') ||
+                              window.location.pathname.startsWith('/data-map') ||
                               window.location.pathname.startsWith('/admin');
 
   if (isAuthenticatedRoute && (!user || !session)) {
