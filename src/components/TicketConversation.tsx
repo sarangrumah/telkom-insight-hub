@@ -112,13 +112,13 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   };
 
   const markMessagesAsRead = async () => {
-    if (!isAdmin) return;
-    
+    // For visitors: mark admin messages as read
+    // For admins: mark user messages as read
     await supabase
       .from('ticket_messages')
       .update({ is_read: true })
       .eq('ticket_id', ticketId)
-      .eq('is_admin_message', false);
+      .eq('is_admin_message', isAdmin ? false : true);
   };
 
   const sendMessage = async () => {
