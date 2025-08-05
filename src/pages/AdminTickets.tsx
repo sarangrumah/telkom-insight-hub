@@ -137,9 +137,19 @@ const AdminTickets = () => {
 
   const updateTicketStatus = async (ticketId: string, status: string) => {
     try {
+      const updateData: any = { 
+        status, 
+        updated_at: new Date().toISOString() 
+      };
+      
+      // Add resolved_at timestamp if status is resolved or closed
+      if (status === 'resolved' || status === 'closed') {
+        updateData.resolved_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from('tickets')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', ticketId);
 
       if (error) throw error;

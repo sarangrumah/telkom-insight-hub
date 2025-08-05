@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Ticket, Eye, Download, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { FileUpload } from "@/components/FileUpload";
@@ -158,6 +158,35 @@ const Support = () => {
     window.open(fileUrl, '_blank');
   };
 
+  const closeTicket = async (ticketId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ 
+          status: 'closed',
+          resolved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', ticketId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Ticket has been closed successfully",
+      });
+
+      fetchTickets();
+    } catch (error) {
+      console.error('Error closing ticket:', error);
+      toast({
+        title: "Error",
+        description: "Failed to close ticket",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -176,12 +205,10 @@ const Support = () => {
               <p className="text-muted-foreground">
                 You need to be logged in to create and view support tickets.
               </p>
-              <Link to="/">
-                <Button className="w-full">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Home
-                </Button>
-              </Link>
+              <Button className="w-full" onClick={() => window.history.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Home
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -214,12 +241,14 @@ const Support = () => {
               </h1>
               <p className="text-gray-600 mt-2">Manage your support tickets and get help</p>
             </div>
-            <Link to="/">
-              <Button variant="outline" className="hover-scale transition-all duration-300 hover:shadow-md">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="hover-scale transition-all duration-300 hover:shadow-md"
+              onClick={() => window.history.back()}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
           </div>
 
           {/* Quick Actions */}
@@ -441,6 +470,22 @@ const Support = () => {
                                 )}
                               </div>
                               
+                              {/* Ticket Actions */}
+                              {ticket.status !== 'closed' && (
+                                <div className="border-t pt-4">
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => closeTicket(ticket.id)}
+                                      className="text-destructive hover:text-destructive"
+                                    >
+                                      Close Ticket
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Conversation Component */}
                               <div className="border-t pt-6">
                                 <h4 className="font-medium mb-4">Conversation</h4>

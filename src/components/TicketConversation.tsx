@@ -73,6 +73,9 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
           if (!historyOpen && newMessage.is_admin_message !== isAdmin) {
             setUnreadCount(prev => prev + 1);
           }
+
+          // Trigger parent refresh for ticket list
+          window.dispatchEvent(new CustomEvent('refreshTickets'));
         }
       )
       .subscribe();
