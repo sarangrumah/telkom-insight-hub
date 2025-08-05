@@ -183,37 +183,33 @@ const FAQ = () => {
               )}
             </div>
           ) : (
-            <Accordion type="single" collapsible className="w-full">
-              {filteredFAQs.map((faq, index) => (
-                <AccordionItem key={faq.id} value={`item-${index}`}>
-                  <AccordionTrigger className="text-left">
-                    <div className="flex items-center space-x-2">
-                      <span>{faq.question}</span>
-                      <Badge variant="secondary" className="ml-auto">
-                        {getCategoryName(faq.category_id)}
-                      </Badge>
+            <div className="space-y-3">
+              {filteredFAQs.map((faq) => (
+                <Card key={faq.id} className="p-4">
+                  <div className="flex items-start justify-between space-x-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-medium">{faq.question}</h3>
+                        <Badge variant="secondary">
+                          {getCategoryName(faq.category_id)}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{faq.answer}</p>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="pt-2 space-y-3">
-                      <p className="text-muted-foreground whitespace-pre-wrap">{faq.answer}</p>
-                      {faq.file_url && (
-                        <div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.open(faq.file_url, '_blank')}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download Document
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                    {faq.file_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(faq.file_url, '_blank')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    )}
+                  </div>
+                </Card>
               ))}
-            </Accordion>
+            </div>
           )}
         </CardContent>
       </Card>

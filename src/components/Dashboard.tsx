@@ -31,7 +31,14 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
   }, [user]);
 
   const fetchUserData = async () => {
+    if (!user?.id) {
+      console.log('No user ID available, skipping fetch');
+      return;
+    }
+    
     try {
+      console.log('Fetching user data for user:', user.id);
+      
       // Fetch user profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")

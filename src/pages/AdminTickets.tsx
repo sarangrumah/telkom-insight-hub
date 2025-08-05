@@ -557,7 +557,7 @@ const AdminTickets = () => {
                                 <div>
                                   <Label>Update Status</Label>
                                    <Select 
-                                     value={ticket.status} 
+                                     value={ticket.status || "open"} 
                                      onValueChange={(value) => updateTicketStatus(ticket.id, value)}
                                      disabled={loading}
                                    >
@@ -575,7 +575,7 @@ const AdminTickets = () => {
                                 <div>
                                   <Label>Update Priority</Label>
                                    <Select 
-                                     value={ticket.priority} 
+                                     value={ticket.priority || "medium"} 
                                      onValueChange={(value) => updateTicketPriority(ticket.id, value)}
                                      disabled={loading}
                                    >
