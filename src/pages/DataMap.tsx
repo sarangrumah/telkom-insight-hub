@@ -32,8 +32,31 @@ const DataMap = () => {
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const { toast } = useToast();
 
+  const fetchMapboxToken = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+      if (error) throw error;
+      return data.token;
+    } catch (error) {
+      console.error('Error fetching Mapbox token:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
-    fetchData();
+    const initializeApp = async () => {
+      setLoading(true);
+      await fetchData();
+      
+      // Try to get token from Supabase first
+      const token = await fetchMapboxToken();
+      if (token) {
+        setMapboxToken(token);
+      }
+      setLoading(false);
+    };
+    
+    initializeApp();
   }, []);
 
   useEffect(() => {
@@ -63,8 +86,6 @@ const DataMap = () => {
         description: "Failed to load map data",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -189,7 +210,7 @@ const DataMap = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading map data...</p>
+          <p className="text-muted-foreground">Loading telecommunications data and map...</p>
         </div>
       </div>
     );
@@ -203,7 +224,7 @@ const DataMap = () => {
             <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
             <h2 className="text-lg font-semibold">Mapbox Token Required</h2>
             <p className="text-sm text-muted-foreground">
-              Please enter your Mapbox public token to view the data map.
+              Unable to load Mapbox token automatically. Please enter your Mapbox public token to view the data map.
             </p>
             <div className="space-y-2">
               <input
