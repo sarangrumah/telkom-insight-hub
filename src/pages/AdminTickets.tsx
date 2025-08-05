@@ -513,6 +513,7 @@ const AdminTickets = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => openAssignmentDialog(ticket)}
+                              disabled={loading}
                             >
                               <Users className="h-4 w-4 mr-2" />
                               Assign
@@ -555,10 +556,11 @@ const AdminTickets = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                                 <div>
                                   <Label>Update Status</Label>
-                                  <Select 
-                                    value={ticket.status} 
-                                    onValueChange={(value) => updateTicketStatus(ticket.id, value)}
-                                  >
+                                   <Select 
+                                     value={ticket.status} 
+                                     onValueChange={(value) => updateTicketStatus(ticket.id, value)}
+                                     disabled={loading}
+                                   >
                                     <SelectTrigger>
                                       <SelectValue />
                                     </SelectTrigger>
@@ -572,10 +574,11 @@ const AdminTickets = () => {
                                 </div>
                                 <div>
                                   <Label>Update Priority</Label>
-                                  <Select 
-                                    value={ticket.priority} 
-                                    onValueChange={(value) => updateTicketPriority(ticket.id, value)}
-                                  >
+                                   <Select 
+                                     value={ticket.priority} 
+                                     onValueChange={(value) => updateTicketPriority(ticket.id, value)}
+                                     disabled={loading}
+                                   >
                                     <SelectTrigger>
                                       <SelectValue />
                                     </SelectTrigger>

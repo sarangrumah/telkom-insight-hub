@@ -101,7 +101,7 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
     <div className="flex flex-col h-full">
       <div className="p-6 border-b">
         <h2 className="text-lg font-semibold">Telkom Insight Hub</h2>
-        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user.email}</p>
+        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user?.email || 'User'}</p>
         <Badge variant="secondary" className="mt-2">
           {userRole}
         </Badge>
