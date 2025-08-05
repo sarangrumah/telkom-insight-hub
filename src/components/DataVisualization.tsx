@@ -1,6 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { useState } from "react";
+import { getSubServices } from "@/constants/serviceTypes";
 
 interface DataVisualizationProps {
   data?: any[];
@@ -13,16 +16,63 @@ interface DataVisualizationProps {
 }
 
 const DataVisualization = ({ data = [], summaryStats }: DataVisualizationProps) => {
-  // Process data for charts
-  const serviceTypeData = [
-    { name: 'Jasa', value: 234, fill: 'hsl(var(--chart-1))' },
-    { name: 'Jaringan', value: 345, fill: 'hsl(var(--chart-2))' },
-    { name: 'Telekomunikasi Khusus', value: 123, fill: 'hsl(var(--chart-3))' },
-    { name: 'ISR', value: 189, fill: 'hsl(var(--chart-4))' },
-    { name: 'Tarif', value: 167, fill: 'hsl(var(--chart-5))' },
-    { name: 'SKLO', value: 98, fill: 'hsl(var(--primary))' },
-    { name: 'LKO', value: 91, fill: 'hsl(var(--secondary))' }
-  ];
+  const [showSubServices, setShowSubServices] = useState(false);
+
+  // Process real data or use mock data
+  const processServiceTypeData = () => {
+    if (data.length === 0) {
+      // Mock data when no real data is available
+      return [
+        { name: 'Jasa', value: 234, fill: 'hsl(var(--chart-1))' },
+        { name: 'Jaringan', value: 345, fill: 'hsl(var(--chart-2))' },
+        { name: 'Telekomunikasi Khusus', value: 123, fill: 'hsl(var(--chart-3))' },
+        { name: 'ISR', value: 189, fill: 'hsl(var(--chart-4))' },
+        { name: 'Tarif', value: 167, fill: 'hsl(var(--chart-5))' },
+        { name: 'SKLO', value: 98, fill: 'hsl(var(--primary))' },
+        { name: 'LKO', value: 91, fill: 'hsl(var(--secondary))' }
+      ];
+    }
+
+    if (showSubServices) {
+      // Group by sub-service types
+      const subServiceCounts: Record<string, number> = {};
+      data.forEach(item => {
+        const subService = item.sub_service_type || 'Other';
+        subServiceCounts[subService] = (subServiceCounts[subService] || 0) + 1;
+      });
+
+      return Object.entries(subServiceCounts).map(([name, value], index) => ({
+        name: name.length > 50 ? name.substring(0, 50) + '...' : name,
+        value,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+      })).slice(0, 10); // Show top 10 sub-services
+    } else {
+      // Group by main service types
+      const serviceCounts: Record<string, number> = {};
+      const serviceLabels: Record<string, string> = {
+        'jasa': 'Jasa',
+        'jaringan': 'Jaringan',
+        'telekomunikasi_khusus': 'Telekomunikasi Khusus',
+        'isr': 'ISR',
+        'tarif': 'Tarif',
+        'sklo': 'SKLO',
+        'lko': 'LKO'
+      };
+
+      data.forEach(item => {
+        const serviceType = item.service_type;
+        serviceCounts[serviceType] = (serviceCounts[serviceType] || 0) + 1;
+      });
+
+      return Object.entries(serviceCounts).map(([key, value], index) => ({
+        name: serviceLabels[key] || key,
+        value,
+        fill: `hsl(var(--chart-${(index % 7) + 1}))`
+      }));
+    }
+  };
+
+  const serviceTypeData = processServiceTypeData();
 
   const regionData = [
     { region: 'Jakarta', count: 456 },
@@ -107,10 +157,22 @@ const DataVisualization = ({ data = [], summaryStats }: DataVisualizationProps) 
         {/* Service Type Distribution Pie Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Distribusi Jenis Penyelenggaraan</CardTitle>
-            <CardDescription>
-              Pembagian data berdasarkan jenis layanan telekomunikasi
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Distribusi Jenis Penyelenggaraan</CardTitle>
+                <CardDescription>
+                  Pembagian data berdasarkan jenis layanan telekomunikasi
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSubServices(!showSubServices)}
+                className="ml-auto"
+              >
+                {showSubServices ? 'Main Services' : 'Sub Services'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

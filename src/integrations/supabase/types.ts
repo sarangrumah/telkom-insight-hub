@@ -124,6 +124,7 @@ export type Database = {
           region: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status: string | null
+          sub_service_type: string | null
           updated_at: string
         }
         Insert: {
@@ -140,6 +141,7 @@ export type Database = {
           region?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status?: string | null
+          sub_service_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -156,6 +158,7 @@ export type Database = {
           region?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: string | null
+          sub_service_type?: string | null
           updated_at?: string
         }
         Relationships: []

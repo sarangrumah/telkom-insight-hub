@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { FileUpload } from "./FileUpload";
 import type { Database } from "@/integrations/supabase/types";
+import { getSubServices } from "@/constants/serviceTypes";
 
 type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
 type TelekomDataInsert = Database["public"]["Tables"]["telekom_data"]["Insert"];
@@ -21,10 +20,11 @@ type TelekomDataInsert = Database["public"]["Tables"]["telekom_data"]["Insert"];
 const formSchema = z.object({
   company_name: z.string().min(1, "Company name is required"),
   service_type: z.enum(["jasa", "jaringan", "telekomunikasi_khusus", "isr", "tarif", "sklo", "lko"]),
+  sub_service_type: z.string().optional(),
   license_number: z.string().optional(),
   license_date: z.string().optional(),
   region: z.string().optional(),
-  status: z.enum(["active", "inactive", "pending"]).default("active"),
+  status: z.enum(["active", "inactive", "suspended"]).default("active"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   file_url: z.string().optional(),
@@ -48,12 +48,15 @@ export const AddEditTelekomDataDialog = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [selectedServiceType, setSelectedServiceType] = useState<string>("");
+  const [availableSubServices, setAvailableSubServices] = useState<readonly string[]>([]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       company_name: "",
       service_type: "jasa",
+      sub_service_type: "",
       license_number: "",
       license_date: "",
       region: "",
@@ -66,21 +69,30 @@ export const AddEditTelekomDataDialog = ({
 
   useEffect(() => {
     if (data) {
+      const serviceType = data.service_type as "jasa" | "jaringan" | "telekomunikasi_khusus" | "isr" | "tarif" | "sklo" | "lko";
+      setSelectedServiceType(serviceType);
+      setAvailableSubServices(getSubServices(serviceType));
+      
       form.reset({
         company_name: data.company_name,
-        service_type: data.service_type as "jasa" | "jaringan" | "telekomunikasi_khusus" | "isr" | "tarif" | "sklo" | "lko",
+        service_type: serviceType,
+        sub_service_type: data.sub_service_type || "",
         license_number: data.license_number || "",
         license_date: data.license_date || "",
         region: data.region || "",
-        status: (data.status as "active" | "inactive" | "pending") || "active",
+        status: (data.status as "active" | "inactive" | "suspended") || "active",
         latitude: data.latitude ? Number(data.latitude) : undefined,
         longitude: data.longitude ? Number(data.longitude) : undefined,
         file_url: data.file_url || "",
       });
     } else {
+      setSelectedServiceType("jasa");
+      setAvailableSubServices(getSubServices("jasa"));
+      
       form.reset({
         company_name: "",
         service_type: "jasa",
+        sub_service_type: "",
         license_number: "",
         license_date: "",
         region: "",
@@ -107,6 +119,7 @@ export const AddEditTelekomDataDialog = ({
       const submitData: TelekomDataInsert = {
         company_name: values.company_name,
         service_type: values.service_type,
+        sub_service_type: values.sub_service_type || null,
         status: values.status,
         created_by: user.id,
         latitude: values.latitude || null,
@@ -196,7 +209,12 @@ export const AddEditTelekomDataDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Service Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      setSelectedServiceType(value);
+                      setAvailableSubServices(getSubServices(value));
+                      form.setValue("sub_service_type", ""); // Reset sub-service when main service changes
+                    }} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select service type" />
@@ -216,6 +234,35 @@ export const AddEditTelekomDataDialog = ({
                   </FormItem>
                 )}
               />
+
+              {availableSubServices.length > 0 && (
+                <div className="md:col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="sub_service_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sub Service Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sub service type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-60">
+                            {availableSubServices.map((subService) => (
+                              <SelectItem key={subService} value={subService}>
+                                {subService}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <FormField
                 control={form.control}
@@ -265,7 +312,7 @@ export const AddEditTelekomDataDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -274,7 +321,7 @@ export const AddEditTelekomDataDialog = ({
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

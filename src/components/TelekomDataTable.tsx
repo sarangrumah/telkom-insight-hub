@@ -102,6 +102,7 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
             <TableRow>
               <TableHead>Company</TableHead>
               <TableHead>Service Type</TableHead>
+              <TableHead>Sub Service</TableHead>
               <TableHead>License Number</TableHead>
               <TableHead>Region</TableHead>
               <TableHead>Status</TableHead>
@@ -116,6 +117,15 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.company_name}</TableCell>
                 <TableCell>{getServiceTypeBadge(item.service_type)}</TableCell>
+                <TableCell>
+                  {item.sub_service_type ? (
+                    <span className="text-sm text-muted-foreground truncate max-w-[200px] block" title={item.sub_service_type}>
+                      {item.sub_service_type}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">N/A</span>
+                  )}
+                </TableCell>
                 <TableCell>{item.license_number || 'N/A'}</TableCell>
                 <TableCell>{item.region || 'N/A'}</TableCell>
                 <TableCell>{getStatusBadge(item.status || 'active')}</TableCell>
