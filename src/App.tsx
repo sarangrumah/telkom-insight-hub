@@ -70,7 +70,7 @@ const AppRoutes = () => {
                               window.location.pathname.startsWith('/admin');
 
   if (isAuthenticatedRoute && (!user || !session)) {
-    return <AuthPage onAuthSuccess={() => window.location.reload()} />;
+    return <AuthPage onAuthSuccess={() => window.location.href = "/dashboard"} />;
   }
 
   if (user && session && isAuthenticatedRoute) {
