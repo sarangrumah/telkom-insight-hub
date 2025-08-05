@@ -76,6 +76,50 @@ export type Database = {
           },
         ]
       }
+      kabupaten: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          province_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name: string
+          province_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          province_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kabupaten_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_name: string | null
@@ -106,6 +150,36 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      provinces: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -182,10 +256,12 @@ export type Database = {
           data_source: string | null
           file_url: string | null
           id: string
+          kabupaten_id: string | null
           latitude: number | null
           license_date: string | null
           license_number: string | null
           longitude: number | null
+          province_id: string | null
           region: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status: string | null
@@ -200,10 +276,12 @@ export type Database = {
           data_source?: string | null
           file_url?: string | null
           id?: string
+          kabupaten_id?: string | null
           latitude?: number | null
           license_date?: string | null
           license_number?: string | null
           longitude?: number | null
+          province_id?: string | null
           region?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
           status?: string | null
@@ -218,10 +296,12 @@ export type Database = {
           data_source?: string | null
           file_url?: string | null
           id?: string
+          kabupaten_id?: string | null
           latitude?: number | null
           license_date?: string | null
           license_number?: string | null
           longitude?: number | null
+          province_id?: string | null
           region?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: string | null
@@ -230,6 +310,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "telekom_data_kabupaten_id_fkey"
+            columns: ["kabupaten_id"]
+            isOneToOne: false
+            referencedRelation: "kabupaten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telekom_data_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "telekom_data_sub_service_id_fkey"
             columns: ["sub_service_id"]
