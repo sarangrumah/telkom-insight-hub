@@ -160,6 +160,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ticket_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          assigned_to: string
+          created_at: string
+          id: string
+          notes: string | null
+          ticket_id: string
+          unassigned_at: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          assigned_to: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          ticket_id: string
+          unassigned_at?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          assigned_to?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          ticket_id?: string
+          unassigned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_assignments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_messages: {
         Row: {
           created_at: string
@@ -204,36 +245,119 @@ export type Database = {
           },
         ]
       }
-      tickets: {
+      ticket_sla_metrics: {
         Row: {
           created_at: string
-          description: string
-          file_url: string | null
+          first_response_time_minutes: number | null
           id: string
+          resolution_sla_met: boolean | null
+          resolution_time_minutes: number | null
+          response_sla_met: boolean | null
+          sla_target_resolution_minutes: number | null
+          sla_target_response_minutes: number | null
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_response_time_minutes?: number | null
+          id?: string
+          resolution_sla_met?: boolean | null
+          resolution_time_minutes?: number | null
+          response_sla_met?: boolean | null
+          sla_target_resolution_minutes?: number | null
+          sla_target_response_minutes?: number | null
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_response_time_minutes?: number | null
+          id?: string
+          resolution_sla_met?: boolean | null
+          resolution_time_minutes?: number | null
+          response_sla_met?: boolean | null
+          sla_target_resolution_minutes?: number | null
+          sla_target_response_minutes?: number | null
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_sla_metrics_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: true
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          assigned_to: string | null
+          assignment_status:
+            | Database["public"]["Enums"]["assignment_status"]
+            | null
+          category: Database["public"]["Enums"]["ticket_category"] | null
+          created_at: string
+          description: string
+          due_date: string | null
+          escalated_at: string | null
+          escalation_level: number | null
+          file_url: string | null
+          first_response_at: string | null
+          id: string
+          internal_notes: string | null
           priority: string | null
+          resolved_at: string | null
           status: string | null
+          tags: string[] | null
           title: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          assigned_to?: string | null
+          assignment_status?:
+            | Database["public"]["Enums"]["assignment_status"]
+            | null
+          category?: Database["public"]["Enums"]["ticket_category"] | null
           created_at?: string
           description: string
+          due_date?: string | null
+          escalated_at?: string | null
+          escalation_level?: number | null
           file_url?: string | null
+          first_response_at?: string | null
           id?: string
+          internal_notes?: string | null
           priority?: string | null
+          resolved_at?: string | null
           status?: string | null
+          tags?: string[] | null
           title: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          assigned_to?: string | null
+          assignment_status?:
+            | Database["public"]["Enums"]["assignment_status"]
+            | null
+          category?: Database["public"]["Enums"]["ticket_category"] | null
           created_at?: string
           description?: string
+          due_date?: string | null
+          escalated_at?: string | null
+          escalation_level?: number | null
           file_url?: string | null
+          first_response_at?: string | null
           id?: string
+          internal_notes?: string | null
           priority?: string | null
+          resolved_at?: string | null
           status?: string | null
+          tags?: string[] | null
           title?: string
           updated_at?: string
           user_id?: string | null
@@ -266,6 +390,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      escalate_overdue_tickets: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _user_id: string
@@ -282,6 +410,7 @@ export type Database = {
         | "pengolah_data"
         | "internal_group"
         | "guest"
+      assignment_status: "unassigned" | "assigned" | "in_review" | "escalated"
       service_type:
         | "jasa"
         | "jaringan"
@@ -290,6 +419,13 @@ export type Database = {
         | "tarif"
         | "sklo"
         | "lko"
+      ticket_category:
+        | "technical"
+        | "billing"
+        | "general"
+        | "data_request"
+        | "account"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -425,6 +561,7 @@ export const Constants = {
         "internal_group",
         "guest",
       ],
+      assignment_status: ["unassigned", "assigned", "in_review", "escalated"],
       service_type: [
         "jasa",
         "jaringan",
@@ -433,6 +570,14 @@ export const Constants = {
         "tarif",
         "sklo",
         "lko",
+      ],
+      ticket_category: [
+        "technical",
+        "billing",
+        "general",
+        "data_request",
+        "account",
+        "other",
       ],
     },
   },
