@@ -334,16 +334,18 @@ const AdminTickets = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-8 animate-fade-in">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Ticket Management</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Ticket Management
+              </h1>
               <p className="text-gray-600 mt-2">Manage support tickets from users</p>
             </div>
-            <Button onClick={() => navigate('/')} variant="outline">
+            <Button onClick={() => navigate('/')} variant="outline" className="hover-scale transition-all duration-300 hover:shadow-md">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>

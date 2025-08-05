@@ -203,17 +203,19 @@ const Support = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center mb-8 animate-fade-in">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Support Center</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Support Center
+              </h1>
               <p className="text-gray-600 mt-2">Manage your support tickets and get help</p>
             </div>
             <Link to="/">
-              <Button variant="outline">
+              <Button variant="outline" className="hover-scale transition-all duration-300 hover:shadow-md">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Dashboard
               </Button>
@@ -222,9 +224,9 @@ const Support = () => {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <Card>
+            <Card className="hover-scale transition-all duration-300 hover:shadow-lg animate-fade-in">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-primary">
                   <Plus className="h-5 w-5" />
                   Create New Ticket
                 </CardTitle>
@@ -235,7 +237,7 @@ const Support = () => {
               <CardContent>
                 <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full">
+                    <Button className="w-full hover-scale transition-all duration-300 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
                       <Plus className="mr-2 h-4 w-4" />
                       Create Ticket
                     </Button>
@@ -320,30 +322,30 @@ const Support = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="hover-scale transition-all duration-300 hover:shadow-lg animate-fade-in" style={{ animationDelay: '100ms' }}>
               <CardHeader>
-                <CardTitle>Your Tickets</CardTitle>
+                <CardTitle className="text-primary">Your Tickets</CardTitle>
                 <CardDescription>
                   You have {tickets.length} support ticket{tickets.length !== 1 ? 's' : ''}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Open:</span>
-                    <span className="font-medium">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm p-2 rounded-lg bg-red-50">
+                    <span className="font-medium">Open:</span>
+                    <span className="font-bold text-red-600">
                       {tickets.filter(t => t.status === 'open').length}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>In Progress:</span>
-                    <span className="font-medium">
+                  <div className="flex justify-between text-sm p-2 rounded-lg bg-yellow-50">
+                    <span className="font-medium">In Progress:</span>
+                    <span className="font-bold text-yellow-600">
                       {tickets.filter(t => t.status === 'in_progress').length}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Resolved:</span>
-                    <span className="font-medium">
+                  <div className="flex justify-between text-sm p-2 rounded-lg bg-green-50">
+                    <span className="font-medium">Resolved:</span>
+                    <span className="font-bold text-green-600">
                       {tickets.filter(t => t.status === 'resolved').length}
                     </span>
                   </div>
@@ -353,16 +355,21 @@ const Support = () => {
           </div>
 
           {/* Tickets List */}
-          <Card>
+          <Card className="hover-scale transition-all duration-300 hover:shadow-lg animate-fade-in" style={{ animationDelay: '200ms' }}>
             <CardHeader>
-              <CardTitle>Your Support Tickets</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-primary">
+                <Ticket className="h-5 w-5" />
+                Your Support Tickets
+              </CardTitle>
               <CardDescription>View and track all your support requests</CardDescription>
             </CardHeader>
             <CardContent>
               {tickets.length === 0 ? (
-                <div className="text-center py-8">
+                <div className="text-center py-12 animate-fade-in">
                   <div className="mx-auto max-w-sm">
-                    <Ticket className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                      <Ticket className="h-8 w-8 text-primary" />
+                    </div>
                     <h3 className="mt-4 text-lg font-medium">No tickets yet</h3>
                     <p className="mt-2 text-muted-foreground">
                       You haven't created any support tickets yet. Click the button above to create your first ticket.
@@ -371,12 +378,16 @@ const Support = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {tickets.map((ticket) => (
-                    <Card key={ticket.id} className="mb-4">
+                  {tickets.map((ticket, index) => (
+                    <Card 
+                      key={ticket.id} 
+                      className="hover-scale transition-all duration-300 hover:shadow-md border-l-4 border-primary/20 hover:border-primary/50 animate-fade-in"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{ticket.title}</CardTitle>
+                            <CardTitle className="text-lg text-primary">{ticket.title}</CardTitle>
                             <CardDescription className="mt-1">
                               Created: {new Date(ticket.created_at).toLocaleDateString()}
                               {ticket.updated_at !== ticket.created_at && (
@@ -387,27 +398,28 @@ const Support = () => {
                             </CardDescription>
                           </div>
                           <div className="flex gap-2 items-center">
-                            <Badge variant={getPriorityColor(ticket.priority)}>
+                            <Badge variant={getPriorityColor(ticket.priority)} className="transition-all duration-200">
                               {ticket.priority}
                             </Badge>
-                            <Badge variant={getStatusColor(ticket.status)}>
+                            <Badge variant={getStatusColor(ticket.status)} className="transition-all duration-200">
                               {ticket.status}
                             </Badge>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => toggleTicketExpansion(ticket.id)}
+                              className="hover-scale transition-all duration-200"
                             >
                               <Eye className="h-4 w-4 mr-2" />
                               {expandedTickets.has(ticket.id) ? 'Hide' : 'View'} Details
-                              <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${expandedTickets.has(ticket.id) ? 'rotate-180' : ''}`} />
+                              <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-300 ${expandedTickets.has(ticket.id) ? 'rotate-180' : ''}`} />
                             </Button>
                           </div>
                         </div>
                       </CardHeader>
                       <Collapsible open={expandedTickets.has(ticket.id)}>
-                        <CollapsibleContent>
-                          <CardContent>
+                        <CollapsibleContent className="animate-accordion-down">
+                          <CardContent className="pt-0">
                             <div className="space-y-6">
                               <div className="space-y-4">
                                 <div>

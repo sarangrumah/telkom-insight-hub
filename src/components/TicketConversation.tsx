@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FileUpload } from '@/components/FileUpload';
-import { ChevronDown, ChevronUp, MessageCircle, Send, Clock, User, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageCircle, Send, Clock, User, Shield, CheckCircle2, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -34,6 +34,9 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   const [historyOpen, setHistoryOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [optimisticMessage, setOptimisticMessage] = useState<TicketMessage | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -176,6 +179,40 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
     setLoading(false);
   };
 
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current && historyOpen) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, optimisticMessage, historyOpen]);
+
+  // Handle typing simulation
+  useEffect(() => {
+    if (newMessage) {
+      setIsTyping(true);
+      const timer = setTimeout(() => setIsTyping(false), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsTyping(false);
+    }
+  }, [newMessage]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [newMessage]);
+
+  // Handle Enter key for sending
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
   // Combine actual messages with optimistic message, then get latest
   const displayMessages = optimisticMessage ? [...messages, optimisticMessage] : messages;
   const latestMessage = displayMessages[displayMessages.length - 1];
@@ -186,27 +223,31 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   }, [messages, optimisticMessage]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in">
       {/* Latest Message Preview */}
       {latestMessage && (
-        <Card>
-          <CardHeader className="pb-2">
+        <Card className="hover-scale transition-all duration-300 hover:shadow-md">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Latest Message</CardTitle>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-primary" />
+                Latest Message
+              </CardTitle>
               <div className="flex items-center gap-2">
                  {latestMessage.is_admin_message ? (
-                   <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
+                   <Badge variant="default" className="text-xs bg-gradient-to-r from-primary to-primary/80 text-primary-foreground border-0">
                      <Shield className="w-3 h-3 mr-1" />
                      Admin Response
                    </Badge>
                  ) : (
-                   <Badge variant="outline" className="text-xs">
+                   <Badge variant="outline" className="text-xs border-primary/20">
                      <User className="w-3 h-3 mr-1" />
                      User
                    </Badge>
                  )}
                  {optimisticMessage && latestMessage.id.startsWith('temp-') && (
-                   <Badge variant="secondary" className="text-xs">
+                   <Badge variant="secondary" className="text-xs animate-pulse">
+                     <MoreHorizontal className="w-3 h-3 mr-1" />
                      Sending...
                    </Badge>
                  )}
@@ -217,18 +258,18 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
               </div>
             </div>
           </CardHeader>
-           <CardContent className={`pt-0 ${latestMessage.is_admin_message ? 'bg-primary/5 rounded-lg' : ''}`}>
-             <p className={`text-sm ${latestMessage.is_admin_message ? 'font-medium text-foreground' : 'text-foreground'}`}>
+           <CardContent className={`pt-0 transition-all duration-300 ${latestMessage.is_admin_message ? 'bg-gradient-to-r from-primary/5 to-transparent rounded-lg border-l-4 border-primary' : ''}`}>
+             <p className={`text-sm leading-relaxed ${latestMessage.is_admin_message ? 'font-medium text-foreground' : 'text-foreground'}`}>
                {latestMessage.message}
              </p>
              {latestMessage.file_url && (
                <Button
                  variant="link"
                  size="sm"
-                 className="p-0 h-auto mt-2"
+                 className="p-0 h-auto mt-2 text-primary hover:text-primary/80 transition-colors"
                  onClick={() => window.open(latestMessage.file_url, '_blank')}
                >
-                 View Attachment
+                 📎 View Attachment
                </Button>
              )}
            </CardContent>
@@ -236,102 +277,159 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
       )}
 
       {/* Quick Reply Form */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-3">
-            <Textarea
-              placeholder="Type your reply..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              className="min-h-[80px]"
-            />
+      <Card className="hover-scale transition-all duration-300 hover:shadow-md">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Send className="w-4 h-4 text-primary" />
+            {isAdmin ? 'Admin Response' : 'Quick Reply'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-4">
+            <div className="relative">
+              <Textarea
+                ref={textareaRef}
+                placeholder="Type your reply... (Press Enter to send, Shift+Enter for new line)"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="min-h-[80px] max-h-[200px] resize-none transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                disabled={loading}
+              />
+              {isTyping && (
+                <div className="absolute bottom-2 right-2 text-xs text-muted-foreground animate-pulse">
+                  Typing...
+                </div>
+              )}
+            </div>
             
-            <FileUpload
-              value={fileUrl}
-              onChange={(url) => setFileUrl(url || '')}
-            />
-            
-            <Button 
-              onClick={sendMessage} 
-              disabled={loading || !newMessage.trim()}
-              className="w-full"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Send Reply
-            </Button>
+            <div className="space-y-3">
+              <FileUpload
+                value={fileUrl}
+                onChange={(url) => setFileUrl(url || '')}
+              />
+              
+              <div className="flex gap-2">
+                <Button 
+                  onClick={sendMessage} 
+                  disabled={loading || !newMessage.trim()}
+                  className="flex-1 transition-all duration-200 hover:scale-[1.02] disabled:hover:scale-100"
+                >
+                  {loading ? (
+                    <MoreHorizontal className="w-4 h-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {loading ? 'Sending...' : 'Send Reply'}
+                </Button>
+                {newMessage && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setNewMessage('')}
+                    className="px-3"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* History Section */}
       {messages.length > 0 && (
-        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="space-y-4">
           <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full">
-              <MessageCircle className="w-4 h-4 mr-2" />
-              History ({messages.length} messages)
+            <Button 
+              variant="outline" 
+              className="w-full hover-scale transition-all duration-300 hover:shadow-md hover:border-primary/30"
+              onClick={() => {
+                setHistoryOpen(!historyOpen);
+                if (!historyOpen) {
+                  markMessagesAsRead();
+                  setUnreadCount(0);
+                }
+              }}
+            >
+              <MessageCircle className="w-4 h-4 mr-2 text-primary" />
+              Message History ({messages.length} messages)
               {unreadCount > 0 && (
-                <Badge variant="destructive" className="ml-2 text-xs">
-                  {unreadCount}
+                <Badge variant="destructive" className="ml-2 text-xs animate-pulse">
+                  {unreadCount} new
                 </Badge>
               )}
               {historyOpen ? (
-                <ChevronUp className="w-4 h-4 ml-auto" />
+                <ChevronUp className="w-4 h-4 ml-auto transition-transform duration-200" />
               ) : (
-                <ChevronDown className="w-4 h-4 ml-auto" />
+                <ChevronDown className="w-4 h-4 ml-auto transition-transform duration-200" />
               )}
             </Button>
           </CollapsibleTrigger>
           
-           <CollapsibleContent className="space-y-2 mt-4">
-             {displayMessages.map((message) => (
-              <div
-                key={message.id}
-                 className={`p-3 rounded-lg ${
-                   message.is_admin_message
-                     ? 'bg-primary/10 border-l-4 border-primary ml-8 shadow-sm'
-                     : 'bg-muted mr-8'
-                 } ${message.id.startsWith('temp-') ? 'opacity-75' : ''}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                     {message.is_admin_message ? (
-                       <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
-                         <Shield className="w-3 h-3 mr-1" />
-                         Admin
-                       </Badge>
-                     ) : (
-                       <Badge variant="outline" className="text-xs">
-                         <User className="w-3 h-3 mr-1" />
-                         User
-                       </Badge>
-                     )}
-                     {message.id.startsWith('temp-') && (
-                       <Badge variant="secondary" className="text-xs ml-1">
-                         Sending...
-                       </Badge>
-                     )}
+           <CollapsibleContent className="space-y-3 mt-4 animate-accordion-down">
+             <div className="max-h-[500px] overflow-y-auto space-y-3 pr-2">
+               {displayMessages.map((message, index) => (
+                <div
+                  key={message.id}
+                   className={`group p-4 rounded-xl transition-all duration-300 hover:shadow-sm ${
+                     message.is_admin_message
+                       ? 'bg-gradient-to-r from-primary/10 to-primary/5 border-l-4 border-primary ml-4 animate-slide-in-right'
+                       : 'bg-gradient-to-r from-muted/50 to-muted mr-4 animate-slide-in-left'
+                   } ${message.id.startsWith('temp-') ? 'opacity-75 animate-pulse' : 'animate-fade-in'}`}
+                   style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                       {message.is_admin_message ? (
+                         <Badge variant="default" className="text-xs bg-gradient-to-r from-primary to-primary/80 text-primary-foreground border-0">
+                           <Shield className="w-3 h-3 mr-1" />
+                           Admin
+                         </Badge>
+                       ) : (
+                         <Badge variant="outline" className="text-xs border-primary/20">
+                           <User className="w-3 h-3 mr-1" />
+                           User
+                         </Badge>
+                       )}
+                       {message.id.startsWith('temp-') && (
+                         <Badge variant="secondary" className="text-xs ml-1 animate-pulse">
+                           <MoreHorizontal className="w-3 h-3 mr-1" />
+                           Sending...
+                         </Badge>
+                       )}
+                       {!message.id.startsWith('temp-') && (
+                         <Badge variant="outline" className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                           <CheckCircle2 className="w-3 h-3 mr-1 text-green-600" />
+                           Delivered
+                         </Badge>
+                       )}
+                    </div>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {format(new Date(message.created_at), 'MMM dd, yyyy HH:mm')}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(message.created_at), 'MMM dd, yyyy HH:mm')}
-                  </span>
+                  
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                    {message.message}
+                  </p>
+                  
+                  {message.file_url && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="p-0 h-auto mt-3 text-primary hover:text-primary/80 transition-colors"
+                      onClick={() => window.open(message.file_url, '_blank')}
+                    >
+                      📎 View Attachment
+                    </Button>
+                  )}
                 </div>
-                
-                <p className="text-sm text-foreground">{message.message}</p>
-                
-                {message.file_url && (
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="p-0 h-auto mt-2"
-                    onClick={() => window.open(message.file_url, '_blank')}
-                  >
-                    View Attachment
-                  </Button>
-                )}
-              </div>
-            ))}
-          </CollapsibleContent>
+              ))}
+              <div ref={messagesEndRef} />
+             </div>
+           </CollapsibleContent>
         </Collapsible>
       )}
     </div>
