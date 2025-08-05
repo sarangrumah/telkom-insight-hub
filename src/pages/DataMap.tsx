@@ -159,10 +159,13 @@ const DataMap = () => {
         'circle-color': [
           'match',
           ['get', 'service_type'],
-          'mobile', '#ef4444',
-          'fixed', '#3b82f6',
-          'satellite', '#10b981',
-          'internet', '#f59e0b',
+          'jasa', '#ef4444',
+          'jaringan', '#3b82f6',
+          'telekomunikasi_khusus', '#10b981',
+          'isr', '#f59e0b',
+          'tarif', '#8b5cf6',
+          'sklo', '#ec4899',
+          'lko', '#06b6d4',
           '#6b7280'
         ],
         'circle-stroke-width': 2,
@@ -296,7 +299,7 @@ const DataMap = () => {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="suspended">Suspended</SelectItem>
             </SelectContent>
           </Select>
           
@@ -316,19 +319,31 @@ const DataMap = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="text-xs">Mobile</span>
+              <span className="text-xs">Jasa</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="text-xs">Fixed</span>
+              <span className="text-xs">Jaringan</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <span className="text-xs">Satellite</span>
+              <span className="text-xs">Telekomunikasi Khusus</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-              <span className="text-xs">Internet</span>
+              <span className="text-xs">ISR</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+              <span className="text-xs">Tarif</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+              <span className="text-xs">SKLO</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
+              <span className="text-xs">LKO</span>
             </div>
           </div>
         </Card>
