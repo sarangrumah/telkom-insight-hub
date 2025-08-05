@@ -32,27 +32,22 @@ const PublicRoutes = () => (
   </Routes>
 );
 
-const AuthenticatedRoutes = () => {
-  const { user, session } = useAuth();
+const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, session }) => (
+  <AppLayout user={user} session={session} onLogout={() => window.location.href = "/"}>
+    <Routes>
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/data-management" element={<DataManagement />} />
+      <Route path="/data-visualization" element={<DataVisualization />} />
+      <Route path="/faq" element={<FAQ />} />
+      <Route path="/support" element={<Support />} />
+      <Route path="/admin/faq" element={<AdminFAQ />} />
+      <Route path="/admin/tickets" element={<AdminTickets />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </AppLayout>
+);
 
-  return (
-    <AppLayout user={user!} session={session!} onLogout={() => window.location.href = "/"}>
-      <Routes>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/data-management" element={<DataManagement />} />
-        <Route path="/data-visualization" element={<DataVisualization />} />
-        <Route path="/faq" element={<FAQ />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/admin/faq" element={<AdminFAQ />} />
-        <Route path="/admin/tickets" element={<AdminTickets />} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AppLayout>
-  );
-};
-
-const AppRoutes = () => {
+const AppRoutes: React.FC = () => {
   const { user, session, loading } = useAuth();
 
   if (loading) {
@@ -77,13 +72,13 @@ const AppRoutes = () => {
   }
 
   if (user && session && isAuthenticatedRoute) {
-    return <AuthenticatedRoutes />;
+    return <AuthenticatedRoutes user={user} session={session} />;
   }
 
   return <PublicRoutes />;
 };
 
-const App = () => (
+const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
