@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { SecurityHeaders } from "@/components/SecurityHeaders";
+import { useMonitoring } from "@/hooks/useMonitoring";
 import DashboardPage from "./components/DashboardPage";
 import DataManagement from "./pages/DataManagement";
 import DataVisualization from "./pages/DataVisualization";
@@ -83,14 +85,23 @@ const AppRoutes: React.FC = () => {
   return <PublicRoutes />;
 };
 
+const AppWithMonitoring: React.FC = () => {
+  useMonitoring();
+  
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+};
+
 const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <SecurityHeaders />
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <AppWithMonitoring />
     </TooltipProvider>
   </QueryClientProvider>
 );

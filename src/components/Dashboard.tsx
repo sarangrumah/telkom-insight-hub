@@ -8,6 +8,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { BarChart3, Users, MapPin, TrendingUp } from "lucide-react";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
+import { DevSecOpsMonitor } from "./DevSecOpsMonitor";
 import DataVisualization from "./DataVisualization";
 
 interface DashboardProps {
@@ -112,7 +113,7 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Records</CardTitle>
@@ -155,6 +156,11 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
               </p>
             </CardContent>
           </Card>
+
+          {/* DevSecOps Monitor for Admin users */}
+          {(userRole === 'super_admin' || userRole === 'internal_admin') && (
+            <DevSecOpsMonitor />
+          )}
         </div>
 
         {/* Data Visualization Tabs */}
