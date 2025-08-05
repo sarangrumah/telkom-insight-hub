@@ -45,6 +45,12 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
   }, [user]);
 
   const fetchUserData = async () => {
+    if (!user?.id) {
+      console.log('No user ID available, skipping fetch');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Fetch user profile
       const { data: profileData, error: profileError } = await supabase
@@ -73,6 +79,11 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load user data",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +108,7 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
     <div className="flex flex-col h-full">
       <div className="p-6 border-b">
         <h2 className="text-lg font-semibold">Telkom Insight Hub</h2>
-        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user.email}</p>
+        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user?.email || 'User'}</p>
         <Badge variant="secondary" className="mt-2">
           {userRole}
         </Badge>
