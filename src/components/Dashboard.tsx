@@ -8,6 +8,8 @@ import { User, Session } from "@supabase/supabase-js";
 import { BarChart3, Users, MapPin, Settings, LogOut, Menu, Database, HelpCircle, MessageSquare } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
+import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
+import { NotificationSettings } from "./NotificationSettings";
 
 interface DashboardProps {
   user: User;
@@ -22,6 +24,9 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { counts } = useUnreadTicketCount();
+  
+  // Initialize real-time notifications and ticket updates
+  useRealtimeTickets();
 
   useEffect(() => {
     fetchUserData();
@@ -175,7 +180,8 @@ export default function Dashboard({ user, session, onLogout }: DashboardProps) {
         </Button>
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-2">
+        <NotificationSettings />
         <Button onClick={handleLogout} variant="outline" className="w-full">
           <LogOut className="mr-2 h-4 w-4" />
           Logout

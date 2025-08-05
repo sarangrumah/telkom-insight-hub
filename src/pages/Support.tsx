@@ -37,6 +37,14 @@ const Support = () => {
     if (user) {
       fetchTickets();
     }
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      fetchTickets();
+    };
+    
+    window.addEventListener('refreshTickets', handleRefresh);
+    return () => window.removeEventListener('refreshTickets', handleRefresh);
   }, [user]);
 
   const fetchTickets = async () => {
