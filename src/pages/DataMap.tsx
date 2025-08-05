@@ -278,10 +278,13 @@ const DataMap = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Services</SelectItem>
-              <SelectItem value="mobile">Mobile</SelectItem>
-              <SelectItem value="fixed">Fixed</SelectItem>
-              <SelectItem value="satellite">Satellite</SelectItem>
-              <SelectItem value="internet">Internet</SelectItem>
+              <SelectItem value="jasa">Jasa</SelectItem>
+              <SelectItem value="jaringan">Jaringan</SelectItem>
+              <SelectItem value="telekomunikasi_khusus">Telekomunikasi Khusus</SelectItem>
+              <SelectItem value="isr">ISR</SelectItem>
+              <SelectItem value="tarif">Tarif</SelectItem>
+              <SelectItem value="sklo">SKLO</SelectItem>
+              <SelectItem value="lko">LKO</SelectItem>
             </SelectContent>
           </Select>
           
