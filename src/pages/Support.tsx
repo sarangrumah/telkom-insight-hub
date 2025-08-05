@@ -30,6 +30,7 @@ const Support = () => {
     title: "",
     description: "",
     priority: "medium",
+    category: "general",
     file_url: null as string | null
   });
 
@@ -89,6 +90,7 @@ const Support = () => {
           title: newTicket.title.trim(),
           description: newTicket.description.trim(),
           priority: newTicket.priority,
+          category: newTicket.category as any,
           file_url: newTicket.file_url,
           user_id: user.id,
           status: 'open'
@@ -101,7 +103,7 @@ const Support = () => {
         description: "Support ticket created successfully",
       });
 
-      setNewTicket({ title: "", description: "", priority: "medium", file_url: null });
+      setNewTicket({ title: "", description: "", priority: "medium", category: "general", file_url: null });
       setIsCreateDialogOpen(false);
       fetchTickets();
     } catch (error) {
@@ -267,6 +269,23 @@ const Support = () => {
                           className="col-span-3 min-h-[100px]"
                           required
                         />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="category" className="text-right">Category</Label>
+                        <Select value={newTicket.category} onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}>
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="technical">Technical</SelectItem>
+                            <SelectItem value="billing">Billing</SelectItem>
+                            <SelectItem value="general">General</SelectItem>
+                            <SelectItem value="data_request">Data Request</SelectItem>
+                            <SelectItem value="account">Account</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       
                       <div className="grid grid-cols-4 items-center gap-4">

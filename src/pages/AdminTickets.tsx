@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TicketConversation } from "@/components/TicketConversation";
+import { TicketAssignmentDialog } from "@/components/TicketAssignmentDialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, Search, Filter } from "lucide-react";
+import { ArrowLeft, Download, Search, Filter, Users, Clock, CheckCircle, AlertTriangle, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
@@ -22,12 +23,18 @@ type Ticket = {
   priority: string;
   status: string;
   description: string;
+  category?: string;
+  assigned_to?: string;
+  assignment_status?: string;
   file_url?: string;
   created_at: string;
   updated_at: string;
   profiles?: {
     full_name: string;
     company_name?: string;
+  };
+  assignee_profile?: {
+    full_name: string;
   };
 };
 
@@ -42,7 +49,11 @@ const AdminTickets = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [expandedTickets, setExpandedTickets] = useState<Set<string>>(new Set());
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [selectedTicketForAssignment, setSelectedTicketForAssignment] = useState<Ticket | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -79,11 +90,39 @@ const AdminTickets = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('tickets')
-        .select('*')
+        .select(`
+          *
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTickets(data || []);
+      
+      // Fetch assignee profiles separately
+      const ticketsWithAssignees = data || [];
+      const assigneeIds = ticketsWithAssignees
+        .filter(ticket => ticket.assigned_to)
+        .map(ticket => ticket.assigned_to)
+        .filter((id): id is string => Boolean(id));
+      
+      let assigneeProfiles: Record<string, any> = {};
+      if (assigneeIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', assigneeIds);
+        
+        assigneeProfiles = profilesData?.reduce((acc, profile) => {
+          acc[profile.user_id] = profile;
+          return acc;
+        }, {} as Record<string, any>) || {};
+      }
+
+      const enrichedTickets = ticketsWithAssignees.map(ticket => ({
+        ...ticket,
+        assignee_profile: ticket.assigned_to ? assigneeProfiles[ticket.assigned_to] : undefined
+      }));
+
+      setTickets(enrichedTickets);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast({
@@ -196,9 +235,58 @@ const AdminTickets = () => {
     
     const matchesStatus = statusFilter === "all" || ticket.status === statusFilter;
     const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
+    const matchesCategory = categoryFilter === "all" || ticket.category === categoryFilter;
+    const matchesAssignee = assigneeFilter === "all" || 
+      (assigneeFilter === "unassigned" && !ticket.assigned_to) ||
+      (assigneeFilter === "assigned" && ticket.assigned_to) ||
+      ticket.assigned_to === assigneeFilter;
     
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAssignee;
   });
+
+  const getAssignmentStatusIcon = (status?: string) => {
+    switch (status) {
+      case 'assigned':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'in_review':
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      case 'escalated':
+        return <AlertTriangle className="h-4 w-4 text-red-600" />;
+      default:
+        return <Users className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getAssignmentStatusColor = (status?: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'assigned':
+        return 'secondary';
+      case 'in_review':
+        return 'outline';
+      case 'escalated':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+
+  const getCategoryColor = (category?: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (category) {
+      case 'technical':
+        return 'destructive';
+      case 'billing':
+        return 'secondary';
+      case 'data_request':
+        return 'outline';
+      default:
+        return 'default';
+    }
+  };
+
+  const openAssignmentDialog = (ticket: Ticket) => {
+    setSelectedTicketForAssignment(ticket);
+    setAssignmentDialogOpen(true);
+  };
 
   if (!user) {
     return (
@@ -270,7 +358,7 @@ const AdminTickets = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <Label htmlFor="search">Search</Label>
                   <div className="relative">
@@ -313,6 +401,36 @@ const AdminTickets = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="data_request">Data Request</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="assignee">Assignment</Label>
+                  <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All assignments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignments</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      <SelectItem value="assigned">Assigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -337,7 +455,15 @@ const AdminTickets = () => {
                       <CardHeader>
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <CardTitle className="text-lg">{ticket.title}</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                              {ticket.title}
+                              {ticket.category && (
+                                <Badge variant={getCategoryColor(ticket.category)} className="text-xs">
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  {ticket.category.replace('_', ' ')}
+                                </Badge>
+                              )}
+                            </CardTitle>
                             <CardDescription>
                               <div className="space-y-1">
                                  <div>
@@ -351,16 +477,34 @@ const AdminTickets = () => {
                                     </span>
                                   )}
                                 </div>
+                                {ticket.assigned_to && (
+                                  <div className="flex items-center gap-2">
+                                    <span>Assigned to:</span>
+                                    <span className="font-medium">{ticket.assignee_profile?.full_name || 'Unknown'}</span>
+                                  </div>
+                                )}
                               </div>
                             </CardDescription>
                           </div>
-                          <div className="flex gap-2 items-center">
+                          <div className="flex gap-2 items-center flex-wrap">
                             <Badge variant={getPriorityColor(ticket.priority)}>
                               {ticket.priority}
                             </Badge>
                             <Badge variant={getStatusColor(ticket.status)}>
                               {ticket.status}
                             </Badge>
+                            <Badge variant={getAssignmentStatusColor(ticket.assignment_status)} className="flex items-center gap-1">
+                              {getAssignmentStatusIcon(ticket.assignment_status)}
+                              {ticket.assignment_status?.replace('_', ' ') || 'unassigned'}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAssignmentDialog(ticket)}
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Assign
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -447,6 +591,21 @@ const AdminTickets = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Assignment Dialog */}
+          {selectedTicketForAssignment && (
+            <TicketAssignmentDialog
+              open={assignmentDialogOpen}
+              onOpenChange={setAssignmentDialogOpen}
+              ticketId={selectedTicketForAssignment.id}
+              currentAssignee={selectedTicketForAssignment.assigned_to}
+              assignmentStatus={selectedTicketForAssignment.assignment_status}
+              onAssignmentUpdate={() => {
+                fetchTickets();
+                setSelectedTicketForAssignment(null);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
