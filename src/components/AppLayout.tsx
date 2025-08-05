@@ -165,10 +165,16 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
           )}
         </Button>
         
-        <Button variant="ghost" className="w-full justify-start">
-          <Users className="mr-2 h-4 w-4" />
-          User Management
-        </Button>
+        {(userRole === 'super_admin' || userRole === 'internal_admin') && (
+          <Button 
+            variant={isActive('/user-management') ? "default" : "ghost"} 
+            className="w-full justify-start"
+            onClick={() => navigate('/user-management')}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            User Management
+          </Button>
+        )}
         
         {(userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data') && (
           <>
