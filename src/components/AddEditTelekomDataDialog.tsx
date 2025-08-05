@@ -135,7 +135,7 @@ export const AddEditTelekomDataDialog = ({
       setSelectedProvinceId("");
       setAvailableKabupaten([]);
     }
-  }, [data, subServices, open]);
+  }, [data?.id, subServices.length, open]);
 
   const onSubmit = async (values: FormData) => {
     if (!user?.id) {
