@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_integration_logs: {
+        Row: {
+          api_name: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          request_data: Json | null
+          response_data: Json | null
+          response_time_ms: number | null
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_name: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          response_time_ms?: number | null
+          status: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_name?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          response_time_ms?: number | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string

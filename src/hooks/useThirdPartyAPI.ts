@@ -44,7 +44,6 @@ export const useThirdPartyAPI = () => {
           'api-integration-example',
           {
             body: { data, apiName },
-            signal: controller.signal,
           }
         );
         

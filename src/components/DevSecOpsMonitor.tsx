@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useMonitoring } from '@/hooks/useMonitoring';
+import { useAPIMonitoring } from '@/hooks/useAPIMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Activity, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Shield, Activity, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
+import { APIIntegrationDialog } from './APIIntegrationDialog';
 
 interface SecurityMetrics {
   totalAuditLogs: number;
@@ -21,6 +23,7 @@ export function DevSecOpsMonitor() {
   });
   const [loading, setLoading] = useState(true);
   const { logUserAction } = useMonitoring();
+  const { metrics: apiMetrics, loading: apiLoading } = useAPIMonitoring();
 
   useEffect(() => {
     const fetchSecurityMetrics = async () => {
@@ -130,6 +133,30 @@ export function DevSecOpsMonitor() {
             <span className="text-sm font-medium">Auth Failures (24h)</span>
           </div>
           <div className="text-2xl font-bold text-red-600">{metrics.authFailures}</div>
+        </div>
+
+        {/* API Integration Metrics */}
+        <div className="pt-4 border-t space-y-4">
+          <h4 className="text-sm font-medium flex items-center gap-2">
+            <ExternalLink className="w-4 h-4" />
+            API Integration Monitoring
+          </h4>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Total Calls (24h)</span>
+              <div className="text-lg font-semibold">{apiLoading ? '...' : apiMetrics.totalCalls}</div>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">Success Rate</span>
+              <div className="text-lg font-semibold">{apiLoading ? '...' : `${apiMetrics.successRate.toFixed(1)}%`}</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-muted-foreground">Recent Failures: {apiLoading ? '...' : apiMetrics.recentFailures}</span>
+            <APIIntegrationDialog />
+          </div>
         </div>
 
         <div className="pt-4 border-t">
