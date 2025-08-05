@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { MapPin, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { SERVICE_TYPE_HIERARCHY, getSubServices } from '@/constants/serviceTypes';
 
 type TelekomData = {
   id: string;
   company_name: string;
   service_type: string;
+  sub_service_type: string | null;
   status: string;
   region: string;
   latitude: number;
@@ -28,6 +30,7 @@ const DataMap = () => {
   const [filteredData, setFilteredData] = useState<TelekomData[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<string>('all');
+  const [subServiceFilter, setSubServiceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const { toast } = useToast();
@@ -61,19 +64,25 @@ const DataMap = () => {
 
   useEffect(() => {
     filterData();
-  }, [data, serviceTypeFilter, statusFilter]);
+  }, [data, serviceTypeFilter, subServiceFilter, statusFilter]);
 
   useEffect(() => {
-    if (filteredData.length > 0 && mapboxToken) {
+    if (data.length > 0 && mapboxToken && !map.current) {
       initializeMap();
     }
-  }, [filteredData, mapboxToken]);
+  }, [data, mapboxToken]);
+
+  useEffect(() => {
+    if (map.current && map.current.getSource('telekom-data')) {
+      updateMapData();
+    }
+  }, [filteredData]);
 
   const fetchData = async () => {
     try {
       const { data: telekomData, error } = await supabase
         .from('telekom_data')
-        .select('*')
+        .select('id, company_name, service_type, sub_service_type, status, region, latitude, longitude, license_date, license_number')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
 
@@ -96,11 +105,41 @@ const DataMap = () => {
       filtered = filtered.filter(item => item.service_type === serviceTypeFilter);
     }
     
+    if (subServiceFilter !== 'all') {
+      filtered = filtered.filter(item => item.sub_service_type === subServiceFilter);
+    }
+    
     if (statusFilter !== 'all') {
       filtered = filtered.filter(item => item.status === statusFilter);
     }
     
     setFilteredData(filtered);
+  };
+
+  const updateMapData = () => {
+    if (!map.current || !map.current.getSource('telekom-data')) return;
+
+    const source = map.current.getSource('telekom-data') as mapboxgl.GeoJSONSource;
+    source.setData({
+      type: 'FeatureCollection',
+      features: filteredData.map(item => ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [item.longitude, item.latitude]
+        },
+        properties: {
+          id: item.id,
+          company_name: item.company_name,
+          service_type: item.service_type,
+          sub_service_type: item.sub_service_type,
+          status: item.status,
+          region: item.region,
+          license_date: item.license_date,
+          license_number: item.license_number,
+        }
+      }))
+    });
   };
 
   const initializeMap = () => {
@@ -140,6 +179,7 @@ const DataMap = () => {
             id: item.id,
             company_name: item.company_name,
             service_type: item.service_type,
+            sub_service_type: item.sub_service_type,
             status: item.status,
             region: item.region,
             license_date: item.license_date,
@@ -186,6 +226,7 @@ const DataMap = () => {
           <div class="p-2">
             <h3 class="font-semibold">${properties.company_name}</h3>
             <p class="text-sm text-gray-600">Service: ${properties.service_type}</p>
+            ${properties.sub_service_type ? `<p class="text-sm text-gray-600">Sub-service: ${properties.sub_service_type}</p>` : ''}
             <p class="text-sm text-gray-600">Status: ${properties.status}</p>
             <p class="text-sm text-gray-600">Region: ${properties.region}</p>
             ${properties.license_number ? `<p class="text-sm text-gray-600">License: ${properties.license_number}</p>` : ''}
@@ -205,7 +246,17 @@ const DataMap = () => {
 
   const clearFilters = () => {
     setServiceTypeFilter('all');
+    setSubServiceFilter('all');
     setStatusFilter('all');
+  };
+
+  const availableSubServices = serviceTypeFilter === 'all' 
+    ? [] 
+    : getSubServices(serviceTypeFilter);
+
+  const handleServiceTypeChange = (value: string) => {
+    setServiceTypeFilter(value);
+    setSubServiceFilter('all'); // Reset sub-service filter when main service changes
   };
 
   if (loading) {
@@ -275,19 +326,37 @@ const DataMap = () => {
             <span className="text-sm font-medium">Filters:</span>
           </div>
           
-          <Select value={serviceTypeFilter} onValueChange={setServiceTypeFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Service Type" />
+          <Select value={serviceTypeFilter} onValueChange={handleServiceTypeChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Main Service Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Services</SelectItem>
-              <SelectItem value="jasa">Jasa</SelectItem>
-              <SelectItem value="jaringan">Jaringan</SelectItem>
-              <SelectItem value="telekomunikasi_khusus">Telekomunikasi Khusus</SelectItem>
-              <SelectItem value="isr">ISR</SelectItem>
-              <SelectItem value="tarif">Tarif</SelectItem>
-              <SelectItem value="sklo">SKLO</SelectItem>
-              <SelectItem value="lko">LKO</SelectItem>
+              <SelectItem value="all">All Main Services</SelectItem>
+              {Object.keys(SERVICE_TYPE_HIERARCHY).map((serviceType) => (
+                <SelectItem key={serviceType} value={serviceType}>
+                  {serviceType === 'jasa' ? 'JASA' : 
+                   serviceType === 'jaringan' ? 'JARINGAN' : 
+                   'TELEKOMUNIKASI KHUSUS'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select 
+            value={subServiceFilter} 
+            onValueChange={setSubServiceFilter}
+            disabled={serviceTypeFilter === 'all'}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Sub Service Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Sub Services</SelectItem>
+              {availableSubServices.map((subService) => (
+                <SelectItem key={subService} value={subService}>
+                  {subService.length > 50 ? `${subService.substring(0, 50)}...` : subService}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           
