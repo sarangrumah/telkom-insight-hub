@@ -8,18 +8,33 @@ import { User, Session } from "@supabase/supabase-js";
 import { 
   BarChart3, 
   Users, 
-  MapPin, 
+  Database, 
   Settings, 
   LogOut, 
-  Menu, 
-  Database, 
   HelpCircle, 
-  MessageSquare 
+  MessageSquare,
+  ChevronDown,
+  Home
 } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
 import { NotificationSettings } from "./NotificationSettings";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarFooter,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AppLayoutProps {
   user: User;
@@ -28,12 +43,207 @@ interface AppLayoutProps {
   children: ReactNode;
 }
 
+function AppSidebar({ user, profile, userRole, onLogout, counts }: any) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { state } = useSidebar();
+  const [adminSectionOpen, setAdminSectionOpen] = useState(false);
+
+  const isActive = (path: string) => location.pathname === path;
+  const isAdminUser = userRole === 'super_admin' || userRole === 'internal_admin';
+  const isDataProcessor = userRole === 'pengolah_data';
+  const isCollapsed = state === 'collapsed';
+
+  return (
+    <Sidebar className="border-r border-sidebar-border/60" collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border/60 p-4">
+        {!isCollapsed && (
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold bg-gradient-primary bg-clip-text text-transparent">
+              TelekomViz
+            </h2>
+            <div className="space-y-1">
+              <p className="text-sm text-sidebar-foreground/80 truncate">
+                {profile?.full_name || user?.email || 'User'}
+              </p>
+              <Badge variant="secondary" className="text-xs">
+                {userRole}
+              </Badge>
+            </div>
+          </div>
+        )}
+        {isCollapsed && (
+          <div className="flex justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <span className="text-white font-bold text-sm">T</span>
+            </div>
+          </div>
+        )}
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => navigate('/dashboard')}
+                  isActive={isActive('/dashboard')}
+                  className="hover-scale transition-all duration-200"
+                >
+                  <Home className="h-4 w-4" />
+                  {!isCollapsed && <span>Dashboard</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => navigate('/data-management')}
+                  isActive={isActive('/data-management')}
+                  className="hover-scale transition-all duration-200"
+                >
+                  <Database className="h-4 w-4" />
+                  {!isCollapsed && <span>Data Management</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => navigate('/data-visualization')}
+                  isActive={isActive('/data-visualization')}
+                  className="hover-scale transition-all duration-200"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  {!isCollapsed && <span>Data Visualization</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => navigate('/faq')}
+                  isActive={isActive('/faq')}
+                  className="hover-scale transition-all duration-200"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  {!isCollapsed && <span>FAQ</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => navigate('/support')}
+                  isActive={isActive('/support')}
+                  className="hover-scale transition-all duration-200"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  {!isCollapsed && (
+                    <>
+                      <span>Support</span>
+                      {counts.userTickets > 0 && (
+                        <Badge variant="destructive" className="ml-auto text-xs animate-pulse-glow">
+                          {counts.userTickets}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                  {isCollapsed && counts.userTickets > 0 && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {(isAdminUser || isDataProcessor) && (
+          <SidebarGroup>
+            <Collapsible open={adminSectionOpen} onOpenChange={setAdminSectionOpen}>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="flex w-full items-center justify-between hover:bg-sidebar-accent/50 rounded-md p-2 transition-colors">
+                  Administration
+                  <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {isAdminUser && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton 
+                          onClick={() => navigate('/user-management')}
+                          isActive={isActive('/user-management')}
+                          className="hover-scale transition-all duration-200"
+                        >
+                          <Users className="h-4 w-4" />
+                          {!isCollapsed && <span>User Management</span>}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => navigate('/admin/faq')}
+                        isActive={isActive('/admin/faq')}
+                        className="hover-scale transition-all duration-200"
+                      >
+                        <Settings className="h-4 w-4" />
+                        {!isCollapsed && <span>FAQ Management</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton 
+                        onClick={() => navigate('/admin/tickets')}
+                        isActive={isActive('/admin/tickets')}
+                        className="hover-scale transition-all duration-200"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        {!isCollapsed && (
+                          <>
+                            <span>Ticket Management</span>
+                            {counts.adminTickets > 0 && (
+                              <Badge variant="destructive" className="ml-auto text-xs animate-pulse-glow">
+                                {counts.adminTickets}
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                        {isCollapsed && counts.adminTickets > 0 && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border/60 p-4">
+        <div className="space-y-2">
+          {!isCollapsed && <NotificationSettings />}
+          <Button 
+            onClick={onLogout} 
+            variant="outline" 
+            size={isCollapsed ? "icon" : "default"}
+            className="w-full hover-scale transition-all duration-200"
+          >
+            <LogOut className="h-4 w-4" />
+            {!isCollapsed && <span className="ml-2">Logout</span>}
+          </Button>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
 export default function AppLayout({ user, session, onLogout, children }: AppLayoutProps) {
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const { counts } = useUnreadTicketCount();
   
@@ -102,163 +312,44 @@ export default function AppLayout({ user, session, onLogout, children }: AppLayo
     }
   };
 
-  const isActive = (path: string) => location.pathname === path;
-
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b">
-        <h2 className="text-lg font-semibold">Telkom Insight Hub</h2>
-        <p className="text-sm text-muted-foreground">Welcome, {profile?.full_name || user?.email || 'User'}</p>
-        <Badge variant="secondary" className="mt-2">
-          {userRole}
-        </Badge>
-      </div>
-
-      <nav className="flex-1 p-4 space-y-2">
-        <Button 
-          variant={isActive('/dashboard') ? "default" : "ghost"} 
-          className="w-full justify-start"
-          onClick={() => navigate('/dashboard')}
-        >
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Dashboard
-        </Button>
-        
-        <Button 
-          variant={isActive('/data-management') ? "default" : "ghost"} 
-          className="w-full justify-start"
-          onClick={() => navigate('/data-management')}
-        >
-          <Database className="mr-2 h-4 w-4" />
-          Data Management
-        </Button>
-        
-        <Button 
-          variant={isActive('/data-visualization') ? "default" : "ghost"} 
-          className="w-full justify-start"
-          onClick={() => navigate('/data-visualization')}
-        >
-          <BarChart3 className="mr-2 h-4 w-4" />
-          Data Visualization
-        </Button>
-        
-        <Button 
-          variant={isActive('/faq') ? "default" : "ghost"} 
-          className="w-full justify-start"
-          onClick={() => navigate('/faq')}
-        >
-          <HelpCircle className="mr-2 h-4 w-4" />
-          FAQ
-        </Button>
-        
-        <Button 
-          variant={isActive('/support') ? "default" : "ghost"} 
-          className="w-full justify-start"
-          onClick={() => navigate('/support')}
-        >
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Support
-          {counts.userTickets > 0 && (
-            <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
-              {counts.userTickets}
-            </Badge>
-          )}
-        </Button>
-        
-        {(userRole === 'super_admin' || userRole === 'internal_admin') && (
-          <Button 
-            variant={isActive('/user-management') ? "default" : "ghost"} 
-            className="w-full justify-start"
-            onClick={() => navigate('/user-management')}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            User Management
-          </Button>
-        )}
-        
-        {(userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data') && (
-          <>
-            <Button 
-              variant={isActive('/admin/faq') ? "default" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => navigate('/admin/faq')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              FAQ Management
-            </Button>
-            <Button 
-              variant={isActive('/admin/tickets') ? "default" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => navigate('/admin/tickets')}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Ticket Management
-              {counts.adminTickets > 0 && (
-                <Badge variant="destructive" className="ml-auto text-xs min-w-5 h-5 flex items-center justify-center p-1">
-                  {counts.adminTickets}
-                </Badge>
-              )}
-            </Button>
-          </>
-        )}
-        
-        <Button variant="ghost" className="w-full justify-start">
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </Button>
-      </nav>
-
-      <div className="p-4 border-t space-y-2">
-        <NotificationSettings />
-        <Button onClick={handleLogout} variant="outline" className="w-full">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-    </div>
-  );
-
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground animate-fade-in">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background w-full">
-      {/* Mobile sidebar */}
-      <div className="lg:hidden">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h1 className="text-xl font-semibold">Telkom System</h1>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Menu className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0">
-              {sidebarContent}
-            </SheetContent>
-          </Sheet>
-        </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <AppSidebar 
+          user={user}
+          profile={profile}
+          userRole={userRole}
+          onLogout={handleLogout}
+          counts={counts}
+        />
+        
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <header className="border-b border-border/60 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
+            <div className="flex h-14 items-center px-4 gap-4">
+              <SidebarTrigger className="hover-scale transition-transform" />
+              <div className="flex-1" />
+              {/* Header actions can be added here */}
+            </div>
+          </header>
+          
+          {/* Main content */}
+          <div className="flex-1 overflow-auto animate-fade-in">
+            {children}
+          </div>
+        </main>
       </div>
-
-      <div className="lg:flex w-full">
-        {/* Desktop sidebar */}
-        <div className="hidden lg:block w-80 border-r bg-card">
-          {sidebarContent}
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 min-h-screen">
-          {children}
-        </div>
-      </div>
-    </div>
+    </SidebarProvider>
   );
 }
