@@ -127,12 +127,26 @@ const EnhancedDataVisualization = () => {
 
   // Tab-aware map initialization - only initialize when geographic tab is active
   useEffect(() => {
+    console.log('📍 Tab effect triggered:', { activeTab, hasData: filteredData.length > 0, hasToken: !!mapboxToken, hasMap: !!map.current });
+    
     if (activeTab === 'geographic' && filteredData.length > 0 && mapboxToken && !map.current) {
-      // Add delay to ensure TabsContent is fully rendered
+      console.log('🎯 Geographic tab is now active - initializing map after delay');
+      // Add delay to ensure TabsContent is fully rendered and visible
       const timer = setTimeout(() => {
+        console.log('⏰ Timer executed - checking container before init');
         initializeMap();
-      }, 100);
+      }, 200);
       return () => clearTimeout(timer);
+    }
+    
+    // Trigger resize when switching to geographic tab with existing map
+    if (activeTab === 'geographic' && map.current) {
+      console.log('🔄 Resizing existing map for geographic tab');
+      setTimeout(() => {
+        if (map.current) {
+          map.current.resize();
+        }
+      }, 100);
     }
   }, [activeTab, filteredData, mapboxToken]);
 
@@ -416,7 +430,18 @@ const EnhancedDataVisualization = () => {
   };
 
   const initializeMap = async (forceReinit = false) => {
-    console.log('🗺️ Attempting to initialize map...', { forceReinit, currentActiveTab: activeTab });
+    console.log('🗺️ Attempting to initialize map...', { 
+      forceReinit, 
+      currentActiveTab: activeTab, 
+      containerExists: !!mapContainer.current,
+      containerVisible: mapContainer.current?.offsetHeight > 0
+    });
+
+    // Ensure we're on geographic tab before proceeding
+    if (activeTab !== 'geographic') {
+      console.log('📍 Skipping map init - not on geographic tab');
+      return;
+    }
 
     // Prevent concurrent initialization
     if (mapInitPromise.current && !forceReinit) {
@@ -451,10 +476,18 @@ const EnhancedDataVisualization = () => {
         mapboxgl.accessToken = mapboxToken;
         
         console.log('⏳ Waiting for container to be ready...');
-        const containerReady = await waitForContainer(15, 150); // Increased retries and delay
+        const containerReady = await waitForContainer(20, 100); // More retries, shorter delay
         
         if (!containerReady) {
-          throw new Error(`Map container not found. Tab: ${activeTab}. Container ref: ${!!mapContainer.current}. Please ensure Geographic tab is active and try again.`);
+          const errorDetails = {
+            activeTab,
+            containerRef: !!mapContainer.current,
+            containerVisible: mapContainer.current?.offsetHeight > 0,
+            containerParent: mapContainer.current?.parentElement?.tagName,
+            tabsContentVisible: !!document.querySelector('[data-state="active"][role="tabpanel"]')
+          };
+          console.error('❌ Container check failed:', errorDetails);
+          throw new Error(`Map container not ready. Details: ${JSON.stringify(errorDetails)}. Please try switching tabs or refreshing.`);
         }
         
         // Clean up existing map if forcing reinit

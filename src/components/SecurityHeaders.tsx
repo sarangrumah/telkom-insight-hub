@@ -12,14 +12,14 @@ export function SecurityHeaders() {
         cspMeta.content = `
           default-src 'self';
           script-src 'self' 'unsafe-inline' 'unsafe-eval' https://jktaapzaskbebwhfswth.supabase.co;
-          style-src 'self' 'unsafe-inline';
-          img-src 'self' data: https: blob:;
-          font-src 'self' data:;
-          connect-src 'self' https://jktaapzaskbebwhfswth.supabase.co wss://jktaapzaskbebwhfswth.supabase.co https://api.mapbox.com;
+          style-src 'self' 'unsafe-inline' https://api.mapbox.com;
+          img-src 'self' data: https: blob: https://api.mapbox.com;
+          font-src 'self' data: https://api.mapbox.com;
+          connect-src 'self' https://jktaapzaskbebwhfswth.supabase.co wss://jktaapzaskbebwhfswth.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com;
           media-src 'self';
           object-src 'none';
           child-src 'self';
-          worker-src 'self';
+          worker-src 'self' blob:;
           frame-ancestors 'none';
           form-action 'self';
           base-uri 'self';
