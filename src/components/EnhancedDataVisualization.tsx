@@ -53,6 +53,7 @@ const EnhancedDataVisualization = () => {
   const [subServices, setSubServices] = useState<SubService[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [activeServiceFilter, setActiveServiceFilter] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
 
   // Enhanced Filters
@@ -346,76 +347,159 @@ const EnhancedDataVisualization = () => {
     return { totalLicenses, activeOperators, regions, pendingApprovals };
   };
 
-  // Enhanced Map functions with better error handling and debugging
+  // Enhanced Map functions with robust container detection and tab-aware initialization
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapInitialized, setMapInitialized] = useState(false);
+  const [mapRetryCount, setMapRetryCount] = useState(0);
+  const mapInitPromise = useRef<Promise<void> | null>(null);
 
-  const initializeMap = async () => {
-    console.log('🗺️ Attempting to initialize map...');
+  const waitForContainer = (maxRetries = 10, retryDelay = 100): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let retries = 0;
+      
+      const checkContainer = () => {
+        if (!mapContainer.current) {
+          console.log(`🔍 Attempt ${retries + 1}: Container ref not available`);
+          if (retries < maxRetries) {
+            retries++;
+            setTimeout(checkContainer, retryDelay * retries); // Progressive delay
+            return;
+          }
+          resolve(false);
+          return;
+        }
+
+        // Check if container is actually in DOM and visible
+        const isInDOM = document.contains(mapContainer.current);
+        if (!isInDOM) {
+          console.log(`🔍 Attempt ${retries + 1}: Container not in DOM`);
+          if (retries < maxRetries) {
+            retries++;
+            setTimeout(checkContainer, retryDelay * retries);
+            return;
+          }
+          resolve(false);
+          return;
+        }
+
+        // Check visibility and dimensions
+        const rect = mapContainer.current.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(mapContainer.current);
+        const isVisible = computedStyle.display !== 'none' && 
+                         computedStyle.visibility !== 'hidden' && 
+                         rect.width > 0 && rect.height > 0;
+
+        console.log(`🔍 Attempt ${retries + 1}: Container dimensions: ${rect.width}x${rect.height}, visible: ${isVisible}`);
+
+        if (!isVisible) {
+          if (retries < maxRetries) {
+            retries++;
+            setTimeout(checkContainer, retryDelay * retries);
+            return;
+          }
+          resolve(false);
+          return;
+        }
+
+        console.log('✅ Container is ready!');
+        resolve(true);
+      };
+
+      checkContainer();
+    });
+  };
+
+  const initializeMap = async (forceReinit = false) => {
+    console.log('🗺️ Attempting to initialize map...', { forceReinit, currentActiveTab: activeTab });
     
-    if (!mapContainer.current) {
-      console.error('❌ Map container not available');
-      setMapError('Map container not found');
+    // Only initialize when Geographic tab is active
+    if (activeTab !== 'geographic') {
+      console.log('📍 Skipping map init - Geographic tab not active');
       return;
     }
+
+    // Prevent concurrent initialization
+    if (mapInitPromise.current && !forceReinit) {
+      console.log('⏳ Map initialization already in progress');
+      return mapInitPromise.current;
+    }
     
-    if (map.current) {
+    if (map.current && !forceReinit) {
       console.log('✅ Map already initialized');
+      // Trigger resize to handle tab switching
+      setTimeout(() => {
+        if (map.current) {
+          console.log('🔄 Triggering map resize for tab switch');
+          map.current.resize();
+        }
+      }, 100);
       return;
     }
-    
+
     if (!mapboxToken) {
       console.error('❌ Mapbox token not available');
       setMapError('Mapbox token not available. Please configure MAPBOX_PUBLIC_TOKEN.');
       return;
     }
 
-    try {
-      setMapLoading(true);
-      setMapError(null);
-      console.log('🔑 Setting Mapbox access token...');
-      
-      mapboxgl.accessToken = mapboxToken;
-      
-      // Check container dimensions
-      const containerRect = mapContainer.current.getBoundingClientRect();
-      console.log('📐 Container dimensions:', containerRect);
-      
-      if (containerRect.width === 0 || containerRect.height === 0) {
-        console.warn('⚠️ Container has zero dimensions, waiting...');
-        setTimeout(() => initializeMap(), 100);
-        return;
+    mapInitPromise.current = (async () => {
+      try {
+        setMapLoading(true);
+        setMapError(null);
+        console.log('🔑 Setting Mapbox access token...');
+        
+        mapboxgl.accessToken = mapboxToken;
+        
+        console.log('⏳ Waiting for container to be ready...');
+        const containerReady = await waitForContainer();
+        
+        if (!containerReady) {
+          throw new Error('Map container not available after waiting');
+        }
+        
+        // Clean up existing map if forcing reinit
+        if (map.current && forceReinit) {
+          console.log('🧹 Cleaning up existing map...');
+          map.current.remove();
+          map.current = null;
+        }
+        
+        console.log('🗺️ Creating map instance...');
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current!,
+          style: 'mapbox://styles/mapbox/light-v11',
+          center: [106.816666, -6.200000],
+          zoom: 5,
+        });
+
+        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        
+        map.current.on('load', () => {
+          console.log('✅ Map loaded successfully');
+          setMapLoading(false);
+          setMapInitialized(true);
+          setMapRetryCount(0);
+          addDataToMap();
+        });
+
+        map.current.on('error', (e) => {
+          console.error('❌ Map error:', e);
+          setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+          setMapLoading(false);
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to initialize map:', error);
+        setMapError(`Failed to initialize map: ${error.message}`);
+        setMapLoading(false);
+        setMapRetryCount(prev => prev + 1);
+      } finally {
+        mapInitPromise.current = null;
       }
-      
-      console.log('🗺️ Creating map instance...');
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/light-v11',
-        center: [106.816666, -6.200000],
-        zoom: 5,
-      });
+    })();
 
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      
-      map.current.on('load', () => {
-        console.log('✅ Map loaded successfully');
-        setMapLoading(false);
-        setMapInitialized(true);
-        addDataToMap();
-      });
-
-      map.current.on('error', (e) => {
-        console.error('❌ Map error:', e);
-        setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
-        setMapLoading(false);
-      });
-
-    } catch (error) {
-      console.error('❌ Failed to initialize map:', error);
-      setMapError(`Failed to initialize map: ${error.message}`);
-      setMapLoading(false);
-    }
+    return mapInitPromise.current;
   };
 
   const addDataToMap = () => {
@@ -769,17 +853,15 @@ const EnhancedDataVisualization = () => {
 
       {/* Enhanced Tabs */}
       <Tabs 
-        defaultValue="overview" 
-        className="space-y-6"
+        value={activeTab}
         onValueChange={(value) => {
-          if (value === 'geographic' && mapboxToken && !map.current) {
+          setActiveTab(value);
+          if (value === 'geographic' && mapboxToken) {
             console.log('🗺️ Geographic tab activated, initializing map...');
             setTimeout(() => initializeMap(), 200);
-          } else if (value === 'geographic' && map.current) {
-            console.log('🔄 Geographic tab activated, resizing map...');
-            setTimeout(() => map.current?.resize(), 100);
           }
         }}
+        className="space-y-6"
       >
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
