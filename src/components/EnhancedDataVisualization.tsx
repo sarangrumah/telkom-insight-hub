@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ type TelekomData = {
 };
 
 const EnhancedDataVisualization = () => {
+  const [searchParams] = useSearchParams();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [data, setData] = useState<TelekomData[]>([]);
@@ -50,6 +52,7 @@ const EnhancedDataVisualization = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [subServices, setSubServices] = useState<SubService[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [activeServiceFilter, setActiveServiceFilter] = useState('');
   const { toast } = useToast();
 
   // Enhanced Filters
@@ -59,6 +62,15 @@ const EnhancedDataVisualization = () => {
   const [regionFilter, setRegionFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [yearFilter, setYearFilter] = useState<string>('all');
+
+  // Service name mapping for URL parameters
+  const serviceMapping: Record<string, string[]> = {
+    'jasa': ['Jasa Aplikasi', 'Jasa Telekomunikasi', 'Jasa Akses Internet'],
+    'jaringan': ['Jaringan Tetap', 'Jaringan Bergerak', 'Jaringan Satelit'],
+    'telekomunikasi': ['Telekomunikasi', 'Jasa Telekomunikasi'],
+    'internet': ['Internet', 'Jasa Akses Internet', 'Akses Internet'],
+    'aplikasi': ['Aplikasi', 'Jasa Aplikasi']
+  };
 
   const fetchMapboxToken = async () => {
     try {
@@ -85,6 +97,28 @@ const EnhancedDataVisualization = () => {
     
     initializeApp();
   }, []);
+
+  // Handle URL parameters on component mount
+  useEffect(() => {
+    const serviceParam = searchParams.get('service');
+    if (serviceParam && data.length > 0 && services.length > 0) {
+      const mappedServices = serviceMapping[serviceParam.toLowerCase()];
+      if (mappedServices) {
+        // Find matching service in the data
+        const matchingService = services.find(service => 
+          mappedServices.some(mapped => 
+            service.name.toLowerCase().includes(mapped.toLowerCase()) ||
+            mapped.toLowerCase().includes(service.name.toLowerCase())
+          )
+        );
+        
+        if (matchingService) {
+          setServiceFilter(matchingService.id);
+          setActiveServiceFilter(serviceParam);
+        }
+      }
+    }
+  }, [searchParams, data, services]);
 
   useEffect(() => {
     filterData();
@@ -206,6 +240,11 @@ const EnhancedDataVisualization = () => {
     setRegionFilter('all');
     setStatusFilter('all');
     setYearFilter('all');
+    setActiveServiceFilter('');
+    
+    // Clear URL parameters
+    const newSearchParams = new URLSearchParams();
+    window.history.replaceState({}, '', `${window.location.pathname}`);
   };
 
   // Get available years from data
@@ -519,6 +558,11 @@ const EnhancedDataVisualization = () => {
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-primary" />
             Advanced Filters & Search
+            {activeServiceFilter && (
+              <Badge variant="secondary" className="capitalize ml-2">
+                {activeServiceFilter} Services
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>

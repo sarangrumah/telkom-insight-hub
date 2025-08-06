@@ -6,6 +6,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -16,16 +17,23 @@ export function useAuth() {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Session error:', error);
+          if (isMounted) {
+            setSessionError(true);
+            setLoading(false);
+          }
+          return;
         }
         
         if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          setSessionError(false);
           setLoading(false);
         }
       } catch (error) {
         console.error('Auth error:', error);
         if (isMounted) {
+          setSessionError(true);
           setLoading(false);
         }
       }
@@ -35,11 +43,17 @@ export function useAuth() {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          setSessionError(false);
           setLoading(false);
+          
+          // Handle session expiration
+          if (event === 'SIGNED_OUT' && !session) {
+            setSessionError(false); // Clear error on explicit sign out
+          }
         }
       }
     );
@@ -54,5 +68,6 @@ export function useAuth() {
     user,
     session,
     loading,
+    sessionError,
   };
 }

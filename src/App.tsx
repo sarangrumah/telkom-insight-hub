@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SecurityHeaders } from "@/components/SecurityHeaders";
 import { useMonitoring } from "@/hooks/useMonitoring";
 import DashboardPage from "./components/DashboardPage";
@@ -28,7 +28,8 @@ const PublicRoutes = () => (
   <Routes>
     <Route path="/" element={<Homepage />} />
     <Route path="/public-data" element={<PublicDataView />} />
-    <Route path="/register" element={<PublicRegister />} />
+    <Route path="/public-register" element={<PublicRegister />} />
+    <Route path="/register" element={<Navigate to="/public-register" replace />} />
     <Route path="/search" element={<SearchResults />} />
     <Route path="/faq" element={<FAQ />} />
     <Route path="/support" element={<Support />} />
@@ -54,7 +55,7 @@ const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, sess
 );
 
 const AppRoutes: React.FC = () => {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, sessionError } = useAuth();
 
   if (loading) {
     return (
@@ -62,6 +63,19 @@ const AppRoutes: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle session errors with user-friendly message
+  if (sessionError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto p-6">
+          <div className="text-destructive text-lg">Session Expired</div>
+          <p className="text-muted-foreground">Your session has expired. Please log in again to continue.</p>
+          <Navigate to="/auth" replace />
         </div>
       </div>
     );
