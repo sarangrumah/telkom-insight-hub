@@ -818,8 +818,280 @@ const EnhancedDataVisualization = () => {
           </Card>
         </TabsContent>
 
-        {/* Keep existing tabs content for geographic, analytics, trends, and data table */}
-        {/* ... (previous tab content remains the same) ... */}
+        {/* Geographic Tab */}
+        <TabsContent value="geographic" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Map */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  License Locations
+                </CardTitle>
+                <CardDescription>
+                  Geographic distribution of telecommunication licenses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div ref={mapContainer} className="w-full h-[400px] rounded-lg border" />
+                {!mapboxToken && (
+                  <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
+                    <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Regional Statistics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Regional Statistics</CardTitle>
+                <CardDescription>License count by region</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {regionalDistribution.map((region, index) => (
+                    <div key={region.region} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                      <span className="text-sm font-medium truncate flex-1">{region.region}</span>
+                      <Badge variant="secondary">{region.count}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Status Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  License Status Distribution
+                </CardTitle>
+                <CardDescription>Breakdown of license statuses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={Object.entries(
+                        filteredData.reduce((acc, item) => {
+                          acc[item.status] = (acc[item.status] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>)
+                      ).map(([status, count], index) => ({
+                        name: status.charAt(0).toUpperCase() + status.slice(1),
+                        value: count,
+                        fill: `hsl(var(--chart-${(index % 7) + 1}))`
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    />
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Company Performance */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Top Companies by License Count
+                </CardTitle>
+                <CardDescription>Companies with most licenses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart 
+                    data={Object.entries(
+                      filteredData.reduce((acc, item) => {
+                        acc[item.company_name] = (acc[item.company_name] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .map(([company, count]) => ({ company, count }))
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 10)
+                    }
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="company" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={120}
+                      fontSize={10}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Service Type Performance */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5" />
+                  Detailed Service Distribution
+                </CardTitle>
+                <CardDescription>License distribution across all service types</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={serviceDistribution}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Trends Tab */}
+        <TabsContent value="trends" className="space-y-4">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Monthly Trends */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Monthly License Issuance Trends
+                </CardTitle>
+                <CardDescription>Distribution of licenses throughout the year</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={getMonthlyTrends()}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="hsl(var(--primary))" 
+                      fill="hsl(var(--primary))" 
+                      fillOpacity={0.3} 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Yearly Trends */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Yearly License Issuance
+                </CardTitle>
+                <CardDescription>Year-over-year license issuance trends</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={yearlyTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="year" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Data Table Tab */}
+        <TabsContent value="data" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                License Data Table
+              </CardTitle>
+              <CardDescription>
+                Complete dataset with {filteredData.length} records
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border max-h-[600px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Company Name</TableHead>
+                      <TableHead>Service Type</TableHead>
+                      <TableHead>Sub Service</TableHead>
+                      <TableHead>Region</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>License Date</TableHead>
+                      <TableHead>License Number</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredData.slice(0, 100).map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.company_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {item.sub_service?.service?.name || 'Unknown'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{item.sub_service?.name || 'Unknown'}</TableCell>
+                        <TableCell>{item.region || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={item.status === 'active' ? 'default' : 
+                                    item.status === 'pending' ? 'secondary' : 'destructive'}
+                          >
+                            {item.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {item.license_date 
+                            ? new Date(item.license_date).toLocaleDateString()
+                            : 'N/A'
+                          }
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {item.license_number || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {filteredData.length > 100 && (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Showing first 100 of {filteredData.length} records. Use filters to narrow down results.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
