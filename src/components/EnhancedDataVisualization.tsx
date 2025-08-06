@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart
 } from 'recharts';
+import { getServiceTypeColorExpression } from "@/lib/mapColors";
 import {
   MapPin, Filter, Search, Download, Eye, Calendar, TrendingUp,
   RefreshCw, BarChart3, PieChart as PieChartIcon, Users, Building2, Globe, Target, Clock, Database
@@ -607,18 +608,7 @@ const EnhancedDataVisualization = () => {
         source: 'telekom-data',
         paint: {
           'circle-radius': 8,
-          'circle-color': [
-            'match',
-            ['get', 'service_type'],
-            'jasa', 'hsl(var(--chart-1))',
-            'jaringan', 'hsl(var(--chart-2))',
-            'telekomunikasi_khusus', 'hsl(var(--chart-3))',
-            'isr', 'hsl(var(--chart-4))',
-            'tarif', 'hsl(var(--chart-5))',
-            'sklo', 'hsl(var(--primary))',
-            'lko', 'hsl(var(--secondary))',
-            'hsl(var(--muted-foreground))'
-          ],
+          'circle-color': getServiceTypeColorExpression(),
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff'
         }
