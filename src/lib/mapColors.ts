@@ -34,10 +34,14 @@ export function getMapboxColor(colorKey: string, isDark = false): string {
   
   if (!colorValue) {
     console.warn(`Color ${colorKey} not found, using primary`);
-    return `hsl(${CHART_COLORS[theme].primary})`;
+    const fallbackValue = CHART_COLORS[theme].primary;
+    const [h, s, l] = fallbackValue.split(' ');
+    return `hsl(${h}, ${s}, ${l})`;
   }
   
-  return `hsl(${colorValue})`;
+  // Convert space-separated HSL to comma-separated format
+  const [h, s, l] = colorValue.split(' ');
+  return `hsl(${h}, ${s}, ${l})`;
 }
 
 /**
