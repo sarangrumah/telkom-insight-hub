@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import {
   MapPin, Filter, Search, Download, Eye, Calendar, TrendingUp,
-  RefreshCw, BarChart3, PieChart as PieChartIcon
+  RefreshCw, BarChart3, PieChart as PieChartIcon, Users, Building2, Globe, Target, Clock, Database
 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
