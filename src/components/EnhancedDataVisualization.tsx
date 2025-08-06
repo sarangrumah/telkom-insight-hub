@@ -346,136 +346,251 @@ const EnhancedDataVisualization = () => {
     return { totalLicenses, activeOperators, regions, pendingApprovals };
   };
 
-  // Map functions (keeping existing map logic)
-  const initializeMap = () => {
-    if (!mapContainer.current || map.current || !mapboxToken) return;
+  // Enhanced Map functions with better error handling and debugging
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
-    mapboxgl.accessToken = mapboxToken;
+  const initializeMap = async () => {
+    console.log('🗺️ Attempting to initialize map...');
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [106.816666, -6.200000],
-      zoom: 5,
-    });
+    if (!mapContainer.current) {
+      console.error('❌ Map container not available');
+      setMapError('Map container not found');
+      return;
+    }
+    
+    if (map.current) {
+      console.log('✅ Map already initialized');
+      return;
+    }
+    
+    if (!mapboxToken) {
+      console.error('❌ Mapbox token not available');
+      setMapError('Mapbox token not available. Please configure MAPBOX_PUBLIC_TOKEN.');
+      return;
+    }
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    map.current.on('load', () => {
-      addDataToMap();
-    });
+    try {
+      setMapLoading(true);
+      setMapError(null);
+      console.log('🔑 Setting Mapbox access token...');
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      // Check container dimensions
+      const containerRect = mapContainer.current.getBoundingClientRect();
+      console.log('📐 Container dimensions:', containerRect);
+      
+      if (containerRect.width === 0 || containerRect.height === 0) {
+        console.warn('⚠️ Container has zero dimensions, waiting...');
+        setTimeout(() => initializeMap(), 100);
+        return;
+      }
+      
+      console.log('🗺️ Creating map instance...');
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [106.816666, -6.200000],
+        zoom: 5,
+      });
+
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      
+      map.current.on('load', () => {
+        console.log('✅ Map loaded successfully');
+        setMapLoading(false);
+        setMapInitialized(true);
+        addDataToMap();
+      });
+
+      map.current.on('error', (e) => {
+        console.error('❌ Map error:', e);
+        setMapError(`Map error: ${e.error?.message || 'Unknown error'}`);
+        setMapLoading(false);
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to initialize map:', error);
+      setMapError(`Failed to initialize map: ${error.message}`);
+      setMapLoading(false);
+    }
   };
 
   const addDataToMap = () => {
-    if (!map.current) return;
+    if (!map.current) {
+      console.warn('⚠️ Cannot add data: map not initialized');
+      return;
+    }
 
-    map.current.addSource('telekom-data', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: filteredData
-          .filter(item => item.latitude && item.longitude)
-          .map(item => ({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [item.longitude, item.latitude]
-            },
-            properties: {
-              id: item.id,
-              company_name: item.company_name,
-              service_type: item.sub_service?.service?.code || 'unknown',
-              service_name: item.sub_service?.service?.name || 'Unknown Service',
-              sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
-              status: item.status,
-              region: item.region,
-              license_date: item.license_date,
-              license_number: item.license_number,
-            }
-          }))
-      }
-    });
-
-    map.current.addLayer({
-      id: 'telekom-points',
-      type: 'circle',
-      source: 'telekom-data',
-      paint: {
-        'circle-radius': 8,
-        'circle-color': [
-          'match',
-          ['get', 'service_type'],
-          'jasa', 'hsl(var(--chart-1))',
-          'jaringan', 'hsl(var(--chart-2))',
-          'telekomunikasi_khusus', 'hsl(var(--chart-3))',
-          'isr', 'hsl(var(--chart-4))',
-          'tarif', 'hsl(var(--chart-5))',
-          'sklo', 'hsl(var(--primary))',
-          'lko', 'hsl(var(--secondary))',
-          'hsl(var(--muted-foreground))'
-        ],
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#ffffff'
-      }
-    });
-
-    // Add click and hover events
-    map.current.on('click', 'telekom-points', (e) => {
-      if (!e.features || e.features.length === 0) return;
+    try {
+      console.log('📊 Adding data to map...');
       
-      const feature = e.features[0];
-      const properties = feature.properties;
+      const validDataPoints = filteredData.filter(item => 
+        item.latitude && item.longitude && 
+        !isNaN(item.latitude) && !isNaN(item.longitude)
+      );
       
-      new mapboxgl.Popup()
-        .setLngLat([properties.longitude, properties.latitude])
-        .setHTML(`
-          <div class="p-3">
-            <h3 class="font-semibold text-lg">${properties.company_name}</h3>
-            <p class="text-sm text-gray-600">Service: ${properties.service_name}</p>
-            <p class="text-sm text-gray-600">Sub-service: ${properties.sub_service_name}</p>
-            <p class="text-sm text-gray-600">Status: ${properties.status}</p>
-            <p class="text-sm text-gray-600">Region: ${properties.region}</p>
-            ${properties.license_number ? `<p class="text-sm text-gray-600">License: ${properties.license_number}</p>` : ''}
-          </div>
-        `)
-        .addTo(map.current!);
-    });
+      console.log(`📍 Found ${validDataPoints.length} valid data points out of ${filteredData.length} total`);
 
-    map.current.on('mouseenter', 'telekom-points', () => {
-      if (map.current) map.current.getCanvas().style.cursor = 'pointer';
-    });
+      // Remove existing source if it exists
+      if (map.current.getSource('telekom-data')) {
+        console.log('🔄 Removing existing data source...');
+        if (map.current.getLayer('telekom-points')) {
+          map.current.removeLayer('telekom-points');
+        }
+        map.current.removeSource('telekom-data');
+      }
 
-    map.current.on('mouseleave', 'telekom-points', () => {
-      if (map.current) map.current.getCanvas().style.cursor = '';
-    });
+      const features = validDataPoints.map(item => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
+        },
+        properties: {
+          id: item.id,
+          company_name: item.company_name,
+          service_type: item.sub_service?.service?.code || 'unknown',
+          service_name: item.sub_service?.service?.name || 'Unknown Service',
+          sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
+          status: item.status,
+          region: item.region,
+          license_date: item.license_date,
+          license_number: item.license_number,
+          longitude: item.longitude.toString(),
+          latitude: item.latitude.toString()
+        }
+      }));
+
+      map.current.addSource('telekom-data', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features
+        }
+      });
+
+      map.current.addLayer({
+        id: 'telekom-points',
+        type: 'circle',
+        source: 'telekom-data',
+        paint: {
+          'circle-radius': 8,
+          'circle-color': [
+            'match',
+            ['get', 'service_type'],
+            'jasa', 'hsl(var(--chart-1))',
+            'jaringan', 'hsl(var(--chart-2))',
+            'telekomunikasi_khusus', 'hsl(var(--chart-3))',
+            'isr', 'hsl(var(--chart-4))',
+            'tarif', 'hsl(var(--chart-5))',
+            'sklo', 'hsl(var(--primary))',
+            'lko', 'hsl(var(--secondary))',
+            'hsl(var(--muted-foreground))'
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        }
+      });
+
+      console.log('✅ Map layer added successfully');
+      
+      // Add click and hover events
+      map.current.on('click', 'telekom-points', (e) => {
+        if (!e.features || e.features.length === 0) return;
+        
+        const feature = e.features[0];
+        const properties = feature.properties;
+        
+        new mapboxgl.Popup()
+          .setLngLat([parseFloat(properties.longitude), parseFloat(properties.latitude)])
+          .setHTML(`
+            <div class="p-3">
+              <h3 class="font-semibold text-lg">${properties.company_name}</h3>
+              <p class="text-sm text-gray-600">Service: ${properties.service_name}</p>
+              <p class="text-sm text-gray-600">Sub-service: ${properties.sub_service_name}</p>
+              <p class="text-sm text-gray-600">Status: ${properties.status}</p>
+              <p class="text-sm text-gray-600">Region: ${properties.region}</p>
+              ${properties.license_number ? `<p class="text-sm text-gray-600">License: ${properties.license_number}</p>` : ''}
+            </div>
+          `)
+          .addTo(map.current!);
+      });
+
+      map.current.on('mouseenter', 'telekom-points', () => {
+        if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.current.on('mouseleave', 'telekom-points', () => {
+        if (map.current) map.current.getCanvas().style.cursor = '';
+      });
+      
+    } catch (error) {
+      console.error('❌ Failed to add data to map:', error);
+      setMapError(`Failed to load map data: ${error.message}`);
+    }
   };
 
   const updateMapData = () => {
-    if (!map.current || !map.current.getSource('telekom-data')) return;
+    if (!map.current || !map.current.getSource('telekom-data')) {
+      console.warn('⚠️ Cannot update map data: map or source not available');
+      return;
+    }
 
-    const source = map.current.getSource('telekom-data') as mapboxgl.GeoJSONSource;
-    source.setData({
-      type: 'FeatureCollection',
-      features: filteredData
-        .filter(item => item.latitude && item.longitude)
-        .map(item => ({
-          type: 'Feature',
-          geometry: {
-            type: 'Point',
-            coordinates: [item.longitude, item.latitude]
-          },
-          properties: {
-            id: item.id,
-            company_name: item.company_name,
-            service_type: item.sub_service?.service?.code || 'unknown',
-            service_name: item.sub_service?.service?.name || 'Unknown Service',
-            sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
-            status: item.status,
-            region: item.region,
-            license_date: item.license_date,
-            license_number: item.license_number,
-          }
-        }))
-    });
+    try {
+      console.log('🔄 Updating map data...');
+      
+      const validDataPoints = filteredData.filter(item => 
+        item.latitude && item.longitude && 
+        !isNaN(item.latitude) && !isNaN(item.longitude)
+      );
+      
+      console.log(`📍 Updating with ${validDataPoints.length} valid data points`);
+
+      const source = map.current.getSource('telekom-data') as mapboxgl.GeoJSONSource;
+      const features = validDataPoints.map(item => ({
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
+        },
+        properties: {
+          id: item.id,
+          company_name: item.company_name,
+          service_type: item.sub_service?.service?.code || 'unknown',
+          service_name: item.sub_service?.service?.name || 'Unknown Service',
+          sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
+          status: item.status,
+          region: item.region,
+          license_date: item.license_date,
+          license_number: item.license_number,
+          longitude: item.longitude.toString(),
+          latitude: item.latitude.toString()
+        }
+      }));
+
+      source.setData({
+        type: 'FeatureCollection',
+        features
+      });
+      
+      console.log('✅ Map data updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update map data:', error);
+    }
+  };
+
+  const retryMapInitialization = () => {
+    console.log('🔄 Retrying map initialization...');
+    setMapError(null);
+    setMapInitialized(false);
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+    setTimeout(() => initializeMap(), 100);
   };
 
   const exportToCSV = () => {
@@ -653,7 +768,19 @@ const EnhancedDataVisualization = () => {
       </Card>
 
       {/* Enhanced Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs 
+        defaultValue="overview" 
+        className="space-y-6"
+        onValueChange={(value) => {
+          if (value === 'geographic' && mapboxToken && !map.current) {
+            console.log('🗺️ Geographic tab activated, initializing map...');
+            setTimeout(() => initializeMap(), 200);
+          } else if (value === 'geographic' && map.current) {
+            console.log('🔄 Geographic tab activated, resizing map...');
+            setTimeout(() => map.current?.resize(), 100);
+          }
+        }}
+      >
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="geographic">Geographic</TabsTrigger>
@@ -833,11 +960,35 @@ const EnhancedDataVisualization = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div ref={mapContainer} className="w-full h-[400px] rounded-lg border" />
-                {!mapboxToken && (
+                {mapError ? (
+                  <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg space-y-4">
+                    <p className="text-destructive text-center px-4">{mapError}</p>
+                    <Button variant="outline" onClick={retryMapInitialization}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry Map
+                    </Button>
+                  </div>
+                ) : mapLoading ? (
+                  <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
+                    <div className="text-center space-y-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground">Loading map...</p>
+                    </div>
+                  </div>
+                ) : !mapboxToken ? (
                   <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
                     <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
                   </div>
+                ) : (
+                  <div 
+                    ref={mapContainer} 
+                    className="w-full h-[400px] rounded-lg border" 
+                    onLoad={() => {
+                      if (mapContainer.current && map.current) {
+                        setTimeout(() => map.current?.resize(), 100);
+                      }
+                    }}
+                  />
                 )}
               </CardContent>
             </Card>
