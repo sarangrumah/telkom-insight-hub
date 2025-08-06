@@ -125,11 +125,16 @@ const EnhancedDataVisualization = () => {
     filterData();
   }, [data, searchTerm, serviceFilter, subServiceFilter, regionFilter, statusFilter, yearFilter]);
 
+  // Tab-aware map initialization - only initialize when geographic tab is active
   useEffect(() => {
-    if (filteredData.length > 0 && mapboxToken && !map.current) {
-      initializeMap();
+    if (activeTab === 'geographic' && filteredData.length > 0 && mapboxToken && !map.current) {
+      // Add delay to ensure TabsContent is fully rendered
+      const timer = setTimeout(() => {
+        initializeMap();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [filteredData, mapboxToken]);
+  }, [activeTab, filteredData, mapboxToken]);
 
   useEffect(() => {
     if (map.current && map.current.getSource('telekom-data')) {
@@ -412,12 +417,6 @@ const EnhancedDataVisualization = () => {
 
   const initializeMap = async (forceReinit = false) => {
     console.log('🗺️ Attempting to initialize map...', { forceReinit, currentActiveTab: activeTab });
-    
-    // Only initialize when Geographic tab is active
-    if (activeTab !== 'geographic') {
-      console.log('📍 Skipping map init - Geographic tab not active');
-      return;
-    }
 
     // Prevent concurrent initialization
     if (mapInitPromise.current && !forceReinit) {
@@ -452,10 +451,10 @@ const EnhancedDataVisualization = () => {
         mapboxgl.accessToken = mapboxToken;
         
         console.log('⏳ Waiting for container to be ready...');
-        const containerReady = await waitForContainer();
+        const containerReady = await waitForContainer(15, 150); // Increased retries and delay
         
         if (!containerReady) {
-          throw new Error('Map container not available after waiting');
+          throw new Error(`Map container not found. Tab: ${activeTab}. Container ref: ${!!mapContainer.current}. Please ensure Geographic tab is active and try again.`);
         }
         
         // Clean up existing map if forcing reinit
