@@ -373,50 +373,62 @@ const EnhancedDataVisualization = () => {
   const [mapRetryCount, setMapRetryCount] = useState(0);
   const mapInitPromise = useRef<Promise<void> | null>(null);
 
-  const waitForContainer = (maxRetries = 10, retryDelay = 100): Promise<boolean> => {
+  const waitForContainer = (maxRetries = 50, retryDelay = 50): Promise<boolean> => {
     return new Promise((resolve) => {
       let retries = 0;
       
       const checkContainer = () => {
+        console.log(`🔍 Attempt ${retries + 1}: Checking container...`);
+        
         if (!mapContainer.current) {
           console.log(`🔍 Attempt ${retries + 1}: Container ref not available`);
           if (retries < maxRetries) {
             retries++;
-            setTimeout(checkContainer, retryDelay * retries); // Progressive delay
+            setTimeout(checkContainer, retryDelay);
             return;
           }
+          console.error('❌ Container ref never became available');
           resolve(false);
           return;
         }
 
-        // Check if container is actually in DOM and visible
+        // Check if container is actually in DOM
         const isInDOM = document.contains(mapContainer.current);
         if (!isInDOM) {
           console.log(`🔍 Attempt ${retries + 1}: Container not in DOM`);
           if (retries < maxRetries) {
             retries++;
-            setTimeout(checkContainer, retryDelay * retries);
+            setTimeout(checkContainer, retryDelay);
             return;
           }
+          console.error('❌ Container never attached to DOM');
           resolve(false);
           return;
         }
 
-        // Check visibility and dimensions
+        // Check if container has dimensions
         const rect = mapContainer.current.getBoundingClientRect();
         const computedStyle = window.getComputedStyle(mapContainer.current);
         const isVisible = computedStyle.display !== 'none' && 
                          computedStyle.visibility !== 'hidden' && 
                          rect.width > 0 && rect.height > 0;
-
-        console.log(`🔍 Attempt ${retries + 1}: Container dimensions: ${rect.width}x${rect.height}, visible: ${isVisible}`);
+        
+        console.log(`🔍 Container check:`, {
+          hasRef: !!mapContainer.current,
+          inDOM: isInDOM,
+          dimensions: { width: rect.width, height: rect.height },
+          display: computedStyle.display,
+          visibility: computedStyle.visibility,
+          isVisible
+        });
 
         if (!isVisible) {
           if (retries < maxRetries) {
             retries++;
-            setTimeout(checkContainer, retryDelay * retries);
+            setTimeout(checkContainer, retryDelay);
             return;
           }
+          console.error('❌ Container has no dimensions or is hidden');
           resolve(false);
           return;
         }
@@ -425,6 +437,7 @@ const EnhancedDataVisualization = () => {
         resolve(true);
       };
 
+      // Start checking immediately
       checkContainer();
     });
   };
@@ -1074,36 +1087,44 @@ const EnhancedDataVisualization = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {mapError ? (
-                  <div className="flex flex-col items-center justify-center h-[400px] bg-muted rounded-lg space-y-4">
-                    <p className="text-destructive text-center px-4">{mapError}</p>
-                    <Button variant="outline" onClick={retryMapInitialization}>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Retry Map
-                    </Button>
-                  </div>
-                ) : mapLoading ? (
-                  <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
-                    <div className="text-center space-y-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground">Loading map...</p>
-                    </div>
-                  </div>
-                ) : !mapboxToken ? (
-                  <div className="flex items-center justify-center h-[400px] bg-muted rounded-lg">
-                    <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
-                  </div>
-                ) : (
+                {/* Map Container - Always render to ensure ref is available */}
+                <div className="relative">
                   <div 
                     ref={mapContainer} 
-                    className="w-full h-[400px] rounded-lg border" 
-                    onLoad={() => {
-                      if (mapContainer.current && map.current) {
-                        setTimeout(() => map.current?.resize(), 100);
-                      }
-                    }}
+                    className="w-full h-[400px] rounded-lg border bg-muted" 
                   />
-                )}
+                  
+                  {/* Error Overlay */}
+                  {mapError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                      <div className="text-center space-y-4">
+                        <p className="text-destructive font-medium">Map Error</p>
+                        <p className="text-sm text-muted-foreground max-w-md px-4">{mapError}</p>
+                        <Button variant="outline" onClick={retryMapInitialization}>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Retry Map
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Loading Overlay */}
+                  {mapLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                      <div className="text-center space-y-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-muted-foreground">Loading map...</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* No Token Overlay */}
+                  {!mapboxToken && !mapLoading && !mapError && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                      <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

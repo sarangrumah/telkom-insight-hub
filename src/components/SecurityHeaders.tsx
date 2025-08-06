@@ -15,7 +15,7 @@ export function SecurityHeaders() {
           style-src 'self' 'unsafe-inline' https://api.mapbox.com;
           img-src 'self' data: https: blob: https://api.mapbox.com;
           font-src 'self' data: https://api.mapbox.com;
-          connect-src 'self' https://jktaapzaskbebwhfswth.supabase.co wss://jktaapzaskbebwhfswth.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com;
+          connect-src 'self' https://jktaapzaskbebwhfswth.supabase.co wss://jktaapzaskbebwhfswth.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://a.tiles.mapbox.com https://b.tiles.mapbox.com;
           media-src 'self';
           object-src 'none';
           child-src 'self';
