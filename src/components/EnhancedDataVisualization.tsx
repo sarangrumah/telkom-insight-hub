@@ -1063,79 +1063,77 @@ const EnhancedDataVisualization = () => {
         </TabsContent>
 
         {/* Geographic Tab */}
-        <TabsContent value="geographic" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Map */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  License Locations
-                </CardTitle>
-                <CardDescription>
-                  Geographic distribution of telecommunication licenses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Map Container - Always render to ensure ref is available */}
-                <div className="relative">
-                  <div 
-                    ref={mapContainer} 
-                    className="w-full h-[400px] rounded-lg border bg-muted" 
-                  />
-                  
-                  {/* Error Overlay */}
-                  {mapError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
-                      <div className="text-center space-y-4">
-                        <p className="text-destructive font-medium">Map Error</p>
-                        <p className="text-sm text-muted-foreground max-w-md px-4">{mapError}</p>
-                        <Button variant="outline" onClick={retryMapInitialization}>
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Retry Map
-                        </Button>
-                      </div>
+        <TabsContent value="geographic" className="space-y-6">
+          {/* Map */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                License Locations
+              </CardTitle>
+              <CardDescription>
+                Geographic distribution of telecommunication licenses
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Map Container - Always render to ensure ref is available */}
+              <div className="relative">
+                <div 
+                  ref={mapContainer} 
+                  className="w-full h-[600px] rounded-lg border bg-muted" 
+                />
+                
+                {/* Error Overlay */}
+                {mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                    <div className="text-center space-y-4">
+                      <p className="text-destructive font-medium">Map Error</p>
+                      <p className="text-sm text-muted-foreground max-w-md px-4">{mapError}</p>
+                      <Button variant="outline" onClick={retryMapInitialization}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry Map
+                      </Button>
                     </div>
-                  )}
-                  
-                  {/* Loading Overlay */}
-                  {mapLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
-                      <div className="text-center space-y-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-muted-foreground">Loading map...</p>
-                      </div>
+                  </div>
+                )}
+                
+                {/* Loading Overlay */}
+                {mapLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                    <div className="text-center space-y-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground">Loading map...</p>
                     </div>
-                  )}
-                  
-                  {/* No Token Overlay */}
-                  {!mapboxToken && !mapLoading && !mapError && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
-                      <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                )}
+                
+                {/* No Token Overlay */}
+                {!mapboxToken && !mapLoading && !mapError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm">
+                    <p className="text-muted-foreground">Map unavailable - Mapbox token required</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Regional Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Regional Statistics</CardTitle>
-                <CardDescription>License count by region</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {regionalDistribution.map((region, index) => (
-                    <div key={region.region} className="flex justify-between items-center p-2 rounded bg-muted/50">
-                      <span className="text-sm font-medium truncate flex-1">{region.region}</span>
-                      <Badge variant="secondary">{region.count}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Regional Statistics */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Regional Statistics</CardTitle>
+              <CardDescription>License count by region</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {regionalDistribution.map((region, index) => (
+                  <div key={region.region} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                    <span className="text-sm font-medium truncate flex-1">{region.region}</span>
+                    <Badge variant="secondary">{region.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Analytics Tab */}
