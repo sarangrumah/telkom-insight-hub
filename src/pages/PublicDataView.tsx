@@ -115,7 +115,7 @@ export default function PublicDataView() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">TelekomViz Public Data</h1>
+              <h1 className="text-3xl font-bold text-foreground">Panel Penyelenggaraan</h1>
               <p className="text-muted-foreground mt-2">
                 Explore public telecommunication data and resources
               </p>

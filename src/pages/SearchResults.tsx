@@ -89,7 +89,7 @@ const SearchResults = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Globe className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">TelekomViz</h1>
+            <h1 className="text-2xl font-bold text-foreground">Panel Penyelenggaraan</h1>
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="ghost" onClick={() => navigate("/")}>

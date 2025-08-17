@@ -60,7 +60,7 @@ function AppSidebar({ user, profile, userRole, onLogout, counts }: any) {
         {!isCollapsed && (
           <div className="space-y-2">
             <h2 className="text-lg font-semibold bg-gradient-primary bg-clip-text text-transparent">
-              TelekomViz
+              Panel Penyelenggaraan
             </h2>
             <div className="space-y-1">
               <p className="text-sm text-sidebar-foreground/80 truncate">

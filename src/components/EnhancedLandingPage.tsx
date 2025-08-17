@@ -115,7 +115,7 @@ const EnhancedLandingPage = () => {
               <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              TelekomViz
+              Panel Penyelenggaraan
             </h1>
           </div>
           <div className="flex items-center space-x-4">
@@ -124,7 +124,7 @@ const EnhancedLandingPage = () => {
             </Button>
             {user ? (
               <Button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow">
-                Dashboard
+                Beranda
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
@@ -432,7 +432,7 @@ const EnhancedLandingPage = () => {
               <div className="flex items-center space-x-3 mb-6">
                 <Globe className="h-8 w-8 text-primary" />
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  TelekomViz
+                  Panel Peneyelenggaraan
                 </h3>
               </div>
               <p className="text-muted-foreground mb-6 leading-relaxed max-w-md">
@@ -472,7 +472,7 @@ const EnhancedLandingPage = () => {
                 </div>
                 <div className="flex items-center space-x-3 hover:text-primary cursor-pointer transition-colors">
                   <Mail className="h-5 w-5" />
-                  <span>info@telekomviz.id</span>
+                  <span>info@komdigi.go.id</span>
                 </div>
                 <div className="flex items-center space-x-3 hover:text-primary cursor-pointer transition-colors">
                   <MapPin className="h-5 w-5" />
@@ -484,7 +484,7 @@ const EnhancedLandingPage = () => {
           
           <div className="border-t mt-12 pt-8 text-center">
             <p className="text-muted-foreground">
-              &copy; 2024 TelekomViz. Semua hak dilindungi. Powered by AI & Modern Technology.
+              &copy; 2025 BimaCreativeTech. Semua hak dilindungi.
             </p>
           </div>
         </div>
