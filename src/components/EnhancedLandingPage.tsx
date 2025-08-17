@@ -11,7 +11,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 
 const EnhancedLandingPage = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [animatedStats, setAnimatedStats] = useState({
@@ -122,7 +122,7 @@ const EnhancedLandingPage = () => {
             <Button variant="ghost" onClick={() => navigate("/faq")} className="hover:bg-primary/10">
               FAQ
             </Button>
-            {user ? (
+            {user && session ? (
               <Button onClick={() => navigate("/dashboard")} className="bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow">
                 Beranda
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -408,7 +408,7 @@ const EnhancedLandingPage = () => {
                   </Button>
                 </>
               )}
-              {user && (
+              {user && session && (
                 <Button 
                   size="lg" 
                   variant="secondary" 
