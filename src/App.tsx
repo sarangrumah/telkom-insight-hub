@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { SecurityHeaders } from "@/components/SecurityHeaders";
 import { useMonitoring } from "@/hooks/useMonitoring";
 import DashboardPage from "./components/DashboardPage";
@@ -24,35 +24,43 @@ import AuthPage from "./components/AuthPage";
 
 const queryClient = new QueryClient();
 
-const PublicRoutes = () => (
-  <Routes>
-    <Route path="/" element={<Homepage />} />
-    <Route path="/public-data" element={<PublicDataView />} />
-    <Route path="/public-register" element={<PublicRegister />} />
-    <Route path="/register" element={<Navigate to="/public-register" replace />} />
-    <Route path="/search" element={<SearchResults />} />
-    <Route path="/faq" element={<FAQ />} />
-    <Route path="/support" element={<Support />} />
-    <Route path="/auth" element={<AuthPage onAuthSuccess={() => window.location.href = "/dashboard"} />} />
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
-
-const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, session }) => (
-  <AppLayout user={user} session={session} onLogout={() => window.location.href = "/"}>
+const PublicRoutes = () => {
+  const navigate = useNavigate();
+  
+  return (
     <Routes>
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/data-management" element={<DataManagement />} />
-      <Route path="/data-visualization" element={<DataVisualization />} />
+      <Route path="/" element={<Homepage />} />
+      <Route path="/public-data" element={<PublicDataView />} />
+      <Route path="/public-register" element={<PublicRegister />} />
+      <Route path="/register" element={<Navigate to="/public-register" replace />} />
+      <Route path="/search" element={<SearchResults />} />
       <Route path="/faq" element={<FAQ />} />
       <Route path="/support" element={<Support />} />
-      <Route path="/admin/faq" element={<AdminFAQ />} />
-      <Route path="/admin/tickets" element={<AdminTickets />} />
-      <Route path="/user-management" element={<UserManagement />} />
+      <Route path="/auth" element={<AuthPage onAuthSuccess={() => navigate("/dashboard")} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </AppLayout>
-);
+  );
+};
+
+const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, session }) => {
+  const navigate = useNavigate();
+  
+  return (
+    <AppLayout user={user} session={session} onLogout={() => navigate("/")}>
+      <Routes>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/data-management" element={<DataManagement />} />
+        <Route path="/data-visualization" element={<DataVisualization />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/support" element={<Support />} />
+        <Route path="/admin/faq" element={<AdminFAQ />} />
+        <Route path="/admin/tickets" element={<AdminTickets />} />
+        <Route path="/user-management" element={<UserManagement />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
+  );
+};
 
 const AppRoutes: React.FC = () => {
   const { user, session, loading, sessionError } = useAuth();
@@ -89,7 +97,7 @@ const AppRoutes: React.FC = () => {
                               window.location.pathname.startsWith('/user-management');
 
   if (isAuthenticatedRoute && (!user || !session)) {
-    return <AuthPage onAuthSuccess={() => window.location.href = "/dashboard"} />;
+    return <Navigate to="/auth" replace />;
   }
 
   if (user && session && isAuthenticatedRoute) {

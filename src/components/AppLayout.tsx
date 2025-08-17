@@ -93,7 +93,7 @@ function AppSidebar({ user, profile, userRole, onLogout, counts }: any) {
                   className="hover-scale transition-all duration-200"
                 >
                   <Home className="h-4 w-4" />
-                  {!isCollapsed && <span>Dashboard</span>}
+                  {!isCollapsed && <span>Beranda</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
 

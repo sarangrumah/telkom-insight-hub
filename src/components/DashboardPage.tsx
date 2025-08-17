@@ -1,9 +1,10 @@
 import Dashboard from "@/components/Dashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Navigate } from "react-router-dom";
 
 const DashboardPage = () => {
-  const { user, session, loading } = useAuth();
+  const { user, session, loading, sessionError } = useAuth();
   
   if (loading) {
     return (
@@ -16,18 +17,17 @@ const DashboardPage = () => {
     );
   }
 
+  if (sessionError) {
+    return <Navigate to="/auth" replace />;
+  }
+
   if (!user || !session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Authentication required</p>
-          <p className="text-sm text-muted-foreground">Redirecting to login...</p>
-        </div>
-      </div>
-    );
+    return <Navigate to="/auth" replace />;
   }
   
-  return <Dashboard user={user} session={session} onLogout={() => window.location.reload()} />;
+  return <Dashboard user={user} session={session} onLogout={() => {
+    // This will be handled by AppLayout
+  }} />;
 };
 
 export default DashboardPage;

@@ -11,7 +11,31 @@ export function useAuth() {
   useEffect(() => {
     let isMounted = true;
 
-    // Check for existing session immediately
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Auth state change:', event, !!session);
+        if (isMounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setSessionError(false);
+          setLoading(false);
+          
+          // Handle session expiration or token refresh failures
+          if (event === 'SIGNED_OUT' && !session) {
+            setSessionError(false); // Clear error on explicit sign out
+            // Clear any cached data
+            localStorage.removeItem('supabase.auth.token');
+          }
+          
+          if (event === 'TOKEN_REFRESHED' && session) {
+            console.log('Token refreshed successfully');
+          }
+        }
+      }
+    );
+
+    // THEN check for existing session
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -40,23 +64,6 @@ export function useAuth() {
     };
 
     checkSession();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (isMounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setSessionError(false);
-          setLoading(false);
-          
-          // Handle session expiration
-          if (event === 'SIGNED_OUT' && !session) {
-            setSessionError(false); // Clear error on explicit sign out
-          }
-        }
-      }
-    );
 
     return () => {
       isMounted = false;
