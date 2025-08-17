@@ -169,16 +169,29 @@ function AppSidebar({ user, profile, userRole, onLogout, counts }: any) {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {isAdminUser && (
-                      <SidebarMenuItem>
-                        <SidebarMenuButton 
-                          onClick={() => navigate('/user-management')}
-                          isActive={isActive('/user-management')}
-                          className="hover-scale transition-all duration-200"
-                        >
-                          <Users className="h-4 w-4" />
-                          {!isCollapsed && <span>User Management</span>}
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                      <>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton 
+                            onClick={() => navigate('/user-management')}
+                            isActive={isActive('/user-management')}
+                            className="hover-scale transition-all duration-200"
+                          >
+                            <Users className="h-4 w-4" />
+                            {!isCollapsed && <span>User Management</span>}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        
+                        <SidebarMenuItem>
+                          <SidebarMenuButton 
+                            onClick={() => navigate('/permission-management')}
+                            isActive={isActive('/permission-management')}
+                            className="hover-scale transition-all duration-200"
+                          >
+                            <Settings className="h-4 w-4" />
+                            {!isCollapsed && <span>Permission Management</span>}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      </>
                     )}
 
                     <SidebarMenuItem>

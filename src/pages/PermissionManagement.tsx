@@ -1,52 +1,72 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { PermissionGuard } from "@/components/PermissionGuard";
-import { Shield, Save, RefreshCw } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PermissionGuard } from '@/components/PermissionGuard';
+import { Loader2, RefreshCw, Save, Eye, EyeOff } from 'lucide-react';
+
+type AppRole = 'super_admin' | 'internal_admin' | 'pengolah_data' | 'pelaku_usaha' | 'internal_group' | 'guest';
 
 interface Module {
   id: string;
   name: string;
   code: string;
-  description: string;
+  description?: string;
+}
+
+interface Field {
+  id: string;
+  name: string;
+  code: string;
+  field_type: string;
+  is_system_field: boolean;
+  module_id: string;
 }
 
 interface Permission {
   id: string;
   role: string;
   module_id: string;
-  module_code: string;
-  module_name: string;
+  field_id?: string;
   can_create: boolean;
   can_read: boolean;
   can_update: boolean;
   can_delete: boolean;
+  field_access?: string;
+  module?: {
+    name: string;
+    code: string;
+  };
+  field?: {
+    name: string;
+    code: string;
+  };
 }
 
-const ROLES = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'internal_admin', label: 'Internal Admin' },
-  { value: 'pengolah_data', label: 'Data Processor' },
-  { value: 'pelaku_usaha', label: 'Business User' },
-  { value: 'internal_group', label: 'Internal Group' },
-  { value: 'guest', label: 'Guest' },
-];
+interface FieldPermission {
+  field_id: string;
+  field_name: string;
+  field_code: string;
+  field_access: 'hidden' | 'read_only' | 'editable';
+  is_system_field: boolean;
+}
 
-const PermissionManagement = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+const PermissionManagement: React.FC = () => {
   const [modules, setModules] = useState<Module[]>([]);
+  const [fields, setFields] = useState<Field[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [selectedRole, setSelectedRole] = useState<string>('pelaku_usaha');
+  const [fieldPermissions, setFieldPermissions] = useState<FieldPermission[]>([]);
+  const [selectedRole, setSelectedRole] = useState<AppRole>('super_admin');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('modules');
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -55,25 +75,38 @@ const PermissionManagement = () => {
   useEffect(() => {
     if (selectedRole) {
       fetchPermissions();
+      fetchFieldPermissions();
     }
   }, [selectedRole]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      // Fetch modules
       const { data: modulesData, error: modulesError } = await supabase
         .from('modules')
-        .select('*')
+        .select('id, name, code, description')
         .eq('is_active', true)
         .order('name');
 
       if (modulesError) throw modulesError;
       setModules(modulesData || []);
+
+      // Fetch fields
+      const { data: fieldsData, error: fieldsError } = await supabase
+        .from('fields')
+        .select('id, name, code, field_type, is_system_field, module_id')
+        .eq('is_active', true)
+        .order('name');
+
+      if (fieldsError) throw fieldsError;
+      setFields(fieldsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
         title: "Error",
-        description: "Failed to load modules data",
+        description: "Failed to load data",
         variant: "destructive",
       });
     } finally {
@@ -82,68 +115,185 @@ const PermissionManagement = () => {
   };
 
   const fetchPermissions = async () => {
+    if (!selectedRole) return;
+
     try {
       const { data, error } = await supabase
         .from('permissions')
         .select(`
-          *,
-          modules!inner(code, name)
+          id,
+          role,
+          module_id,
+          field_id,
+          can_create,
+          can_read,
+          can_update,
+          can_delete,
+          field_access,
+          modules:module_id (
+            name,
+            code
+          ),
+          fields:field_id (
+            name,
+            code
+          )
         `)
         .eq('role', selectedRole as any)
         .is('field_id', null);
 
       if (error) throw error;
-
-      const formattedPermissions = (data || []).map(p => ({
-        id: p.id,
-        role: p.role,
-        module_id: p.module_id,
-        module_code: (p.modules as any).code,
-        module_name: (p.modules as any).name,
-        can_create: p.can_create,
-        can_read: p.can_read,
-        can_update: p.can_update,
-        can_delete: p.can_delete,
-      }));
-
-      setPermissions(formattedPermissions);
+      setPermissions(data || []);
     } catch (error) {
       console.error('Error fetching permissions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load permissions",
+        variant: "destructive",
+      });
     }
   };
 
-  const handlePermissionChange = (moduleId: string, action: string, value: boolean) => {
+  const fetchFieldPermissions = async () => {
+    if (!selectedRole) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('permissions')
+        .select(`
+          field_id,
+          field_access,
+          fields:field_id (
+            name,
+            code,
+            is_system_field
+          )
+        `)
+        .eq('role', selectedRole as any)
+        .not('field_id', 'is', null);
+
+      if (error) throw error;
+      
+      const fieldPerms = data?.map(p => ({
+        field_id: p.field_id!,
+        field_name: p.fields?.name || '',
+        field_code: p.fields?.code || '',
+        field_access: (p.field_access as 'hidden' | 'read_only' | 'editable') || 'read_only',
+        is_system_field: p.fields?.is_system_field || false
+      })) || [];
+      
+      setFieldPermissions(fieldPerms);
+    } catch (error) {
+      console.error('Error fetching field permissions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load field permissions",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePermissionChange = (moduleId: string, permission: keyof Pick<Permission, 'can_create' | 'can_read' | 'can_update' | 'can_delete'>, value: boolean) => {
     setPermissions(prev => prev.map(p => 
       p.module_id === moduleId 
-        ? { ...p, [action]: value }
+        ? { ...p, [permission]: value }
         : p
     ));
+  };
+
+  const handleFieldPermissionChange = (fieldId: string, access: 'hidden' | 'read_only' | 'editable') => {
+    setFieldPermissions(prev => {
+      const existing = prev.find(fp => fp.field_id === fieldId);
+      if (existing) {
+        return prev.map(fp => 
+          fp.field_id === fieldId 
+            ? { ...fp, field_access: access }
+            : fp
+        );
+      } else {
+        const field = fields.find(f => f.id === fieldId);
+        if (field) {
+          return [...prev, {
+            field_id: fieldId,
+            field_name: field.name,
+            field_code: field.code,
+            field_access: access,
+            is_system_field: field.is_system_field
+          }];
+        }
+      }
+      return prev;
+    });
   };
 
   const savePermissions = async () => {
     try {
       setSaving(true);
-      
-      const updates = permissions.map(p => ({
-        id: p.id,
-        can_create: p.can_create,
-        can_read: p.can_read,
-        can_update: p.can_update,
-        can_delete: p.can_delete,
+
+      // Save module permissions
+      const moduleUpdates = permissions.map(permission => ({
+        id: permission.id,
+        role: permission.role,
+        module_id: permission.module_id,
+        can_create: permission.can_create,
+        can_read: permission.can_read,
+        can_update: permission.can_update,
+        can_delete: permission.can_delete,
       }));
 
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('permissions')
-          .update(update)
-          .eq('id', update.id);
+      const { error: moduleError } = await supabase
+        .from('permissions')
+        .upsert(moduleUpdates as any);
 
-        if (error) throw error;
+      if (moduleError) throw moduleError;
+
+      // Save field permissions
+      if (fieldPermissions.length > 0) {
+        const fieldUpdates = [];
+        
+        for (const fieldPerm of fieldPermissions) {
+          // Check if field permission already exists
+          const { data: existing } = await supabase
+            .from('permissions')
+            .select('id')
+            .eq('role', selectedRole as any)
+            .eq('field_id', fieldPerm.field_id)
+            .single();
+
+          const field = fields.find(f => f.id === fieldPerm.field_id);
+          const module = modules.find(m => m.id === field?.module_id);
+
+          if (existing) {
+            fieldUpdates.push({
+              id: existing.id,
+              field_access: fieldPerm.field_access
+            });
+          } else {
+            fieldUpdates.push({
+              role: selectedRole,
+              module_id: field?.module_id,
+              field_id: fieldPerm.field_id,
+              field_access: fieldPerm.field_access,
+              can_create: false,
+              can_read: fieldPerm.field_access !== 'hidden',
+              can_update: fieldPerm.field_access === 'editable',
+              can_delete: false
+            });
+          }
+        }
+
+        if (fieldUpdates.length > 0) {
+          const { error: fieldError } = await supabase
+            .from('permissions')
+            .upsert(fieldUpdates as any);
+
+          if (fieldError) throw fieldError;
+        }
       }
 
       toast({
         title: "Success",
-        description: "Permissions updated successfully",
+        description: "Permissions saved successfully",
       });
     } catch (error) {
       console.error('Error saving permissions:', error);
@@ -158,161 +308,261 @@ const PermissionManagement = () => {
   };
 
   const getRoleBadge = (role: string) => {
-    const colors = {
-      super_admin: 'bg-red-500',
-      internal_admin: 'bg-orange-500',
-      pengolah_data: 'bg-blue-500',
-      pelaku_usaha: 'bg-green-500',
-      internal_group: 'bg-purple-500',
-      guest: 'bg-gray-500',
+    const roleColors = {
+      super_admin: "bg-red-500 text-white",
+      internal_admin: "bg-orange-500 text-white",
+      pengolah_data: "bg-blue-500 text-white",
+      pelaku_usaha: "bg-green-500 text-white",
+      internal_group: "bg-purple-500 text-white",
+      guest: "bg-gray-500 text-white"
+    };
+
+    const roleLabels = {
+      super_admin: "Super Admin",
+      internal_admin: "Internal Admin",
+      pengolah_data: "Data Processor",
+      pelaku_usaha: "Business User",
+      internal_group: "Internal Group",
+      guest: "Guest"
     };
 
     return (
-      <Badge className={`${colors[role as keyof typeof colors]} text-white`}>
-        {ROLES.find(r => r.value === role)?.label}
+      <Badge className={roleColors[role as keyof typeof roleColors] || "bg-gray-500 text-white"}>
+        {roleLabels[role as keyof typeof roleLabels] || role}
       </Badge>
     );
+  };
+
+  const getFieldAccess = (fieldId: string): 'hidden' | 'read_only' | 'editable' => {
+    const fieldPerm = fieldPermissions.find(fp => fp.field_id === fieldId);
+    return fieldPerm?.field_access || 'read_only';
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground animate-fade-in">Loading permissions...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <PermissionGuard 
-      moduleCode="user_management" 
-      action="update"
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center">
-            <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-muted-foreground">Access Denied</h2>
-            <p className="mt-2 text-muted-foreground">You don't have permission to manage permissions.</p>
-          </div>
-        </div>
-      }
-      showFallback
-    >
-      <div className="container mx-auto p-6 space-y-6">
+    <PermissionGuard moduleCode="user_management" action="update">
+      <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Permission Management</h1>
-            <p className="text-muted-foreground">
-              Configure role-based permissions for modules and actions
+            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Permission Management
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Manage module and field-level permissions for different roles
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchPermissions}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+            <Button
+              onClick={() => {
+                fetchData();
+                if (selectedRole) {
+                  fetchPermissions();
+                  fetchFieldPermissions();
+                }
+              }}
+              variant="outline"
+              size="sm"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button onClick={savePermissions} disabled={saving}>
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
+            <Button
+              onClick={savePermissions}
+              disabled={saving || !selectedRole}
+              size="sm"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
             </Button>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Role Permissions Matrix
-            </CardTitle>
-            <CardDescription>
-              Select a role and configure permissions for each module
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <label className="text-sm font-medium">Select Role</label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="w-64 mt-2">
-                  <SelectValue />
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Role Permissions</CardTitle>
+                <CardDescription>
+                  Configure module and field-level permissions for the selected role
+                </CardDescription>
+              </div>
+              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as AppRole)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map(role => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="internal_admin">Internal Admin</SelectItem>
+                  <SelectItem value="pengolah_data">Pengolah Data</SelectItem>
+                  <SelectItem value="pelaku_usaha">Pelaku Usaha</SelectItem>
+                  <SelectItem value="internal_group">Internal Group</SelectItem>
+                  <SelectItem value="guest">Guest</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="modules">Module Permissions</TabsTrigger>
+                <TabsTrigger value="fields">Field Permissions</TabsTrigger>
+              </TabsList>
 
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">
-                Permissions for {getRoleBadge(selectedRole)}
-              </h3>
-            </div>
+              <TabsContent value="modules" className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Module</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-center">Create</TableHead>
+                      <TableHead className="text-center">Read</TableHead>
+                      <TableHead className="text-center">Update</TableHead>
+                      <TableHead className="text-center">Delete</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {modules.map((module) => {
+                      const permission = permissions.find(p => p.module_id === module.id);
+                      const role = selectedRole;
+                      
+                      return (
+                        <TableRow key={module.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{module.name}</div>
+                              <div className="text-sm text-muted-foreground">{module.code}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getRoleBadge(role)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={permission?.can_create || false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionChange(module.id, 'can_create', checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={permission?.can_read || false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionChange(module.id, 'can_read', checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={permission?.can_update || false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionChange(module.id, 'can_update', checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={permission?.can_delete || false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionChange(module.id, 'can_delete', checked)
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TabsContent>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Module</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-center">Create</TableHead>
-                    <TableHead className="text-center">Read</TableHead>
-                    <TableHead className="text-center">Update</TableHead>
-                    <TableHead className="text-center">Delete</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {modules.map((module) => {
-                    const permission = permissions.find(p => p.module_id === module.id);
-                    
-                    return (
-                      <TableRow key={module.id}>
-                        <TableCell className="font-medium">{module.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {module.description}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Switch
-                            checked={permission?.can_create || false}
-                            onCheckedChange={(value) => 
-                              handlePermissionChange(module.id, 'can_create', value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Switch
-                            checked={permission?.can_read || false}
-                            onCheckedChange={(value) => 
-                              handlePermissionChange(module.id, 'can_read', value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Switch
-                            checked={permission?.can_update || false}
-                            onCheckedChange={(value) => 
-                              handlePermissionChange(module.id, 'can_update', value)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Switch
-                            checked={permission?.can_delete || false}
-                            onCheckedChange={(value) => 
-                              handlePermissionChange(module.id, 'can_delete', value)
-                            }
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+              <TabsContent value="fields" className="space-y-4">
+                {modules.map((module) => {
+                  const moduleFields = fields.filter(f => f.module_id === module.id);
+                  
+                  if (moduleFields.length === 0) return null;
+
+                  return (
+                    <Card key={module.id} className="mb-4">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">{module.name}</CardTitle>
+                        <CardDescription>{module.code}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-3">
+                          {moduleFields.map((field) => {
+                            const fieldAccess = getFieldAccess(field.id);
+                            
+                            return (
+                              <div key={field.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <div>
+                                    <div className="font-medium">{field.name}</div>
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                      {field.code}
+                                      {field.is_system_field && (
+                                        <Badge variant="outline" className="text-xs">System</Badge>
+                                      )}
+                                      <Badge variant="secondary" className="text-xs">
+                                        {field.field_type}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={fieldAccess}
+                                    onValueChange={(value: 'hidden' | 'read_only' | 'editable') =>
+                                      handleFieldPermissionChange(field.id, value)
+                                    }
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="hidden">
+                                        <div className="flex items-center">
+                                          <EyeOff className="h-4 w-4 mr-2" />
+                                          Hidden
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="read_only">
+                                        <div className="flex items-center">
+                                          <Eye className="h-4 w-4 mr-2" />
+                                          Read Only
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="editable">
+                                        Editable
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>
