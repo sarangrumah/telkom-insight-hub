@@ -10,6 +10,8 @@ import { ExcelImportDialog } from "@/components/ExcelImportDialog";
 import { ExcelExportButton } from "@/components/ExcelExportButton";
 import { LocationMigration } from "@/components/LocationMigration";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGuard } from "@/components/PermissionGuard";
 import type { Database } from "@/integrations/supabase/types";
 
 type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
@@ -17,6 +19,7 @@ type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
 const DataManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canCreate, canRead, canAccessModule, loading: permissionsLoading } = usePermissions('data_management');
   const [data, setData] = useState<TelekomData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -102,17 +105,30 @@ const DataManagement = () => {
     }
   };
 
-  // Allow all authenticated users to add data for now, with role-based restrictions in the backend
-  const canAddData = true; // userRole === 'pelaku_usaha' || userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data';
+  // Use permission system for data access control
+  const canAddData = canCreate('data_management');
+  const canViewData = canRead('data_management');
+  const hasModuleAccess = canAccessModule('data_management');
 
-  console.log('Current user role:', userRole, 'Can add data:', canAddData);
+  console.log('Permission checks:', { canAddData, canViewData, hasModuleAccess, userRole });
 
-  if (loading) {
+  if (loading || permissionsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasModuleAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground">Access Denied</h2>
+          <p className="mt-2 text-muted-foreground">You don't have permission to access this module.</p>
         </div>
       </div>
     );
@@ -128,21 +144,21 @@ const DataManagement = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <ExcelExportButton />
-          {canAddData && (
-            <>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsImportDialogOpen(true)}
-              >
-                Import Excel
-              </Button>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Data
-              </Button>
-            </>
-          )}
+          <PermissionGuard moduleCode="data_management" action="read">
+            <ExcelExportButton />
+          </PermissionGuard>
+          <PermissionGuard moduleCode="data_management" action="create">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsImportDialogOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Data
+            </Button>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -176,11 +192,11 @@ const DataManagement = () => {
       />
 
       {/* Show migration tool for admin users */}
-      {(userRole === 'super_admin' || userRole === 'internal_admin') && (
+      <PermissionGuard moduleCode="user_management" action="update">
         <div className="flex justify-center">
           <LocationMigration />
         </div>
-      )}
+      </PermissionGuard>
     </div>
   );
 };

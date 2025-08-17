@@ -7,6 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AddEditTelekomDataDialog } from "./AddEditTelekomDataDialog";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { PDFPreviewModal } from "./PDFPreviewModal";
+import { TableActionButton } from "./TableActionButton";
+import { ConditionalField } from "./PermissionGuard";
 import { format } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -24,15 +26,7 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
   const [deletingData, setDeletingData] = useState<TelekomData | null>(null);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
 
-  const canEdit = (item: TelekomData) => {
-    if (userRole === 'super_admin' || userRole === 'internal_admin' || userRole === 'pengolah_data') {
-      return true;
-    }
-    if (userRole === 'pelaku_usaha' && item.created_by === userId) {
-      return true;
-    }
-    return false;
-  };
+  // Remove hard-coded permission logic - now handled by TableActionButton
 
   const getStatusBadge = (status: string) => {
     const variant = status === 'active' ? 'default' : status === 'inactive' ? 'secondary' : 'outline';
@@ -116,108 +110,114 @@ export const TelekomDataTable = ({ data, onDataChange, userRole, userId }: Telek
           <TableBody>
             {data.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.company_name}</TableCell>
-                <TableCell>{getServiceTypeBadge(item.service_type)}</TableCell>
-                <TableCell>
-                  {item.sub_service_type ? (
-                    <span className="text-sm text-muted-foreground truncate max-w-[200px] block" title={item.sub_service_type}>
-                      {item.sub_service_type}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">N/A</span>
-                  )}
-                </TableCell>
-                <TableCell>{item.license_number || 'N/A'}</TableCell>
-                <TableCell>
-                  {(item as any).province?.name || item.region || 'N/A'}
-                </TableCell>
-                <TableCell>
-                  {(item as any).kabupaten ? 
-                    `${(item as any).kabupaten.name} (${(item as any).kabupaten.type})` : 
-                    'N/A'
-                  }
-                </TableCell>
-                <TableCell>{getStatusBadge(item.status || 'active')}</TableCell>
-                <TableCell>
-                  {item.license_date ? format(new Date(item.license_date), 'MMM dd, yyyy') : 'N/A'}
-                </TableCell>
-                <TableCell>
-                  {item.file_url ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center justify-center w-8 h-8 bg-red-50 rounded-md">
-                          <FileText className="h-4 w-4 text-red-600" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate max-w-[120px]">
-                            {getFileName(item.file_url)}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <File className="h-3 w-3" />
-                              PDF Document
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(item.created_at), 'MMM dd')}
-                            </span>
+                <ConditionalField moduleCode="data_management" fieldCode="company_name">
+                  <TableCell className="font-medium">{item.company_name}</TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="service_type">
+                  <TableCell>{getServiceTypeBadge(item.service_type)}</TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="sub_service_type">
+                  <TableCell>
+                    {item.sub_service_type ? (
+                      <span className="text-sm text-muted-foreground truncate max-w-[200px] block" title={item.sub_service_type}>
+                        {item.sub_service_type}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">N/A</span>
+                    )}
+                  </TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="license_number">
+                  <TableCell>{item.license_number || 'N/A'}</TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="province_id">
+                  <TableCell>
+                    {(item as any).province?.name || item.region || 'N/A'}
+                  </TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="kabupaten_id">
+                  <TableCell>
+                    {(item as any).kabupaten ? 
+                      `${(item as any).kabupaten.name} (${(item as any).kabupaten.type})` : 
+                      'N/A'
+                    }
+                  </TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="status">
+                  <TableCell>{getStatusBadge(item.status || 'active')}</TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="license_date">
+                  <TableCell>
+                    {item.license_date ? format(new Date(item.license_date), 'MMM dd, yyyy') : 'N/A'}
+                  </TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="file_url">
+                  <TableCell>
+                    {item.file_url ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center w-8 h-8 bg-red-50 rounded-md">
+                            <FileText className="h-4 w-4 text-red-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate max-w-[120px]">
+                              {getFileName(item.file_url)}
+                            </p>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <File className="h-3 w-3" />
+                                PDF Document
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(item.created_at), 'MMM dd')}
+                              </span>
+                            </div>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePreview(item.file_url!)}
+                            className="h-8 px-3 text-xs"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Preview
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleDownload(item.file_url!)}
+                            className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePreview(item.file_url!)}
-                          className="h-8 px-3 text-xs"
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          Preview
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleDownload(item.file_url!)}
-                          className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Download
-                        </Button>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex items-center justify-center w-8 h-8 bg-muted rounded-md">
+                          <File className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm">No document</span>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="flex items-center justify-center w-8 h-8 bg-muted rounded-md">
-                        <File className="h-4 w-4" />
-                      </div>
-                      <span className="text-sm">No document</span>
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>{format(new Date(item.created_at), 'MMM dd, yyyy')}</TableCell>
+                    )}
+                  </TableCell>
+                </ConditionalField>
+                <ConditionalField moduleCode="data_management" fieldCode="created_at">
+                  <TableCell>{format(new Date(item.created_at), 'MMM dd, yyyy')}</TableCell>
+                </ConditionalField>
                 <TableCell>
-                  {canEdit(item) && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditingData(item)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setDeletingData(item)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                  <TableActionButton
+                    moduleCode="data_management"
+                    recordId={item.id}
+                    userId={userId}
+                    createdBy={item.created_by || ''}
+                    onEdit={() => setEditingData(item)}
+                    onDelete={() => setDeletingData(item)}
+                  />
                 </TableCell>
               </TableRow>
             ))}

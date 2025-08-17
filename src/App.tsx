@@ -13,6 +13,7 @@ import Support from "./pages/Support";
 import AdminFAQ from "./pages/AdminFAQ";
 import AdminTickets from "./pages/AdminTickets";
 import UserManagement from "./pages/UserManagement";
+import PermissionManagement from "./pages/PermissionManagement";
 import NotFound from "./pages/NotFound";
 import Homepage from "./pages/Homepage";
 import PublicRegister from "./pages/PublicRegister";
@@ -56,6 +57,7 @@ const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, sess
         <Route path="/admin/faq" element={<AdminFAQ />} />
         <Route path="/admin/tickets" element={<AdminTickets />} />
         <Route path="/user-management" element={<UserManagement />} />
+        <Route path="/permission-management" element={<PermissionManagement />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
@@ -94,7 +96,8 @@ const AppRoutes: React.FC = () => {
                               window.location.pathname.startsWith('/data-management') ||
                               window.location.pathname.startsWith('/data-visualization') ||
                               window.location.pathname.startsWith('/admin') ||
-                              window.location.pathname.startsWith('/user-management');
+                              window.location.pathname.startsWith('/user-management') ||
+                              window.location.pathname.startsWith('/permission-management');
 
   if (isAuthenticatedRoute && (!user || !session)) {
     return <Navigate to="/auth" replace />;
