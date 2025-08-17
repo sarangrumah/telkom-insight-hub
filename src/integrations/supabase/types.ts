@@ -858,9 +858,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_record_permission: {
+        Args: {
+          _action: string
+          _record_id: string
+          _table_name: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      check_user_permission: {
+        Args: {
+          _action: string
+          _field_code?: string
+          _module_code: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       escalate_overdue_tickets: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_user_permissions: {
+        Args: { _module_code?: string; _user_id: string }
+        Returns: {
+          can_create: boolean
+          can_delete: boolean
+          can_read: boolean
+          can_update: boolean
+          field_access: string
+          field_code: string
+          field_name: string
+          module_code: string
+          module_name: string
+        }[]
       }
       has_role: {
         Args: {
