@@ -59,7 +59,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
-          .eq('type', 'district')
+          .eq('type', 'kecamatan')
           .eq('parent_id', kabupaténData.code)
           .order('name');
 
@@ -89,7 +89,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
-          .eq('type', 'village')
+          .eq('type', 'kelurahan')
           .eq('parent_id', value.kecamatan)
           .order('name');
 
