@@ -75,6 +75,7 @@ const EnhancedPublicRegister = () => {
       postalCode: ""
     }
   });
+  console.log("companyForm defaultValues", companyForm.getValues());
 
   const picForm = useForm<PICFormData>({
     resolver: zodResolver(picFormSchema),
@@ -356,6 +357,8 @@ const EnhancedPublicRegister = () => {
       case 2:
         return (
           <Form {...companyForm}>
+            {console.log("Step 2 render: accountForm values", accountForm.getValues())}
+            {console.log("Step 2 render: companyForm values", companyForm.getValues())}
             <form onSubmit={companyForm.handleSubmit(handleCompanySubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
