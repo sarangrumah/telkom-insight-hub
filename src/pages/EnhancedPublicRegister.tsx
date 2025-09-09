@@ -257,13 +257,13 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tipe Pengguna *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih tipe pengguna" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="z-[100]">
                           <SelectItem value="pelaku_usaha">
                             <div className="flex items-center space-x-2">
                               <Building2 className="h-4 w-4" />
@@ -382,13 +382,13 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenis Perusahaan *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenis perusahaan" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="z-[100]">
                           <SelectItem value="pt">PT (Perseroan Terbatas)</SelectItem>
                           <SelectItem value="cv">CV (Commanditaire Vennootschap)</SelectItem>
                           <SelectItem value="ud">UD (Usaha Dagang)</SelectItem>

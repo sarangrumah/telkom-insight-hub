@@ -47,11 +47,20 @@ export function LocationSelector({ value, onChange, required = false }: Location
 
       setLoadingKecamatan(true);
       try {
+        // Get the kabupaten code from the kabupaten table
+        const { data: kabupaténData, error: kabupaténError } = await supabase
+          .from('kabupaten')
+          .select('code')
+          .eq('id', value.kabupaténId)
+          .single();
+
+        if (kabupaténError) throw kabupaténError;
+
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
           .eq('type', 'district')
-          .eq('parent_id', value.kabupaténId.replace(/^kabupaten-/, ''))
+          .eq('parent_id', kabupaténData.code)
           .order('name');
 
         if (error) throw error;
@@ -144,13 +153,13 @@ export function LocationSelector({ value, onChange, required = false }: Location
           <SelectTrigger>
             <SelectValue placeholder="Pilih Provinsi" />
           </SelectTrigger>
-          <SelectContent>
-            {provinces.map((province) => (
-              <SelectItem key={province.id} value={province.id}>
-                {province.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <SelectContent className="z-[100]">
+          {provinces.map((province) => (
+            <SelectItem key={province.id} value={province.id}>
+              {province.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
         </Select>
       </div>
 
@@ -164,13 +173,13 @@ export function LocationSelector({ value, onChange, required = false }: Location
           <SelectTrigger>
             <SelectValue placeholder="Pilih Kabupaten/Kota" />
           </SelectTrigger>
-          <SelectContent>
-            {kabupatenList.map((kabupaten) => (
-              <SelectItem key={kabupaten.id} value={kabupaten.id}>
-                {kabupaten.type === 'kota' ? 'Kota ' : 'Kabupaten '}{kabupaten.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <SelectContent className="z-[100]">
+          {kabupatenList.map((kabupaten) => (
+            <SelectItem key={kabupaten.id} value={kabupaten.id}>
+              {kabupaten.type === 'kota' ? 'Kota ' : 'Kabupaten '}{kabupaten.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
         </Select>
       </div>
 
@@ -184,13 +193,13 @@ export function LocationSelector({ value, onChange, required = false }: Location
           <SelectTrigger>
             <SelectValue placeholder={loadingKecamatan ? "Loading..." : "Pilih Kecamatan"} />
           </SelectTrigger>
-          <SelectContent>
-            {kecamatanList.map((kecamatan) => (
-              <SelectItem key={kecamatan.region_id} value={kecamatan.region_id}>
-                {kecamatan.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <SelectContent className="z-[100]">
+          {kecamatanList.map((kecamatan) => (
+            <SelectItem key={kecamatan.region_id} value={kecamatan.region_id}>
+              {kecamatan.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
         </Select>
       </div>
 
@@ -204,13 +213,13 @@ export function LocationSelector({ value, onChange, required = false }: Location
           <SelectTrigger>
             <SelectValue placeholder={loadingKelurahan ? "Loading..." : "Pilih Kelurahan"} />
           </SelectTrigger>
-          <SelectContent>
-            {kelurahanList.map((kelurahan) => (
-              <SelectItem key={kelurahan.region_id} value={kelurahan.region_id}>
-                {kelurahan.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <SelectContent className="z-[100]">
+          {kelurahanList.map((kelurahan) => (
+            <SelectItem key={kelurahan.region_id} value={kelurahan.region_id}>
+              {kelurahan.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
         </Select>
       </div>
     </div>
