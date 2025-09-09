@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const PublicRegister = () => {
+  console.log("[DEBUG] Rendering PublicRegister.tsx");
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -27,6 +28,9 @@ const PublicRegister = () => {
     role: "",
     description: ""
   });
+
+  // Log formData on every render
+  console.log("[DEBUG] PublicRegister formData:", formData);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
