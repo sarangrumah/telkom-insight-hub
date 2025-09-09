@@ -81,11 +81,15 @@ const ServiceDetail = () => {
           fetchSubServices()
         ]);
 
-        // Find matching service by name (case insensitive)
-        const matchingService = services.find(s => 
-          s.name.toLowerCase().includes(serviceName.toLowerCase()) ||
-          serviceName.toLowerCase().includes(s.name.toLowerCase())
-        );
+        // Find matching service by name (case insensitive, handle URL slug format)
+        const normalizedServiceName = serviceName.replace(/-/g, ' ');
+        const matchingService = services.find(s => {
+          const normalizedName = s.name.toLowerCase();
+          const searchName = normalizedServiceName.toLowerCase();
+          return normalizedName.includes(searchName) || 
+                 searchName.includes(normalizedName) ||
+                 s.code === serviceName; // Also try exact code match
+        });
 
         // Build query for telekom_data based on service
         let query = supabase
