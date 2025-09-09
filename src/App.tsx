@@ -19,6 +19,7 @@ import Homepage from "./pages/Homepage";
 import PublicRegister from "./pages/PublicRegister";
 import SearchResults from "./pages/SearchResults";
 import PublicDataView from "./pages/PublicDataView";
+import ServiceDetail from "./pages/ServiceDetail";
 import AppLayout from "./components/AppLayout";
 import { useAuth } from "./hooks/useAuth";
 import AuthPage from "./components/AuthPage";
@@ -37,6 +38,7 @@ const PublicRoutes = () => {
       <Route path="/search" element={<SearchResults />} />
       <Route path="/faq" element={<FAQ />} />
       <Route path="/support" element={<Support />} />
+      <Route path="/service/:serviceName" element={<ServiceDetail />} />
       <Route path="/auth" element={<AuthPage onAuthSuccess={() => navigate("/dashboard")} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
