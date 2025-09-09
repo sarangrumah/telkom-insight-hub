@@ -366,7 +366,7 @@ const EnhancedPublicRegister = () => {
                       <FormLabel>Nama Perusahaan *</FormLabel>
                       <FormControl>
                         <Input 
-                          autoComplete="organization"
+                          autoComplete="off"
                           placeholder="Masukkan nama perusahaan"
                           {...field} 
                         />
@@ -412,7 +412,7 @@ const EnhancedPublicRegister = () => {
                       <FormLabel>Nomor NIB *</FormLabel>
                       <FormControl>
                         <Input 
-                          autoComplete="off"
+                          autoComplete="nope"
                           type="text"
                           maxLength={15} 
                           placeholder="123456789012345"
@@ -431,7 +431,11 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Nomor NPWP *</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="12.345.678.9-012.345" />
+                        <Input 
+                          autoComplete="nope"
+                          {...field} 
+                          placeholder="12.345.678.9-012.345" 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
