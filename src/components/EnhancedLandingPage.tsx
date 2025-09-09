@@ -340,7 +340,7 @@ const EnhancedLandingPage = () => {
               <Card 
                 key={index} 
                 className="hover:shadow-lg transition-all duration-300 transform hover:scale-105 cursor-pointer group bg-gradient-to-br from-card to-card/80"
-                onClick={() => navigate(`/data-visualization?service=${service.name.toLowerCase()}`)}
+                onClick={() => navigate(`/service/${service.name.toLowerCase().replace(/\s+/g, '-')}`)}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
