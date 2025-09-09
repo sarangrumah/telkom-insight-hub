@@ -24,12 +24,20 @@ export function useAuth() {
           // Handle session expiration or token refresh failures
           if (event === 'SIGNED_OUT' && !session) {
             setSessionError(false); // Clear error on explicit sign out
+            setUser(null); // Ensure user is cleared
             // Clear any cached data
             localStorage.removeItem('supabase.auth.token');
           }
           
           if (event === 'TOKEN_REFRESHED' && session) {
             console.log('Token refreshed successfully');
+          }
+          
+          // Handle token refresh failures
+          if (event === 'TOKEN_REFRESHED' && !session) {
+            console.log('Token refresh failed, clearing session');
+            setSessionError(true);
+            setUser(null);
           }
         }
       }
