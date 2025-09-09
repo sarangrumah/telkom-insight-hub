@@ -432,7 +432,7 @@ const EnhancedLandingPage = () => {
               <div className="flex items-center space-x-3 mb-6">
                 <Globe className="h-8 w-8 text-primary" />
                 <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  Panel Peneyelenggaraan
+                  Panel Penyelenggaraan
                 </h3>
               </div>
               <p className="text-muted-foreground mb-6 leading-relaxed max-w-md">
