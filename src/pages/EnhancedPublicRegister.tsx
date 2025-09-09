@@ -240,7 +240,11 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Email *</FormLabel>
                       <FormControl>
-                        <Input type="email" {...field} />
+                        <Input 
+                          type="email" 
+                          autoComplete="username"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -288,7 +292,11 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Password *</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input 
+                          type="password" 
+                          autoComplete="new-password"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -302,7 +310,11 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Konfirmasi Password *</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input 
+                          type="password" 
+                          autoComplete="new-password"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -353,7 +365,11 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Nama Perusahaan *</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input 
+                          autoComplete="organization"
+                          placeholder="Masukkan nama perusahaan"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -395,7 +411,13 @@ const EnhancedPublicRegister = () => {
                     <FormItem>
                       <FormLabel>Nomor NIB *</FormLabel>
                       <FormControl>
-                        <Input {...field} maxLength={15} placeholder="123456789012345" />
+                        <Input 
+                          autoComplete="off"
+                          type="text"
+                          maxLength={15} 
+                          placeholder="123456789012345"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
