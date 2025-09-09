@@ -1,7 +1,6 @@
 import EnhancedPublicRegister from "./EnhancedPublicRegister";
 
 const PublicRegister = () => {
-<<<<<<< HEAD
   console.log("[DEBUG] Rendering PublicRegister.tsx");
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -289,9 +288,6 @@ const PublicRegister = () => {
       </div>
     </div>
   );
-=======
-  return <EnhancedPublicRegister />;
->>>>>>> 2a81d5476f604a74d4a32fca94ef071e3b0e005e
 };
 
 export default PublicRegister;
