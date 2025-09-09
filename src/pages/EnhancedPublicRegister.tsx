@@ -104,73 +104,71 @@ const EnhancedPublicRegister = () => {
     return errors;
   };
 
-  const checkEmailUniqueness = async (email: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
-    
-    if (error && !error.message.includes('JWT')) {
-      // Check through auth users if possible, but this might not work due to RLS
-      const { data: authData } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: 'dummy-check' // This will fail but might tell us if user exists
+  const validateRegistrationData = async (email: string, companyName?: string, nibNumber?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-registration-data', {
+        body: { email, companyName, nibNumber }
       });
-      
-      return false; // For now, assume email is unique
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Validation error:', error);
+      throw new Error('Gagal memvalidasi data. Silakan coba lagi.');
     }
-    return true;
   };
 
-  const checkCompanyUniqueness = async (companyName: string, nibNumber: string) => {
-    const { data: companyData, error } = await supabase
-      .from('companies')
-      .select('id')
-      .or(`company_name.eq.${companyName},nib_number.eq.${nibNumber}`);
-    
-    if (error) {
-      console.error('Error checking company uniqueness:', error);
-      return true; // Assume unique if check fails
-    }
-    
-    return !companyData || companyData.length === 0;
-  };
 
   const handleAccountSubmit = async (data: AccountFormData) => {
+    setLoading(true);
     setGlobalError("");
     
-    // Check email uniqueness
-    const isEmailUnique = await checkEmailUniqueness(data.email);
-    if (!isEmailUnique) {
-      setGlobalError("Email sudah terdaftar");
-      return;
+    try {
+      // Validate email uniqueness
+      const validation = await validateRegistrationData(data.email);
+      if (!validation.valid) {
+        setGlobalError(validation.errors.join(", "));
+        return;
+      }
+      
+      setAccountData(data);
+      setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
+      setCurrentStep(2);
+    } catch (error: any) {
+      setGlobalError(error.message || "Terjadi kesalahan saat memvalidasi data");
+    } finally {
+      setLoading(false);
     }
-    
-    setAccountData(data);
-    setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
-    setCurrentStep(2);
   };
 
   const handleCompanySubmit = async (data: CompanyFormData) => {
+    setLoading(true);
     setGlobalError("");
     
-    // Check company uniqueness
-    const isCompanyUnique = await checkCompanyUniqueness(data.companyName, data.nibNumber);
-    if (!isCompanyUnique) {
-      setGlobalError("Nama perusahaan atau NIB sudah terdaftar");
-      return;
-    }
+    try {
+      // Validate company uniqueness
+      const validation = await validateRegistrationData("", data.companyName, data.nibNumber);
+      if (!validation.valid) {
+        setGlobalError(validation.errors.join(", "));
+        return;
+      }
 
-    // Validate required documents
-    const docErrors = validateDocuments();
-    if (docErrors.length > 0) {
-      setGlobalError(docErrors.join(", "));
-      return;
+      // Validate required documents
+      const docErrors = validateDocuments();
+      if (docErrors.length > 0) {
+        setGlobalError(docErrors.join(", "));
+        return;
+      }
+      
+      setCompanyData(data);
+      setCompletedSteps(prev => [...prev.filter(s => s !== 2), 2]);
+      setCurrentStep(3);
+    } catch (error: any) {
+      setGlobalError(error.message || "Terjadi kesalahan saat memvalidasi data");
+    } finally {
+      setLoading(false);
     }
-    
-    setCompanyData(data);
-    setCompletedSteps(prev => [...prev.filter(s => s !== 2), 2]);
-    setCurrentStep(3);
   };
 
   const handlePICSubmit = async (data: PICFormData) => {
@@ -183,146 +181,28 @@ const EnhancedPublicRegister = () => {
     setGlobalError("");
 
     try {
-      // 1. Create user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: accountData.email,
-        password: accountData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-          data: {
-            full_name: data.fullName,
-            maksud_tujuan: accountData.maksudTujuan
-          }
+      // Complete registration using edge function
+      const { data: result, error } = await supabase.functions.invoke('complete-registration', {
+        body: {
+          accountData,
+          companyData,
+          picData: data,
+          documents
         }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Failed to create user");
+      if (error) throw error;
 
-      // 2. Create company
-      const { data: companyRecord, error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          company_name: companyData.companyName,
-          nib_number: companyData.nibNumber,
-          npwp_number: companyData.npwpNumber,
-          phone: companyData.phone,
-          company_type: companyData.companyType,
-          akta_number: companyData.aktaNumber,
-          company_address: companyData.address,
-          province_id: companyData.provinceId,
-          kabupaten_id: companyData.kabupaténId,
-          kecamatan: companyData.kecamatan,
-          kelurahan: companyData.kelurahan,
-          postal_code: companyData.postalCode,
-          email: accountData.email,
-          business_field: "Telekomunikasi"
-        })
-        .select()
-        .single();
-
-      if (companyError) throw companyError;
-
-      // 3. Create user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert({
-          user_id: authData.user.id,
-          company_id: companyRecord.id,
-          full_name: data.fullName,
-          phone: data.phoneNumber,
-          position: data.position,
-          is_company_admin: true
+      if (result.success) {
+        toast({
+          title: "Pendaftaran Berhasil!",
+          description: result.message,
         });
-
-      if (profileError) throw profileError;
-
-      // 4. Set user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: accountData.role
-        });
-
-      if (roleError && !roleError.message.includes('already exists')) {
-        console.error('Role assignment error:', roleError);
+        
+        navigate("/auth");
+      } else {
+        throw new Error(result.error);
       }
-
-      // 5. Create PIC record
-      const { data: picRecord, error: picError } = await supabase
-        .from('person_in_charge')
-        .insert({
-          company_id: companyRecord.id,
-          full_name: data.fullName,
-          id_number: data.idNumber,
-          phone_number: data.phoneNumber,
-          position: data.position,
-          address: data.address,
-          province_id: data.provinceId,
-          kabupaten_id: data.kabupaténId,
-          kecamatan: data.kecamatan,
-          kelurahan: data.kelurahan,
-          postal_code: data.postalCode
-        })
-        .select()
-        .single();
-
-      if (picError) throw picError;
-
-      // 6. Store company documents
-      const companyDocs = [
-        { type: 'nib' as const, url: documents.nib },
-        { type: 'npwp' as const, url: documents.npwp },
-        { type: 'akta' as const, url: documents.akta }
-      ].filter(doc => doc.url);
-
-      for (const doc of companyDocs) {
-        const { error: docError } = await supabase
-          .from('company_documents')
-          .insert({
-            company_id: companyRecord.id,
-            document_type: doc.type,
-            file_path: doc.url!,
-            file_name: `${doc.type}-document.pdf`,
-            file_size: 0, // This should be set from actual file
-            uploaded_by: authData.user.id
-          });
-
-        if (docError) {
-          console.error(`Error saving ${doc.type} document:`, docError);
-        }
-      }
-
-      // 7. Store PIC documents
-      const picDocs = [
-        { type: 'ktp' as const, url: documents.ktp },
-        { type: 'assignment_letter' as const, url: documents.assignmentLetter }
-      ].filter(doc => doc.url);
-
-      for (const doc of picDocs) {
-        const { error: docError } = await supabase
-          .from('pic_documents')
-          .insert({
-            pic_id: picRecord.id,
-            document_type: doc.type,
-            file_path: doc.url!,
-            file_name: `${doc.type}-document.pdf`,
-            file_size: 0, // This should be set from actual file
-            uploaded_by: authData.user.id
-          });
-
-        if (docError) {
-          console.error(`Error saving ${doc.type} document:`, docError);
-        }
-      }
-
-      toast({
-        title: "Pendaftaran Berhasil!",
-        description: "Akun Anda telah terdaftar dengan lengkap. Silakan cek email untuk konfirmasi dan menunggu validasi admin.",
-      });
-      
-      navigate("/auth");
 
     } catch (error: any) {
       console.error('Registration error:', error);
