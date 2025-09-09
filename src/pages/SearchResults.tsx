@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface SearchResult {
   id: string;
   company_name: string;
-  service_type: string;
+  service_type?: string;
   license_number?: string;
   region?: string;
   status: string;
@@ -36,19 +36,42 @@ const SearchResults = () => {
   const performSearch = async (searchTerm: string) => {
     setLoading(true);
     try {
-      // Search in telekom_data table
-      const { data, error, count } = await supabase
-        .from('telekom_data')
-        .select('*', { count: 'exact' })
-        .or(`company_name.ilike.%${searchTerm}%,license_number.ilike.%${searchTerm}%,region.ilike.%${searchTerm}%`)
-        .limit(20);
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Search in telekom_data table with appropriate column selection
+      let query;
+      
+      if (user) {
+        // Authenticated users get all data
+        query = supabase
+          .from('telekom_data')
+          .select('*', { count: 'exact' })
+          .or(`company_name.ilike.%${searchTerm}%,license_number.ilike.%${searchTerm}%,region.ilike.%${searchTerm}%`)
+          .limit(20);
+      } else {
+        // Public users get limited data
+        query = supabase
+          .from('telekom_data')
+          .select('id,company_name,region,status,created_at', { count: 'exact' })
+          .or(`company_name.ilike.%${searchTerm}%,region.ilike.%${searchTerm}%`)
+          .limit(20);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error('Search error:', error);
         return;
       }
 
-      setResults(data || []);
+      // Transform data to ensure service_type exists for display
+      const transformedData = (data || []).map((item: any) => ({
+        ...item,
+        service_type: item.service_type || 'public'
+      }));
+
+      setResults(transformedData);
       setTotalCount(count || 0);
     } catch (error) {
       console.error('Search error:', error);
@@ -150,13 +173,13 @@ const SearchResults = () => {
                         {result.company_name}
                       </CardTitle>
                       <CardDescription>
-                        {result.license_number && `No. Izin: ${result.license_number}`}
+                        {result.license_number ? `No. Izin: ${result.license_number}` : 'Informasi izin terbatas untuk pengguna publik'}
                         {result.region && ` • ${result.region}`}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Badge className={getServiceTypeColor(result.service_type)}>
-                        {result.service_type.replace('_', ' ').toUpperCase()}
+                      <Badge className={getServiceTypeColor(result.service_type || 'public')}>
+                        {result.service_type ? result.service_type.replace('_', ' ').toUpperCase() : 'PUBLIK'}
                       </Badge>
                       <Badge className={getStatusColor(result.status)}>
                         {result.status.toUpperCase()}

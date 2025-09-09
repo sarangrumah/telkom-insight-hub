@@ -142,69 +142,70 @@ const EnhancedLandingPage = () => {
       </header>
 
       {/* Hero Section with Parallax Effect */}
-      <section className="relative py-24 overflow-hidden">
+      <section className="relative py-16 md:py-24 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-primary/10"></div>
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='0.02'%3E%3Ccircle cx='7' cy='7' r='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
         }}></div>
         
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="animate-fade-in">
-            <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6 leading-tight">
-              Visualisasi Data
-              <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-pulse">
+          <div className="animate-fade-in space-y-6 md:space-y-8">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground leading-tight">
+              <span className="block">Visualisasi Data</span>
+              <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-pulse mt-2">
                 Penyelenggaraan Telekomunikasi
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed px-4">
               Platform next-generation untuk mengelola, memvisualisasikan, dan menganalisis data 
               penyelenggaraan telekomunikasi Indonesia dengan teknologi AI dan real-time analytics.
             </p>
           </div>
           
           {/* Enhanced Search Bar */}
-          <div className="max-w-3xl mx-auto mb-12 animate-scale-in">
+          <div className="max-w-3xl mx-auto mt-8 md:mt-12 mb-8 md:mb-12 animate-scale-in">
             <Card className="border-primary/20 shadow-glow bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <div className="flex gap-4">
+              <CardContent className="p-4 md:p-8">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
                     <Input
                       placeholder="Cari data penyelenggaraan telekomunikasi..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-12 h-14 text-lg border-primary/20 focus:border-primary/50 bg-background/50"
+                      className="pl-12 h-12 md:h-14 text-base md:text-lg border-primary/20 focus:border-primary/50 bg-background/50"
                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     />
                   </div>
                   <Button 
                     onClick={handleSearch} 
                     size="lg" 
-                    className="px-8 h-14 bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow"
+                    className="px-6 md:px-8 h-12 md:h-14 bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow"
                   >
-                    Cari <Search className="ml-2 h-5 w-5" />
+                    <span className="hidden sm:inline">Cari</span>
+                    <Search className="h-5 w-5 sm:ml-2" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-6 justify-center animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center animate-fade-in px-4">
             <Button 
               size="lg" 
               onClick={handleGetStarted}
-              className="px-8 py-4 text-lg bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow transform hover:scale-105 transition-all"
+              className="px-6 md:px-8 py-3 md:py-4 text-base md:text-lg bg-gradient-to-r from-primary to-primary-glow hover:shadow-glow transform hover:scale-105 transition-all"
             >
               {user ? "Buka Dashboard" : "Mulai Sekarang"}
-              <ArrowRight className="ml-3 h-6 w-6" />
+              <ArrowRight className="ml-2 md:ml-3 h-5 w-5 md:h-6 md:w-6" />
             </Button>
             <Button 
               size="lg" 
               variant="outline"
               onClick={() => navigate("/data-visualization")}
-              className="px-8 py-4 text-lg border-primary/30 hover:bg-primary/10 transform hover:scale-105 transition-all"
+              className="px-6 md:px-8 py-3 md:py-4 text-base md:text-lg border-primary/30 hover:bg-primary/10 transform hover:scale-105 transition-all"
             >
-              <Eye className="mr-3 h-6 w-6" />
+              <Eye className="mr-2 md:mr-3 h-5 w-5 md:h-6 md:w-6" />
               Lihat Demo
             </Button>
           </div>
@@ -212,12 +213,12 @@ const EnhancedLandingPage = () => {
       </section>
 
       {/* Animated Statistics */}
-      <section className="py-20 bg-muted/30">
+      <section className="py-16 md:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-16 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             Data Real-time Dashboard
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             <Card className="hover:shadow-lg transition-all duration-300 transform hover:scale-105 bg-gradient-to-br from-card to-card/80">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-medium">Total Izin</CardTitle>
@@ -330,36 +331,36 @@ const EnhancedLandingPage = () => {
       </section>
 
       {/* Interactive Service Types */}
-      <section className="py-20 bg-muted/30">
+      <section className="py-16 md:py-20 bg-muted/30">
         <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-16 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 md:mb-16 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             Jenis Penyelenggaraan
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {serviceTypes.map((service, index) => (
               <Card 
                 key={index} 
-                className="hover:shadow-lg transition-all duration-300 transform hover:scale-105 cursor-pointer group bg-gradient-to-br from-card to-card/80"
+                className="hover:shadow-lg transition-all duration-300 transform hover:scale-105 cursor-pointer group bg-gradient-to-br from-card to-card/80 p-1"
                 onClick={() => navigate(`/service/${service.name.toLowerCase().replace(/\s+/g, '-')}`)}
               >
-                <CardHeader>
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                    <CardTitle className="text-base md:text-lg group-hover:text-primary transition-colors">
                       {service.name}
                     </CardTitle>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
                   </div>
-                  <CardDescription className="text-sm">{service.description}</CardDescription>
+                  <CardDescription className="text-xs md:text-sm leading-relaxed">{service.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Badge variant="secondary" className="text-lg font-semibold px-3 py-1">
+                      <Badge variant="secondary" className="text-sm md:text-lg font-semibold px-2 md:px-3 py-1">
                         {service.count}
                       </Badge>
-                      <p className="text-sm text-muted-foreground mt-2">Data terdaftar</p>
+                      <p className="text-xs md:text-sm text-muted-foreground mt-2">Data terdaftar</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full ${service.color} shadow-md`}></div>
+                    <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full ${service.color} shadow-md flex-shrink-0`}></div>
                   </div>
                 </CardContent>
               </Card>
@@ -369,7 +370,7 @@ const EnhancedLandingPage = () => {
       </section>
 
       {/* Enhanced CTA */}
-      <section className="py-20 relative overflow-hidden">
+      <section className="py-16 md:py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary-glow to-accent"></div>
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23fff' fill-opacity='0.1'%3E%3Cpolygon points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")`
@@ -377,15 +378,15 @@ const EnhancedLandingPage = () => {
         
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="max-w-4xl mx-auto text-white">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
               Bergabung dengan Platform Terdepan
             </h2>
-            <p className="text-xl md:text-2xl mb-10 opacity-90 leading-relaxed">
+            <p className="text-lg md:text-xl lg:text-2xl mb-8 md:mb-10 opacity-90 leading-relaxed px-4">
               Dapatkan akses lengkap ke visualisasi data real-time, analytics AI-powered, 
               dan insights yang mengubah cara Anda memahami industri telekomunikasi
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center px-4">
               {!user && (
                 <>
                   <Button 
