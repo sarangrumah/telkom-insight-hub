@@ -22,7 +22,7 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
 
   const acceptedTypes = ['application/pdf'];
 
-  const maxFileSize = 10 * 1024 * 1024; // 10MB
+  const maxFileSize = 5 * 1024 * 1024; // 5MB
 
   const uploadFile = async (file: File) => {
     // Validate file type (MIME type and extension)
@@ -38,14 +38,14 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
       return;
     }
 
-    if (file.size > maxFileSize) {
-      toast({
-        title: "Error",
-        description: "File size must be less than 10MB.",
-        variant: "destructive",
-      });
-      return;
-    }
+      if (file.size > maxFileSize) {
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
 
     setUploading(true);
     setUploadProgress(0);
@@ -255,7 +255,7 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
           <div className="text-center">
             <p className="text-sm font-medium">Click to upload or drag and drop</p>
             <p className="text-xs text-muted-foreground">
-              PDF files only (max 10MB)
+              PDF files only (max 5MB)
             </p>
           </div>
         </div>

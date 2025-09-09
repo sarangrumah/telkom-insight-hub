@@ -283,14 +283,23 @@ export type Database = {
       }
       companies: {
         Row: {
+          akta_number: string | null
           business_field: string
           company_address: string
           company_name: string
+          company_type: Database["public"]["Enums"]["company_type"] | null
           created_at: string
           email: string
           id: string
+          kabupaten_id: string | null
+          kecamatan: string | null
+          kelurahan: string | null
           nib: string | null
+          nib_number: string | null
+          npwp_number: string | null
           phone: string
+          postal_code: string | null
+          province_id: string | null
           status: Database["public"]["Enums"]["company_status"]
           updated_at: string
           verification_documents: Json | null
@@ -300,14 +309,23 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          akta_number?: string | null
           business_field: string
           company_address: string
           company_name: string
+          company_type?: Database["public"]["Enums"]["company_type"] | null
           created_at?: string
           email: string
           id?: string
+          kabupaten_id?: string | null
+          kecamatan?: string | null
+          kelurahan?: string | null
           nib?: string | null
+          nib_number?: string | null
+          npwp_number?: string | null
           phone: string
+          postal_code?: string | null
+          province_id?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
           verification_documents?: Json | null
@@ -317,14 +335,23 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          akta_number?: string | null
           business_field?: string
           company_address?: string
           company_name?: string
+          company_type?: Database["public"]["Enums"]["company_type"] | null
           created_at?: string
           email?: string
           id?: string
+          kabupaten_id?: string | null
+          kecamatan?: string | null
+          kelurahan?: string | null
           nib?: string | null
+          nib_number?: string | null
+          npwp_number?: string | null
           phone?: string
+          postal_code?: string | null
+          province_id?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
           verification_documents?: Json | null
@@ -333,7 +360,69 @@ export type Database = {
           verified_by?: string | null
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_kabupaten_id_fkey"
+            columns: ["kabupaten_id"]
+            isOneToOne: false
+            referencedRelation: "kabupaten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_documents: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          updated_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type?: string
+          updated_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          updated_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       faq_categories: {
         Row: {
@@ -778,6 +867,126 @@ export type Database = {
           },
         ]
       }
+      person_in_charge: {
+        Row: {
+          address: string
+          company_id: string
+          created_at: string | null
+          full_name: string
+          id: string
+          id_number: string
+          kabupaten_id: string | null
+          kecamatan: string | null
+          kelurahan: string | null
+          phone_number: string
+          position: string
+          postal_code: string | null
+          province_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          company_id: string
+          created_at?: string | null
+          full_name: string
+          id?: string
+          id_number: string
+          kabupaten_id?: string | null
+          kecamatan?: string | null
+          kelurahan?: string | null
+          phone_number: string
+          position: string
+          postal_code?: string | null
+          province_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          company_id?: string
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          id_number?: string
+          kabupaten_id?: string | null
+          kecamatan?: string | null
+          kelurahan?: string | null
+          phone_number?: string
+          position?: string
+          postal_code?: string | null
+          province_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_in_charge_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_in_charge_kabupaten_id_fkey"
+            columns: ["kabupaten_id"]
+            isOneToOne: false
+            referencedRelation: "kabupaten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_in_charge_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pic_documents: {
+        Row: {
+          created_at: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          pic_id: string
+          updated_at: string | null
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type?: string
+          pic_id: string
+          updated_at?: string | null
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          pic_id?: string
+          updated_at?: string | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pic_documents_pic_id_fkey"
+            columns: ["pic_id"]
+            isOneToOne: false
+            referencedRelation: "person_in_charge"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_name: string | null
@@ -785,6 +994,7 @@ export type Database = {
           full_name: string
           id: string
           is_validated: boolean | null
+          maksud_tujuan: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -795,6 +1005,7 @@ export type Database = {
           full_name: string
           id?: string
           is_validated?: boolean | null
+          maksud_tujuan?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -805,6 +1016,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_validated?: boolean | null
+          maksud_tujuan?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -1488,6 +1700,8 @@ export type Database = {
         | "verified"
         | "rejected"
         | "suspended"
+      company_type: "pt" | "cv" | "ud" | "koperasi" | "yayasan" | "other"
+      document_type: "nib" | "npwp" | "akta" | "ktp" | "assignment_letter"
       license_type:
         | "jasa_telekomunikasi"
         | "jaringan_telekomunikasi"
@@ -1673,6 +1887,8 @@ export const Constants = {
         "rejected",
         "suspended",
       ],
+      company_type: ["pt", "cv", "ud", "koperasi", "yayasan", "other"],
+      document_type: ["nib", "npwp", "akta", "ktp", "assignment_letter"],
       license_type: [
         "jasa_telekomunikasi",
         "jaringan_telekomunikasi",
