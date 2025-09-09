@@ -40,11 +40,12 @@ export function LocationSelector({ value, onChange, required = false }: Location
   // Load kecamatan when kabupaten changes
   useEffect(() => {
     const loadKecamatan = async () => {
+      console.log("[LocationSelector] kabupaténId:", value.kabupaténId);
       if (!value.kabupaténId) {
         setKecamatanList([]);
         return;
       }
-
+  
       setLoadingKecamatan(true);
       try {
         // Get the kabupaten code from the kabupaten table
@@ -53,16 +54,20 @@ export function LocationSelector({ value, onChange, required = false }: Location
           .select('code')
           .eq('id', value.kabupaténId)
           .single();
-
+  
+        console.log("[LocationSelector] kabupaténData:", kabupaténData, "error:", kabupaténError);
+  
         if (kabupaténError) throw kabupaténError;
-
+  
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
           .eq('type', 'kecamatan')
           .eq('parent_id', kabupaténData.code)
           .order('name');
-
+  
+        console.log("[LocationSelector] kecamatan fetch result:", data, "error:", error);
+  
         if (error) throw error;
         setKecamatanList(data || []);
       } catch (error) {
@@ -72,7 +77,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         setLoadingKecamatan(false);
       }
     };
-
+  
     loadKecamatan();
   }, [value.kabupaténId]);
 
