@@ -40,6 +40,13 @@ const PublicRoutes = () => {
       <Route path="/support" element={<Support />} />
       <Route path="/service/:serviceName" element={<ServiceDetail />} />
       <Route path="/auth" element={<AuthPage onAuthSuccess={() => navigate("/dashboard")} />} />
+      {/* Redirect expired session attempts to dashboard to auth */}
+      <Route path="/dashboard" element={<Navigate to="/auth" replace />} />
+      <Route path="/data-management" element={<Navigate to="/auth" replace />} />
+      <Route path="/data-visualization" element={<Navigate to="/auth" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/auth" replace />} />
+      <Route path="/user-management" element={<Navigate to="/auth" replace />} />
+      <Route path="/permission-management" element={<Navigate to="/auth" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -101,14 +108,17 @@ const AppRoutes: React.FC = () => {
                               window.location.pathname.startsWith('/user-management') ||
                               window.location.pathname.startsWith('/permission-management');
 
+  // If trying to access authenticated routes without proper session, redirect to auth
   if (isAuthenticatedRoute && (!user || !session)) {
     return <Navigate to="/auth" replace />;
   }
 
+  // If authenticated and accessing authenticated routes, show authenticated routes
   if (user && session && isAuthenticatedRoute) {
     return <AuthenticatedRoutes user={user} session={session} />;
   }
 
+  // Default to public routes for all other cases
   return <PublicRoutes />;
 };
 

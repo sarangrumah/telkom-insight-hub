@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.api-integration-example]
 verify_jwt = true
+
+[functions.validate-registration-data]
+verify_jwt = false
+
+[functions.complete-registration]
+verify_jwt = false

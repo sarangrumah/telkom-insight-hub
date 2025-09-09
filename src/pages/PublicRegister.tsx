@@ -1,17 +1,7 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Building2, Users, Loader2, Globe } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import EnhancedPublicRegister from "./EnhancedPublicRegister";
 
 const PublicRegister = () => {
+<<<<<<< HEAD
   console.log("[DEBUG] Rendering PublicRegister.tsx");
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -299,6 +289,9 @@ const PublicRegister = () => {
       </div>
     </div>
   );
+=======
+  return <EnhancedPublicRegister />;
+>>>>>>> 2a81d5476f604a74d4a32fca94ef071e3b0e005e
 };
 
 export default PublicRegister;
