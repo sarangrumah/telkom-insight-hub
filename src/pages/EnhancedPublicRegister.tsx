@@ -34,6 +34,7 @@ const EnhancedPublicRegister = () => {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState("");
+  const [formKey, setFormKey] = useState(0); // Force re-render key
 
   // Form state for all steps
   const [accountData, setAccountData] = useState<AccountFormData | null>(null);
@@ -46,7 +47,7 @@ const EnhancedPublicRegister = () => {
     assignmentLetter: null as string | null
   });
 
-  // Form instances
+  // Form instances - recreate on step change to ensure clean state
   const accountForm = useForm<AccountFormData>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
@@ -58,6 +59,7 @@ const EnhancedPublicRegister = () => {
     }
   });
 
+  // Recreate company form with key to force clean state
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
@@ -75,6 +77,26 @@ const EnhancedPublicRegister = () => {
       postalCode: ""
     }
   });
+
+  // Reset company form completely when moving to step 2
+  useEffect(() => {
+    if (currentStep === 2) {
+      companyForm.reset({
+        companyName: "",
+        nibNumber: "",
+        npwpNumber: "",
+        phone: "",
+        companyType: undefined,
+        aktaNumber: "",
+        address: "",
+        provinceId: "",
+        kabupaténId: "",
+        kecamatan: "",
+        kelurahan: "",
+        postalCode: ""
+      });
+    }
+  }, [currentStep, formKey, companyForm]);
 
   const picForm = useForm<PICFormData>({
     resolver: zodResolver(picFormSchema),
@@ -134,40 +156,8 @@ const EnhancedPublicRegister = () => {
       
       setAccountData(data);
       
-      // Force reset company form to ensure clean values - clear browser form cache
-      const cleanDefaults = {
-        companyName: "",
-        nibNumber: "",
-        npwpNumber: "", 
-        phone: "",
-        companyType: undefined,
-        aktaNumber: "",
-        address: "",
-        provinceId: "",
-        kabupaténId: "",
-        kecamatan: "",
-        kelurahan: "",
-        postalCode: ""
-      };
-      
-      companyForm.reset(cleanDefaults, { 
-        keepDefaultValues: false,
-        keepDirty: false,
-        keepTouched: false
-      });
-      
-      // Also clear any potential form element values directly
-      setTimeout(() => {
-        const form = document.querySelector('form[class*="space-y-6"]');
-        if (form) {
-          const inputs = form.querySelectorAll('input');
-          inputs.forEach(input => {
-            if (input.name === 'companyName' || input.name === 'nibNumber' || input.name === 'npwpNumber') {
-              input.value = '';
-            }
-          });
-        }
-      }, 100);
+      // Force complete form re-initialization
+      setFormKey(prev => prev + 1); // This will force re-render with clean state
       
       setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
       setCurrentStep(2);
@@ -391,8 +381,8 @@ const EnhancedPublicRegister = () => {
 
       case 2:
         return (
-          <Form {...companyForm}>
-            <form onSubmit={companyForm.handleSubmit(handleCompanySubmit)} className="space-y-6">
+          <Form {...companyForm} key={formKey}>
+            <form onSubmit={companyForm.handleSubmit(handleCompanySubmit)} className="space-y-6" key={`company-form-${formKey}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={companyForm.control}
@@ -418,7 +408,11 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenis Perusahaan *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
+                        key={`company-type-${formKey}`}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenis perusahaan" />
