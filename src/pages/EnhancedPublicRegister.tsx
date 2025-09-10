@@ -134,11 +134,11 @@ const EnhancedPublicRegister = () => {
       
       setAccountData(data);
       
-      // Reset company form to ensure clean values
-      companyForm.reset({
+      // Force reset company form to ensure clean values - clear browser form cache
+      const cleanDefaults = {
         companyName: "",
         nibNumber: "",
-        npwpNumber: "",
+        npwpNumber: "", 
         phone: "",
         companyType: undefined,
         aktaNumber: "",
@@ -148,7 +148,26 @@ const EnhancedPublicRegister = () => {
         kecamatan: "",
         kelurahan: "",
         postalCode: ""
+      };
+      
+      companyForm.reset(cleanDefaults, { 
+        keepDefaultValues: false,
+        keepDirty: false,
+        keepTouched: false
       });
+      
+      // Also clear any potential form element values directly
+      setTimeout(() => {
+        const form = document.querySelector('form[class*="space-y-6"]');
+        if (form) {
+          const inputs = form.querySelectorAll('input');
+          inputs.forEach(input => {
+            if (input.name === 'companyName' || input.name === 'nibNumber' || input.name === 'npwpNumber') {
+              input.value = '';
+            }
+          });
+        }
+      }, 100);
       
       setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
       setCurrentStep(2);
@@ -399,7 +418,7 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenis Perusahaan *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenis perusahaan" />
