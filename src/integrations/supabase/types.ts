@@ -1709,6 +1709,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      request_company_correction: {
+        Args: {
+          _company_id: string
+          _correction_notes: Json
+          _requested_by: string
+        }
+        Returns: undefined
+      }
+      submit_company_corrections: {
+        Args: {
+          _company_id: string
+          _submitted_by: string
+          _updated_data: Json
+        }
+        Returns: undefined
+      }
       user_has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]

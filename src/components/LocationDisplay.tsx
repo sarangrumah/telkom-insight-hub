@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useLocationData } from '@/hooks/useLocationData';
 
 interface LocationDisplayProps {
@@ -10,11 +8,6 @@ interface LocationDisplayProps {
   showFull?: boolean;
 }
 
-interface RegionData {
-  region_id: string;
-  name: string;
-}
-
 export function LocationDisplay({ 
   provinceId, 
   kabupaténId, 
@@ -23,60 +16,14 @@ export function LocationDisplay({
   showFull = false 
 }: LocationDisplayProps) {
   const { getProvinceById, getKabupaténById } = useLocationData();
-  const [kecamatanName, setKecamatanName] = useState<string>('');
-  const [kelurahanName, setKelurahanName] = useState<string>('');
-
-  useEffect(() => {
-    const loadKecamatanName = async () => {
-      if (!kecamatan) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('indonesian_regions')
-          .select('name')
-          .eq('region_id', kecamatan)
-          .single();
-          
-        if (!error && data) {
-          setKecamatanName(data.name);
-        }
-      } catch (error) {
-        console.error('Error loading kecamatan name:', error);
-      }
-    };
-
-    loadKecamatanName();
-  }, [kecamatan]);
-
-  useEffect(() => {
-    const loadKelurahanName = async () => {
-      if (!kelurahan) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('indonesian_regions')
-          .select('name')
-          .eq('region_id', kelurahan)
-          .single();
-          
-        if (!error && data) {
-          setKelurahanName(data.name);
-        }
-      } catch (error) {
-        console.error('Error loading kelurahan name:', error);
-      }
-    };
-
-    loadKelurahanName();
-  }, [kelurahan]);
 
   const province = provinceId ? getProvinceById(provinceId) : null;
   const kabupaten = kabupaténId ? getKabupaténById(kabupaténId) : null;
 
   if (showFull) {
     const parts = [];
-    if (kelurahanName) parts.push(`Kelurahan ${kelurahanName}`);
-    if (kecamatanName) parts.push(`Kecamatan ${kecamatanName}`);
+    if (kelurahan) parts.push(`Kelurahan ${kelurahan}`);
+    if (kecamatan) parts.push(`Kecamatan ${kecamatan}`);
     if (kabupaten) parts.push(`${kabupaten.type === 'kota' ? 'Kota' : 'Kabupaten'} ${kabupaten.name}`);
     if (province) parts.push(`Provinsi ${province.name}`);
     

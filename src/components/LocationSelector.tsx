@@ -91,11 +91,18 @@ export function LocationSelector({ value, onChange, required = false }: Location
 
       setLoadingKelurahan(true);
       try {
+        // Find the kecamatan region_id from the name
+        let parentId = value.kecamatan;
+        const kecamatanItem = kecamatanList.find(k => k.name === value.kecamatan);
+        if (kecamatanItem) {
+          parentId = kecamatanItem.region_id;
+        }
+
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
           .eq('type', 'kelurahan')
-          .eq('parent_id', value.kecamatan)
+          .eq('parent_id', parentId)
           .order('name');
 
         if (error) throw error;
@@ -109,7 +116,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
     };
 
     loadKelurahan();
-  }, [value.kecamatan]);
+  }, [value.kecamatan, kecamatanList]);
 
   const handleProvinceChange = (provinceId: string) => {
     onChange({
@@ -129,18 +136,23 @@ export function LocationSelector({ value, onChange, required = false }: Location
     });
   };
 
+// Fix kecamatan and kelurahan display - save names instead of codes
   const handleKecamatanChange = (kecamatan: string) => {
+    // Find the kecamatan name from the list
+    const kecamatanItem = kecamatanList.find(k => k.region_id === kecamatan);
     onChange({
       ...value,
-      kecamatan,
+      kecamatan: kecamatanItem?.name || kecamatan, // Save name instead of code
       kelurahan: undefined
     });
   };
 
   const handleKelurahanChange = (kelurahan: string) => {
+    // Find the kelurahan name from the list
+    const kelurahanItem = kelurahanList.find(k => k.region_id === kelurahan);
     onChange({
       ...value,
-      kelurahan
+      kelurahan: kelurahanItem?.name || kelurahan // Save name instead of code
     });
   };
 
@@ -191,7 +203,9 @@ export function LocationSelector({ value, onChange, required = false }: Location
       <div className="space-y-2">
         <Label>Kecamatan {required && <span className="text-destructive">*</span>}</Label>
         <Select 
-          value={value.kecamatan || ''} 
+          value={value.kecamatan ? 
+            kecamatanList.find(k => k.name === value.kecamatan)?.region_id || value.kecamatan 
+            : ''} 
           onValueChange={handleKecamatanChange}
           disabled={!value.kabupaténId || loadingKecamatan}
         >
@@ -211,7 +225,9 @@ export function LocationSelector({ value, onChange, required = false }: Location
       <div className="space-y-2">
         <Label>Kelurahan {required && <span className="text-destructive">*</span>}</Label>
         <Select 
-          value={value.kelurahan || ''} 
+          value={value.kelurahan ? 
+            kelurahanList.find(k => k.name === value.kelurahan)?.region_id || value.kelurahan 
+            : ''} 
           onValueChange={handleKelurahanChange}
           disabled={!value.kecamatan || loadingKelurahan}
         >
