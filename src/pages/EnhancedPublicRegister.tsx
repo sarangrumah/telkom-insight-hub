@@ -133,6 +133,23 @@ const EnhancedPublicRegister = () => {
       }
       
       setAccountData(data);
+      
+      // Reset company form to ensure clean values
+      companyForm.reset({
+        companyName: "",
+        nibNumber: "",
+        npwpNumber: "",
+        phone: "",
+        companyType: undefined,
+        aktaNumber: "",
+        address: "",
+        provinceId: "",
+        kabupaténId: "",
+        kecamatan: "",
+        kelurahan: "",
+        postalCode: ""
+      });
+      
       setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
       setCurrentStep(2);
     } catch (error: any) {
