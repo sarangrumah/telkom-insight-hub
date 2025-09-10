@@ -288,6 +288,10 @@ export type Database = {
           company_address: string
           company_name: string
           company_type: Database["public"]["Enums"]["company_type"] | null
+          correction_notes: Json | null
+          correction_status:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at: string
           email: string
           id: string
@@ -314,6 +318,10 @@ export type Database = {
           company_address: string
           company_name: string
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          correction_notes?: Json | null
+          correction_status?:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at?: string
           email: string
           id?: string
@@ -340,6 +348,10 @@ export type Database = {
           company_address?: string
           company_name?: string
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          correction_notes?: Json | null
+          correction_status?:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at?: string
           email?: string
           id?: string
@@ -1732,7 +1744,9 @@ export type Database = {
         | "verified"
         | "rejected"
         | "suspended"
+        | "needs_correction"
       company_type: "pt" | "cv" | "ud" | "koperasi" | "yayasan" | "other"
+      correction_status: "pending_correction" | "corrected"
       document_type: "nib" | "npwp" | "akta" | "ktp" | "assignment_letter"
       license_type:
         | "jasa_telekomunikasi"
@@ -1918,8 +1932,10 @@ export const Constants = {
         "verified",
         "rejected",
         "suspended",
+        "needs_correction",
       ],
       company_type: ["pt", "cv", "ud", "koperasi", "yayasan", "other"],
+      correction_status: ["pending_correction", "corrected"],
       document_type: ["nib", "npwp", "akta", "ktp", "assignment_letter"],
       license_type: [
         "jasa_telekomunikasi",
