@@ -534,6 +534,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.nib}
                         onChange={(url) => setDocuments(prev => ({ ...prev, nib: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -544,6 +545,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.npwp}
                         onChange={(url) => setDocuments(prev => ({ ...prev, npwp: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -554,6 +556,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.akta}
                         onChange={(url) => setDocuments(prev => ({ ...prev, akta: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -687,6 +690,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.ktp}
                         onChange={(url) => setDocuments(prev => ({ ...prev, ktp: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -697,6 +701,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.assignmentLetter}
                         onChange={(url) => setDocuments(prev => ({ ...prev, assignmentLetter: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
