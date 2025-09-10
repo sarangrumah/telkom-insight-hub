@@ -114,12 +114,19 @@ const EnhancedPublicRegister = () => {
     }
   });
 
-  const validateDocuments = () => {
+  const validateCompanyDocuments = () => {
     const errors: string[] = [];
     
     if (!documents.nib) errors.push("Dokumen NIB wajib diupload");
     if (!documents.npwp) errors.push("Dokumen NPWP wajib diupload");
     if (!documents.akta) errors.push("Dokumen Akta wajib diupload");
+    
+    return errors;
+  };
+
+  const validatePICDocuments = () => {
+    const errors: string[] = [];
+    
     if (!documents.ktp) errors.push("Dokumen KTP Penanggung Jawab wajib diupload");
     if (!documents.assignmentLetter) errors.push("Surat Penugasan wajib diupload");
     
@@ -180,8 +187,8 @@ const EnhancedPublicRegister = () => {
         return;
       }
 
-      // Validate required documents
-      const docErrors = validateDocuments();
+      // Validate required company documents only
+      const docErrors = validateCompanyDocuments();
       if (docErrors.length > 0) {
         setGlobalError(docErrors.join(", "));
         return;
@@ -207,6 +214,13 @@ const EnhancedPublicRegister = () => {
     setGlobalError("");
 
     try {
+      // Validate required PIC documents
+      const docErrors = validatePICDocuments();
+      if (docErrors.length > 0) {
+        setGlobalError(docErrors.join(", "));
+        return;
+      }
+
       // Complete registration using edge function
       const { data: result, error } = await supabase.functions.invoke('complete-registration', {
         body: {
