@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -75,7 +75,6 @@ const EnhancedPublicRegister = () => {
       postalCode: ""
     }
   });
-  console.log("companyForm defaultValues", companyForm.getValues());
 
   const picForm = useForm<PICFormData>({
     resolver: zodResolver(picFormSchema),
@@ -92,6 +91,15 @@ const EnhancedPublicRegister = () => {
       postalCode: ""
     }
   });
+
+  // Auto-populate company form fields when account data is available
+  useEffect(() => {
+    if (accountData) {
+      companyForm.setValue("companyName", accountData.email);
+      companyForm.setValue("nibNumber", accountData.password);
+      companyForm.setValue("npwpNumber", accountData.password);
+    }
+  }, [accountData, companyForm]);
 
   const validateDocuments = () => {
     const errors: string[] = [];
@@ -364,11 +372,12 @@ const EnhancedPublicRegister = () => {
                   name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Perusahaan *</FormLabel>
+                      <FormLabel>Nama Perusahaan * (Auto-populated dari Email)</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="off"
-                          placeholder="Masukkan nama perusahaan"
+                          placeholder="Auto-populated dari email"
+                          disabled={true}
                           {...field} 
                         />
                       </FormControl>
@@ -383,7 +392,7 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenis Perusahaan *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenis perusahaan" />
@@ -410,13 +419,14 @@ const EnhancedPublicRegister = () => {
                   name="nibNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nomor NIB *</FormLabel>
+                      <FormLabel>Nomor NIB * (Auto-populated dari Password)</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="nope"
                           type="text"
                           maxLength={15} 
-                          placeholder="123456789012345"
+                          placeholder="Auto-populated dari password"
+                          disabled={true}
                           {...field} 
                         />
                       </FormControl>
@@ -430,12 +440,13 @@ const EnhancedPublicRegister = () => {
                   name="npwpNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nomor NPWP *</FormLabel>
+                      <FormLabel>Nomor NPWP * (Auto-populated dari Password)</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="nope"
+                          placeholder="Auto-populated dari password"
+                          disabled={true}
                           {...field} 
-                          placeholder="12.345.678.9-012.345" 
                         />
                       </FormControl>
                       <FormMessage />
