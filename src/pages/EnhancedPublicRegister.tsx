@@ -92,15 +92,6 @@ const EnhancedPublicRegister = () => {
     }
   });
 
-  // Auto-populate company form fields when account data is available
-  useEffect(() => {
-    if (accountData) {
-      companyForm.setValue("companyName", accountData.email);
-      companyForm.setValue("nibNumber", accountData.password);
-      companyForm.setValue("npwpNumber", accountData.password);
-    }
-  }, [accountData, companyForm]);
-
   const validateDocuments = () => {
     const errors: string[] = [];
     
@@ -372,12 +363,11 @@ const EnhancedPublicRegister = () => {
                   name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Perusahaan * (Auto-populated dari Email)</FormLabel>
+                      <FormLabel>Nama Perusahaan *</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="off"
-                          placeholder="Auto-populated dari email"
-                          disabled={true}
+                          placeholder="Masukkan nama perusahaan"
                           {...field} 
                         />
                       </FormControl>
@@ -419,14 +409,13 @@ const EnhancedPublicRegister = () => {
                   name="nibNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nomor NIB * (Auto-populated dari Password)</FormLabel>
+                      <FormLabel>Nomor NIB *</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="nope"
                           type="text"
                           maxLength={15} 
-                          placeholder="Auto-populated dari password"
-                          disabled={true}
+                          placeholder="123456789012345"
                           {...field} 
                         />
                       </FormControl>
@@ -440,13 +429,12 @@ const EnhancedPublicRegister = () => {
                   name="npwpNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nomor NPWP * (Auto-populated dari Password)</FormLabel>
+                      <FormLabel>Nomor NPWP *</FormLabel>
                       <FormControl>
                         <Input 
                           autoComplete="nope"
-                          placeholder="Auto-populated dari password"
-                          disabled={true}
                           {...field} 
+                          placeholder="12.345.678.9-012.345" 
                         />
                       </FormControl>
                       <FormMessage />
