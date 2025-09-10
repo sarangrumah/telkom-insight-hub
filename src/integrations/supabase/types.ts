@@ -1622,6 +1622,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_company: {
+        Args: { _company_id: string; _notes?: string; _verified_by: string }
+        Returns: undefined
+      }
       check_record_permission: {
         Args: {
           _action: string
@@ -1644,6 +1648,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_companies_for_management: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          akta_number: string
+          company_id: string
+          company_name: string
+          created_at: string
+          document_count: number
+          email: string
+          nib_number: string
+          npwp_number: string
+          phone: string
+          pic_count: number
+          status: Database["public"]["Enums"]["company_status"]
+          verification_notes: string
+          verified_at: string
+          verified_by: string
+          verifier_name: string
+        }[]
+      }
       get_user_permissions: {
         Args: { _module_code?: string; _user_id: string }
         Returns: {
@@ -1664,6 +1688,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      reject_company: {
+        Args: {
+          _company_id: string
+          _rejected_by: string
+          _rejection_notes: string
+        }
+        Returns: undefined
       }
       user_has_role: {
         Args: {
