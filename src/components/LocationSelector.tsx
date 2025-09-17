@@ -94,7 +94,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         const { data, error } = await supabase
           .from('indonesian_regions')
           .select('region_id, name')
-          .eq('type', 'kelurahan')
+          .eq('type', 'village')
           .eq('parent_id', value.kecamatan)
           .order('name');
 
