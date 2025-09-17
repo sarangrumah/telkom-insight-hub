@@ -288,6 +288,10 @@ export type Database = {
           company_address: string
           company_name: string
           company_type: Database["public"]["Enums"]["company_type"] | null
+          correction_notes: Json | null
+          correction_status:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at: string
           email: string
           id: string
@@ -314,6 +318,10 @@ export type Database = {
           company_address: string
           company_name: string
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          correction_notes?: Json | null
+          correction_status?:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at?: string
           email: string
           id?: string
@@ -340,6 +348,10 @@ export type Database = {
           company_address?: string
           company_name?: string
           company_type?: Database["public"]["Enums"]["company_type"] | null
+          correction_notes?: Json | null
+          correction_status?:
+            | Database["public"]["Enums"]["correction_status"]
+            | null
           created_at?: string
           email?: string
           id?: string
@@ -1622,6 +1634,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_company: {
+        Args: { _company_id: string; _notes?: string; _verified_by: string }
+        Returns: undefined
+      }
       check_record_permission: {
         Args: {
           _action: string
@@ -1644,6 +1660,26 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_companies_for_management: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          akta_number: string
+          company_id: string
+          company_name: string
+          created_at: string
+          document_count: number
+          email: string
+          nib_number: string
+          npwp_number: string
+          phone: string
+          pic_count: number
+          status: Database["public"]["Enums"]["company_status"]
+          verification_notes: string
+          verified_at: string
+          verified_by: string
+          verifier_name: string
+        }[]
+      }
       get_user_permissions: {
         Args: { _module_code?: string; _user_id: string }
         Returns: {
@@ -1664,6 +1700,30 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      reject_company: {
+        Args: {
+          _company_id: string
+          _rejected_by: string
+          _rejection_notes: string
+        }
+        Returns: undefined
+      }
+      request_company_correction: {
+        Args: {
+          _company_id: string
+          _correction_notes: Json
+          _requested_by: string
+        }
+        Returns: undefined
+      }
+      submit_company_corrections: {
+        Args: {
+          _company_id: string
+          _submitted_by: string
+          _updated_data: Json
+        }
+        Returns: undefined
       }
       user_has_role: {
         Args: {
@@ -1700,7 +1760,9 @@ export type Database = {
         | "verified"
         | "rejected"
         | "suspended"
+        | "needs_correction"
       company_type: "pt" | "cv" | "ud" | "koperasi" | "yayasan" | "other"
+      correction_status: "pending_correction" | "corrected"
       document_type: "nib" | "npwp" | "akta" | "ktp" | "assignment_letter"
       license_type:
         | "jasa_telekomunikasi"
@@ -1886,8 +1948,10 @@ export const Constants = {
         "verified",
         "rejected",
         "suspended",
+        "needs_correction",
       ],
       company_type: ["pt", "cv", "ud", "koperasi", "yayasan", "other"],
+      correction_status: ["pending_correction", "corrected"],
       document_type: ["nib", "npwp", "akta", "ktp", "assignment_letter"],
       license_type: [
         "jasa_telekomunikasi",

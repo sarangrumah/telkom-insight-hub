@@ -9,9 +9,10 @@ interface FileUploadProps {
   value?: string;
   onChange: (fileUrl: string | null) => void;
   disabled?: boolean;
+  allowPublicUpload?: boolean; // For public registration forms
 }
 
-export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
+export function FileUpload({ value, onChange, disabled, allowPublicUpload = false }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
@@ -53,7 +54,9 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      
+      // Check authentication based on context
+      if (!allowPublicUpload && !user) {
         throw new Error('User not authenticated');
       }
 
@@ -61,7 +64,11 @@ export function FileUpload({ value, onChange, disabled }: FileUploadProps) {
 
       const timestamp = new Date().getTime();
       const fileName = `${timestamp}-${file.name}`;
-      const filePath = `${user.id}/telekom-data/${fileName}`;
+      
+      // Use different file paths for authenticated vs public uploads
+      const filePath = user 
+        ? `${user.id}/telekom-data/${fileName}` 
+        : `temp/registration/${fileName}`;
 
       setUploadProgress(50);
 

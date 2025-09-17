@@ -14,6 +14,7 @@ import AdminFAQ from "./pages/AdminFAQ";
 import AdminTickets from "./pages/AdminTickets";
 import UserManagement from "./pages/UserManagement";
 import PermissionManagement from "./pages/PermissionManagement";
+import CompanyManagement from "./pages/CompanyManagement";
 import NotFound from "./pages/NotFound";
 import Homepage from "./pages/Homepage";
 import PublicRegister from "./pages/PublicRegister";
@@ -47,6 +48,7 @@ const PublicRoutes = () => {
       <Route path="/admin/*" element={<Navigate to="/auth" replace />} />
       <Route path="/user-management" element={<Navigate to="/auth" replace />} />
       <Route path="/permission-management" element={<Navigate to="/auth" replace />} />
+      <Route path="/company-management" element={<Navigate to="/auth" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -67,6 +69,7 @@ const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, sess
         <Route path="/admin/tickets" element={<AdminTickets />} />
         <Route path="/user-management" element={<UserManagement />} />
         <Route path="/permission-management" element={<PermissionManagement />} />
+        <Route path="/company-management" element={<CompanyManagement />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
@@ -104,9 +107,10 @@ const AppRoutes: React.FC = () => {
   const isAuthenticatedRoute = window.location.pathname.startsWith('/dashboard') || 
                               window.location.pathname.startsWith('/data-management') ||
                               window.location.pathname.startsWith('/data-visualization') ||
-                              window.location.pathname.startsWith('/admin') ||
-                              window.location.pathname.startsWith('/user-management') ||
-                              window.location.pathname.startsWith('/permission-management');
+                               window.location.pathname.startsWith('/admin') ||
+                               window.location.pathname.startsWith('/user-management') ||
+                               window.location.pathname.startsWith('/permission-management') ||
+                               window.location.pathname.startsWith('/company-management');
 
   // If trying to access authenticated routes without proper session, redirect to auth
   if (isAuthenticatedRoute && (!user || !session)) {

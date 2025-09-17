@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,6 +34,7 @@ const EnhancedPublicRegister = () => {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState("");
+  const [formKey, setFormKey] = useState(0); // Force re-render key
 
   // Form state for all steps
   const [accountData, setAccountData] = useState<AccountFormData | null>(null);
@@ -46,7 +47,7 @@ const EnhancedPublicRegister = () => {
     assignmentLetter: null as string | null
   });
 
-  // Form instances
+  // Form instances - recreate on step change to ensure clean state
   const accountForm = useForm<AccountFormData>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {
@@ -58,6 +59,7 @@ const EnhancedPublicRegister = () => {
     }
   });
 
+  // Recreate company form with key to force clean state
   const companyForm = useForm<CompanyFormData>({
     resolver: zodResolver(companyFormSchema),
     defaultValues: {
@@ -75,7 +77,26 @@ const EnhancedPublicRegister = () => {
       postalCode: ""
     }
   });
-  console.log("companyForm defaultValues", companyForm.getValues());
+
+  // Reset company form completely when moving to step 2
+  useEffect(() => {
+    if (currentStep === 2) {
+      companyForm.reset({
+        companyName: "",
+        nibNumber: "",
+        npwpNumber: "",
+        phone: "",
+        companyType: undefined,
+        aktaNumber: "",
+        address: "",
+        provinceId: "",
+        kabupaténId: "",
+        kecamatan: "",
+        kelurahan: "",
+        postalCode: ""
+      });
+    }
+  }, [currentStep, formKey, companyForm]);
 
   const picForm = useForm<PICFormData>({
     resolver: zodResolver(picFormSchema),
@@ -93,12 +114,19 @@ const EnhancedPublicRegister = () => {
     }
   });
 
-  const validateDocuments = () => {
+  const validateCompanyDocuments = () => {
     const errors: string[] = [];
     
     if (!documents.nib) errors.push("Dokumen NIB wajib diupload");
     if (!documents.npwp) errors.push("Dokumen NPWP wajib diupload");
     if (!documents.akta) errors.push("Dokumen Akta wajib diupload");
+    
+    return errors;
+  };
+
+  const validatePICDocuments = () => {
+    const errors: string[] = [];
+    
     if (!documents.ktp) errors.push("Dokumen KTP Penanggung Jawab wajib diupload");
     if (!documents.assignmentLetter) errors.push("Surat Penugasan wajib diupload");
     
@@ -134,6 +162,10 @@ const EnhancedPublicRegister = () => {
       }
       
       setAccountData(data);
+      
+      // Force complete form re-initialization
+      setFormKey(prev => prev + 1); // This will force re-render with clean state
+      
       setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
       setCurrentStep(2);
     } catch (error: any) {
@@ -155,8 +187,8 @@ const EnhancedPublicRegister = () => {
         return;
       }
 
-      // Validate required documents
-      const docErrors = validateDocuments();
+      // Validate required company documents only
+      const docErrors = validateCompanyDocuments();
       if (docErrors.length > 0) {
         setGlobalError(docErrors.join(", "));
         return;
@@ -182,6 +214,13 @@ const EnhancedPublicRegister = () => {
     setGlobalError("");
 
     try {
+      // Validate required PIC documents
+      const docErrors = validatePICDocuments();
+      if (docErrors.length > 0) {
+        setGlobalError(docErrors.join(", "));
+        return;
+      }
+
       // Complete registration using edge function
       const { data: result, error } = await supabase.functions.invoke('complete-registration', {
         body: {
@@ -356,10 +395,8 @@ const EnhancedPublicRegister = () => {
 
       case 2:
         return (
-          <Form {...companyForm}>
-            {console.log("Step 2 render: accountForm values", accountForm.getValues())}
-            {console.log("Step 2 render: companyForm values", companyForm.getValues())}
-            <form onSubmit={companyForm.handleSubmit(handleCompanySubmit)} className="space-y-6">
+          <Form {...companyForm} key={formKey}>
+            <form onSubmit={companyForm.handleSubmit(handleCompanySubmit)} className="space-y-6" key={`company-form-${formKey}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={companyForm.control}
@@ -385,7 +422,11 @@ const EnhancedPublicRegister = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenis Perusahaan *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
+                        key={`company-type-${formKey}`}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenis perusahaan" />
@@ -536,6 +577,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.nib}
                         onChange={(url) => setDocuments(prev => ({ ...prev, nib: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -546,6 +588,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.npwp}
                         onChange={(url) => setDocuments(prev => ({ ...prev, npwp: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -556,6 +599,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.akta}
                         onChange={(url) => setDocuments(prev => ({ ...prev, akta: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -689,6 +733,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.ktp}
                         onChange={(url) => setDocuments(prev => ({ ...prev, ktp: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>
@@ -699,6 +744,7 @@ const EnhancedPublicRegister = () => {
                       <FileUpload
                         value={documents.assignmentLetter}
                         onChange={(url) => setDocuments(prev => ({ ...prev, assignmentLetter: url }))}
+                        allowPublicUpload={true}
                       />
                     </div>
                   </div>

@@ -71,7 +71,7 @@ export const accountFormSchema = z.object({
   path: ['confirmPassword']
 });
 
-// Company form validation
+// Company form validation (removed website and business_field)
 export const companyFormSchema = z.object({
   companyName: z.string().min(2, 'Nama perusahaan wajib diisi'),
   nibNumber: nibSchema,
@@ -88,6 +88,19 @@ export const companyFormSchema = z.object({
   kelurahan: z.string().min(1, 'Pilih kelurahan'),
   postalCode: z.string().regex(/^\d{5}$/, 'Kode pos harus 5 digit')
 });
+
+// Helper function to get company type display name
+export const getCompanyTypeLabel = (type: string): string => {
+  const labels = {
+    pt: 'PT (Perseroan Terbatas)',
+    cv: 'CV (Commanditaire Vennootschap)', 
+    ud: 'UD (Usaha Dagang)',
+    koperasi: 'Koperasi',
+    yayasan: 'Yayasan',
+    other: 'Lainnya'
+  };
+  return labels[type as keyof typeof labels] || type;
+};
 
 // PIC form validation
 export const picFormSchema = z.object({

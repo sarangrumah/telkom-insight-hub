@@ -14,7 +14,8 @@ import {
   HelpCircle, 
   MessageSquare,
   ChevronDown,
-  Home
+  Home,
+  Building2
 } from "lucide-react";
 import { useUnreadTicketCount } from "@/hooks/useUnreadTicketCount";
 import { useRealtimeTickets } from "@/hooks/useRealtimeTickets";
@@ -189,6 +190,17 @@ function AppSidebar({ user, profile, userRole, onLogout, counts }: any) {
                           >
                             <Settings className="h-4 w-4" />
                             {!isCollapsed && <span>Permission Management</span>}
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        
+                        <SidebarMenuItem>
+                          <SidebarMenuButton 
+                            onClick={() => navigate('/company-management')}
+                            isActive={isActive('/company-management')}
+                            className="hover-scale transition-all duration-200"
+                          >
+                            <Building2 className="h-4 w-4" />
+                            {!isCollapsed && <span>Company Management</span>}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       </>
