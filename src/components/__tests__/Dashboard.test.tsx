@@ -44,7 +44,7 @@ const mockSession = {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.mocked(useUnreadTicketCount).mockReturnValue({
-      counts: { userTickets: 0, adminTickets: 0 },
+      counts: { userTickets: 0, adminTickets: 0, unread: 0, highPriority: 0, total: 0 },
       loading: false,
       refreshCounts: vi.fn(),
     });

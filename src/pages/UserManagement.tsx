@@ -1,21 +1,55 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Search, UserPlus, Settings, Edit, Trash2 } from 'lucide-react';
+import { apiFetch } from '@/lib/apiClient';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+
+type Role =
+  | 'super_admin'
+  | 'internal_admin'
+  | 'pelaku_usaha'
+  | 'pengolah_data'
+  | 'internal_group'
+  | 'guest';
 
 interface UserProfile {
   id: string;
@@ -25,7 +59,7 @@ interface UserProfile {
   phone?: string;
   is_validated: boolean;
   created_at: string;
-  roles: string[];
+  roles: Role[];
 }
 
 const userSchema = z.object({
@@ -34,13 +68,20 @@ const userSchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
   company_name: z.string().optional(),
   phone: z.string().optional(),
-  role: z.enum(['super_admin', 'internal_admin', 'pelaku_usaha', 'pengolah_data', 'internal_group', 'guest'])
+  role: z.enum([
+    'super_admin',
+    'internal_admin',
+    'pelaku_usaha',
+    'pengolah_data',
+    'internal_group',
+    'guest',
+  ]),
 });
 
 const editUserSchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
   company_name: z.string().optional(),
-  phone: z.string().optional()
+  phone: z.string().optional(),
 });
 
 export default function UserManagement() {
@@ -50,8 +91,8 @@ export default function UserManagement() {
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState<'super_admin' | 'internal_admin' | 'pelaku_usaha' | 'pengolah_data' | 'internal_group' | 'guest' | ''>('');
-  
+  const [newRole, setNewRole] = useState<Role | ''>('');
+
   const queryClient = useQueryClient();
 
   const createForm = useForm<z.infer<typeof userSchema>>({
@@ -62,8 +103,8 @@ export default function UserManagement() {
       full_name: '',
       company_name: '',
       phone: '',
-      role: 'guest'
-    }
+      role: 'guest',
+    },
   });
 
   const editForm = useForm<z.infer<typeof editUserSchema>>({
@@ -71,74 +112,61 @@ export default function UserManagement() {
     defaultValues: {
       full_name: '',
       company_name: '',
-      phone: ''
-    }
+      phone: '',
+    },
   });
 
   // Fetch all users with their profiles and roles
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const token = localStorage.getItem('app.jwt.token');
+  const authHeader = () => (token ? { Authorization: `Bearer ${token}` } : {});
+
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      // Get roles for each user
-      const usersWithRoles = await Promise.all(
-        profiles.map(async (profile) => {
-          const { data: roles } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', profile.user_id);
-
-          return {
-            ...profile,
-            roles: roles?.map(r => r.role) || []
-          };
-        })
-      );
-
-      return usersWithRoles;
-    }
+      const resp = await fetch(`${API_BASE}/api/admin/users`, {
+        headers: authHeader(),
+      });
+      if (!resp.ok) throw new Error('Failed to load users');
+      const json = await resp.json();
+      return json.users || [];
+    },
   });
 
-  // Create new user
+  // Create new user (save metadata and enforce single role)
   const createUserMutation = useMutation({
     mutationFn: async (userData: z.infer<typeof userSchema>) => {
-      // Create user in auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: true
-      });
-
-      if (authError) throw authError;
-
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
+      interface RegisterResponse {
+        user?: { id: string };
+      }
+      // Send metadata to backend so it is saved into public.profiles
+      const resp = (await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password,
           full_name: userData.full_name,
           company_name: userData.company_name || null,
           phone: userData.phone || null,
-          is_validated: true
+          // context not 'public' here; created by admin, backend will set 'guest' initially
+        }),
+      })) as RegisterResponse;
+
+      const json = resp;
+      const userId = json.user?.id;
+
+      // Replace role to the selected role (if not guest)
+      if (userId && userData.role && userData.role !== 'guest') {
+        const assignResp = await fetch(`${API_BASE}/api/admin/users/${userId}/roles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ role: userData.role }),
         });
-
-      if (profileError) throw profileError;
-
-      // Assign role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: userData.role as any
-        });
-
-      if (roleError) throw roleError;
+        if (!assignResp.ok) {
+          const errJson = await assignResp.json().catch(() => ({}));
+          throw new Error(errJson.error || 'Failed to assign role');
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -146,24 +174,34 @@ export default function UserManagement() {
       setIsCreateDialogOpen(false);
       createForm.reset();
     },
-    onError: (error: any) => {
-      toast.error(`Failed to create user: ${error.message}`);
-    }
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to create user: ${msg}`);
+    },
   });
 
   // Update user profile
   const updateUserMutation = useMutation({
-    mutationFn: async ({ userId, userData }: { userId: string; userData: z.infer<typeof editUserSchema> }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: userData.full_name,
-          company_name: userData.company_name || null,
-          phone: userData.phone || null
-        })
-        .eq('user_id', userId);
-
-      if (error) throw error;
+    mutationFn: async ({
+      userId,
+      userData,
+    }: {
+      userId: string;
+      userData: z.infer<typeof editUserSchema>;
+    }) => {
+      const resp = await fetch(
+        `${API_BASE}/api/admin/users/${userId}/profile`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({
+            full_name: userData.full_name,
+            company_name: userData.company_name || null,
+            phone: userData.phone || null,
+          }),
+        }
+      );
+      if (!resp.ok) throw new Error('Failed to update user');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -173,32 +211,51 @@ export default function UserManagement() {
     },
     onError: () => {
       toast.error('Failed to update user');
-    }
+    },
   });
 
   // Delete user
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
+      const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: authHeader(),
+      });
+      if (!resp.ok) {
+        const errorData = await resp.json();
+        throw new Error(errorData.error || 'Failed to delete user');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('User deleted successfully');
     },
-    onError: () => {
-      toast.error('Failed to delete user');
-    }
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
   });
 
   // Assign role to user
   const assignRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'super_admin' | 'internal_admin' | 'pelaku_usaha' | 'pengolah_data' | 'internal_group' | 'guest' }) => {
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({ user_id: userId, role: role as any });
-
-      if (error) throw error;
+    mutationFn: async ({
+      userId,
+      role,
+    }: {
+      userId: string;
+      role:
+        | 'super_admin'
+        | 'internal_admin'
+        | 'pelaku_usaha'
+        | 'pengolah_data'
+        | 'internal_group'
+        | 'guest';
+    }) => {
+      const resp = await fetch(`${API_BASE}/api/admin/users/${userId}/roles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ role }),
+      });
+      if (!resp.ok) throw new Error('Failed to assign role');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -208,19 +265,29 @@ export default function UserManagement() {
     },
     onError: () => {
       toast.error('Failed to assign role');
-    }
+    },
   });
 
   // Remove role from user
   const removeRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: 'super_admin' | 'internal_admin' | 'pelaku_usaha' | 'pengolah_data' | 'internal_group' | 'guest' }) => {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
-        .eq('role', role as any);
-
-      if (error) throw error;
+    mutationFn: async ({
+      userId,
+      role,
+    }: {
+      userId: string;
+      role:
+        | 'super_admin'
+        | 'internal_admin'
+        | 'pelaku_usaha'
+        | 'pengolah_data'
+        | 'internal_group'
+        | 'guest';
+    }) => {
+      const resp = await fetch(
+        `${API_BASE}/api/admin/users/${userId}/roles/${role}`,
+        { method: 'DELETE', headers: authHeader() }
+      );
+      if (!resp.ok) throw new Error('Failed to remove role');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -228,18 +295,27 @@ export default function UserManagement() {
     },
     onError: () => {
       toast.error('Failed to remove role');
-    }
+    },
   });
 
   // Toggle user validation
   const toggleValidationMutation = useMutation({
-    mutationFn: async ({ userId, isValidated }: { userId: string; isValidated: boolean }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_validated: !isValidated })
-        .eq('user_id', userId);
-
-      if (error) throw error;
+    mutationFn: async ({
+      userId,
+      isValidated,
+    }: {
+      userId: string;
+      isValidated: boolean;
+    }) => {
+      const resp = await fetch(
+        `${API_BASE}/api/admin/users/${userId}/validation`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ is_validated: !isValidated }),
+        }
+      );
+      if (!resp.ok) throw new Error('Failed to update validation');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -247,26 +323,33 @@ export default function UserManagement() {
     },
     onError: () => {
       toast.error('Failed to update user validation');
-    }
+    },
   });
 
   const filteredUsers = users?.filter(user => {
-    const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.phone?.includes(searchTerm);
-    
-    const matchesRole = roleFilter === 'all' || user.roles.includes(roleFilter as any);
-    
+    const matchesSearch =
+      user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.includes(searchTerm);
+
+    const matchesRole =
+      roleFilter === 'all' || user.roles.includes(roleFilter as Role);
+
     return matchesSearch && matchesRole;
   });
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
-      case 'super_admin': return 'destructive';
-      case 'internal_admin': return 'default';
-      case 'pengolah_data': return 'secondary';
-      case 'pelaku_usaha': return 'outline';
-      default: return 'outline';
+      case 'super_admin':
+        return 'destructive';
+      case 'internal_admin':
+        return 'default';
+      case 'pengolah_data':
+        return 'secondary';
+      case 'pelaku_usaha':
+        return 'outline';
+      default:
+        return 'outline';
     }
   };
 
@@ -275,7 +358,7 @@ export default function UserManagement() {
     editForm.reset({
       full_name: user.full_name,
       company_name: user.company_name || '',
-      phone: user.phone || ''
+      phone: user.phone || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -286,7 +369,10 @@ export default function UserManagement() {
 
   const onEditSubmit = (data: z.infer<typeof editUserSchema>) => {
     if (selectedUser) {
-      updateUserMutation.mutate({ userId: selectedUser.user_id, userData: data });
+      updateUserMutation.mutate({
+        userId: selectedUser.user_id,
+        userData: data,
+      });
     }
   };
 
@@ -306,7 +392,10 @@ export default function UserManagement() {
               <DialogTitle>Create New User</DialogTitle>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(onCreateSubmit)} className="space-y-4">
+              <form
+                onSubmit={createForm.handleSubmit(onCreateSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={createForm.control}
                   name="email"
@@ -327,7 +416,11 @@ export default function UserManagement() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -378,17 +471,28 @@ export default function UserManagement() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Initial Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="super_admin">Super Admin</SelectItem>
-                          <SelectItem value="internal_admin">Internal Admin</SelectItem>
-                          <SelectItem value="pengolah_data">Data Processor</SelectItem>
-                          <SelectItem value="pelaku_usaha">Business User</SelectItem>
+                          <SelectItem value="super_admin">
+                            Super Admin
+                          </SelectItem>
+                          <SelectItem value="internal_admin">
+                            Internal Admin
+                          </SelectItem>
+                          <SelectItem value="pengolah_data">
+                            Data Processor
+                          </SelectItem>
+                          <SelectItem value="pelaku_usaha">
+                            Business User
+                          </SelectItem>
                           <SelectItem value="guest">Guest</SelectItem>
                         </SelectContent>
                       </Select>
@@ -396,7 +500,11 @@ export default function UserManagement() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={createUserMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createUserMutation.isPending}
+                >
                   {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                 </Button>
               </form>
@@ -414,7 +522,7 @@ export default function UserManagement() {
               <Input
                 placeholder="Search users..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -450,19 +558,26 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers?.map((user) => (
+                {filteredUsers?.map(user => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.full_name}</TableCell>
+                    <TableCell className="font-medium">
+                      {user.full_name}
+                    </TableCell>
                     <TableCell>{user.company_name || '-'}</TableCell>
                     <TableCell>{user.phone || '-'}</TableCell>
                     <TableCell>
                       <div className="flex gap-1 flex-wrap">
-                        {user.roles.map((role) => (
-                          <Badge 
-                            key={role} 
+                        {user.roles.map(role => (
+                          <Badge
+                            key={role}
                             variant={getRoleBadgeVariant(role)}
                             className="text-xs cursor-pointer"
-                            onClick={() => removeRoleMutation.mutate({ userId: user.user_id, role })}
+                            onClick={() =>
+                              removeRoleMutation.mutate({
+                                userId: user.user_id,
+                                role,
+                              })
+                            }
                             title="Click to remove role"
                           >
                             {role}
@@ -473,10 +588,10 @@ export default function UserManagement() {
                     <TableCell>
                       <Switch
                         checked={user.is_validated}
-                        onCheckedChange={() => 
-                          toggleValidationMutation.mutate({ 
-                            userId: user.user_id, 
-                            isValidated: user.is_validated 
+                        onCheckedChange={() =>
+                          toggleValidationMutation.mutate({
+                            userId: user.user_id,
+                            isValidated: user.is_validated,
                           })
                         }
                       />
@@ -486,17 +601,22 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => openEditDialog(user)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Dialog open={isRoleDialogOpen && selectedUser?.id === user.id} onOpenChange={setIsRoleDialogOpen}>
+                        <Dialog
+                          open={
+                            isRoleDialogOpen && selectedUser?.id === user.id
+                          }
+                          onOpenChange={setIsRoleDialogOpen}
+                        >
                           <DialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => setSelectedUser(user)}
                             >
@@ -505,27 +625,50 @@ export default function UserManagement() {
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader>
-                              <DialogTitle>Assign Role to {user.full_name}</DialogTitle>
+                              <DialogTitle>
+                                Assign Role to {user.full_name}
+                              </DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4">
                               <div>
                                 <Label>Select Role</Label>
-                                <Select value={newRole} onValueChange={(value) => setNewRole(value as any)}>
+                                <Select
+                                  value={newRole}
+                                  onValueChange={(value: Role) =>
+                                    setNewRole(value)
+                                  }
+                                >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Choose a role" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                                    <SelectItem value="internal_admin">Internal Admin</SelectItem>
-                                    <SelectItem value="pengolah_data">Data Processor</SelectItem>
-                                    <SelectItem value="pelaku_usaha">Business User</SelectItem>
+                                    <SelectItem value="super_admin">
+                                      Super Admin
+                                    </SelectItem>
+                                    <SelectItem value="internal_admin">
+                                      Internal Admin
+                                    </SelectItem>
+                                    <SelectItem value="pengolah_data">
+                                      Data Processor
+                                    </SelectItem>
+                                    <SelectItem value="pelaku_usaha">
+                                      Business User
+                                    </SelectItem>
                                     <SelectItem value="guest">Guest</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
-                              <Button 
-                                onClick={() => newRole && assignRoleMutation.mutate({ userId: user.user_id, role: newRole as any })}
-                                disabled={!newRole || user.roles.includes(newRole)}
+                              <Button
+                                onClick={() =>
+                                  newRole &&
+                                  assignRoleMutation.mutate({
+                                    userId: user.user_id,
+                                    role: newRole,
+                                  })
+                                }
+                                disabled={
+                                  !newRole || user.roles.includes(newRole)
+                                }
                                 className="w-full"
                               >
                                 Assign Role
@@ -533,10 +676,12 @@ export default function UserManagement() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
-                          onClick={() => deleteUserMutation.mutate(user.user_id)}
+                          onClick={() =>
+                            deleteUserMutation.mutate(user.user_id)
+                          }
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -558,7 +703,10 @@ export default function UserManagement() {
             <DialogTitle>Edit User Profile</DialogTitle>
           </DialogHeader>
           <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+            <form
+              onSubmit={editForm.handleSubmit(onEditSubmit)}
+              className="space-y-4"
+            >
               <FormField
                 control={editForm.control}
                 name="full_name"
@@ -598,7 +746,11 @@ export default function UserManagement() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={updateUserMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={updateUserMutation.isPending}
+              >
                 {updateUserMutation.isPending ? 'Updating...' : 'Update User'}
               </Button>
             </form>

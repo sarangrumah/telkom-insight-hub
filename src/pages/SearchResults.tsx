@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, ArrowLeft, Building2, FileText, Globe } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiFetch } from "@/lib/apiClient";
 
 interface SearchResult {
   id: string;
   company_name: string;
-  service_type?: string;
+  service_type: string;
   license_number?: string;
   region?: string;
   status: string;
@@ -26,6 +26,7 @@ const SearchResults = () => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (query) {
@@ -35,46 +36,15 @@ const SearchResults = () => {
 
   const performSearch = async (searchTerm: string) => {
     setLoading(true);
+    setErrorMsg(null);
     try {
-      // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Search in telekom_data table with appropriate column selection
-      let query;
-      
-      if (user) {
-        // Authenticated users get all data
-        query = supabase
-          .from('telekom_data')
-          .select('*', { count: 'exact' })
-          .or(`company_name.ilike.%${searchTerm}%,license_number.ilike.%${searchTerm}%,region.ilike.%${searchTerm}%`)
-          .limit(20);
-      } else {
-        // Public users get limited data
-        query = supabase
-          .from('telekom_data')
-          .select('id,company_name,region,status,created_at', { count: 'exact' })
-          .or(`company_name.ilike.%${searchTerm}%,region.ilike.%${searchTerm}%`)
-          .limit(20);
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('Search error:', error);
-        return;
-      }
-
-      // Transform data to ensure service_type exists for display
-      const transformedData = (data || []).map((item: any) => ({
-        ...item,
-        service_type: item.service_type || 'public'
-      }));
-
-      setResults(transformedData);
-      setTotalCount(count || 0);
-    } catch (error) {
+      const res = await apiFetch(`/api/public/telekom-data/search?q=${encodeURIComponent(searchTerm)}&limit=20`);
+      setResults(res.data || []);
+      setTotalCount(res.total || 0);
+    } catch (error: unknown) {
       console.error('Search error:', error);
+      const message = error instanceof Error ? error.message : 'Terjadi kesalahan saat mencari';
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -85,6 +55,7 @@ const SearchResults = () => {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
+
 
   const getServiceTypeColor = (serviceType: string) => {
     const colors: { [key: string]: string } = {
@@ -153,6 +124,11 @@ const SearchResults = () => {
               Menampilkan {results.length} dari {totalCount} hasil untuk "{query}"
             </p>
           )}
+          {errorMsg && (
+            <div className="mt-2 text-destructive text-sm">
+              {errorMsg}
+            </div>
+          )}
         </div>
 
         {/* Results */}
@@ -173,13 +149,13 @@ const SearchResults = () => {
                         {result.company_name}
                       </CardTitle>
                       <CardDescription>
-                        {result.license_number ? `No. Izin: ${result.license_number}` : 'Informasi izin terbatas untuk pengguna publik'}
+                        {result.license_number && `No. Izin: ${result.license_number}`}
                         {result.region && ` • ${result.region}`}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Badge className={getServiceTypeColor(result.service_type || 'public')}>
-                        {result.service_type ? result.service_type.replace('_', ' ').toUpperCase() : 'PUBLIK'}
+                      <Badge className={getServiceTypeColor(result.service_type)}>
+                        {result.service_type.replace('_', ' ').toUpperCase()}
                       </Badge>
                       <Badge className={getStatusColor(result.status)}>
                         {result.status.toUpperCase()}
@@ -192,7 +168,11 @@ const SearchResults = () => {
                     <div className="text-sm text-muted-foreground">
                       Terdaftar: {new Date(result.created_at).toLocaleDateString('id-ID')}
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/detail/${result.id}`)}
+                    >
                       <FileText className="mr-2 h-4 w-4" />
                       Lihat Detail
                     </Button>

@@ -121,7 +121,7 @@ export default function PublicDataView() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate('/faq')}>
+              <Button variant="outline" onClick={() => navigate('/public/faq')}>
                 FAQ
               </Button>
               <Button onClick={() => navigate('/auth')}>
@@ -279,7 +279,7 @@ export default function PublicDataView() {
                   ))}
                   {data.faqs.length > 5 && (
                     <div className="text-center">
-                      <Button variant="outline" onClick={() => navigate('/faq')}>
+                      <Button variant="outline" onClick={() => navigate('/public/faq')}>
                         View All FAQs
                       </Button>
                     </div>

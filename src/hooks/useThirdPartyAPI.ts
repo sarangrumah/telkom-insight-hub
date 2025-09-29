@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMonitoring } from './useMonitoring';
+import { apiFetch } from '@/lib/apiClient';
 
 interface APICallOptions {
   apiName?: string;
@@ -9,7 +9,13 @@ interface APICallOptions {
   retries?: number;
 }
 
-interface APIResponse<T = any> {
+interface APICallData {
+  endpoint: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  parameters?: unknown;
+}
+
+interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -22,60 +28,58 @@ export const useThirdPartyAPI = () => {
   const [error, setError] = useState<string | null>(null);
   const { logUserAction, logError } = useMonitoring();
 
-  const callAPI = useCallback(async <T = any>(
-    data: any, 
+  const callAPI = useCallback(async <T = unknown>(
+    data: APICallData,
     options: APICallOptions = {}
   ): Promise<APIResponse<T>> => {
     const { apiName = 'default-api', timeout = 30000, retries = 1 } = options;
-    
+
     setLoading(true);
     setError(null);
-    
+
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         await logUserAction('api_call_initiated', { apiName, attempt: attempt + 1 });
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
-        const { data: result, error: apiError } = await supabase.functions.invoke(
-          'api-integration-example',
-          {
-            body: { data, apiName },
-          }
-        );
-        
-        clearTimeout(timeoutId);
-        
-        if (apiError) {
-          throw new Error(apiError.message || 'API call failed');
-        }
-        
+
+        // Execute via backend proxy (Node/Express)
+        const payload = {
+          data,       // { endpoint: string; method: string; parameters: any }
+          apiName,    // for logging/metrics
+          timeout,    // ms
+        };
+
+        const result = await apiFetch('/api/integrations/test', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+
         await logUserAction('api_call_success', { apiName, result });
-        
+
+        // Ensure loading cleared on success path too
+        setLoading(false);
         return result as APIResponse<T>;
       } catch (err) {
         lastError = err instanceof Error ? err : new Error('Unknown API error');
-        
+
         if (attempt === retries) {
           await logError(lastError, 'useThirdPartyAPI');
           setError(lastError.message);
           toast.error(`API Integration Error: ${lastError.message}`);
         } else {
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          // simple backoff
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
         }
       }
     }
-    
+
     setLoading(false);
-    throw lastError;
+    throw lastError || new Error('Unknown API error');
   }, [logUserAction, logError]);
 
-  const callAPIWithToast = useCallback(async <T = any>(
-    data: any, 
+  const callAPIWithToast = useCallback(async <T = unknown>(
+    data: APICallData,
     options: APICallOptions = {}
   ): Promise<APIResponse<T> | null> => {
     try {

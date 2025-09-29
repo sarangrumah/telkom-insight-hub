@@ -1,12 +1,11 @@
-import EnhancedDashboard from "@/components/EnhancedDashboard";
-import { User, Session } from "@supabase/supabase-js";
+import EnhancedDashboard from '@/components/EnhancedDashboard';
+import { AppUser } from '@/hooks/useAuth';
 
 interface DashboardProps {
-  user: User;
-  session: Session;
+  user: AppUser;
   onLogout: () => void;
 }
 
-export default function Dashboard({ user, session, onLogout }: DashboardProps) {
-  return <EnhancedDashboard user={user} session={session} onLogout={onLogout} />;
+export default function Dashboard({ user, onLogout }: DashboardProps) {
+  return <EnhancedDashboard user={user} onLogout={onLogout} />;
 }

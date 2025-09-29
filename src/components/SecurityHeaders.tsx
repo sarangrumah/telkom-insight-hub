@@ -5,17 +5,19 @@ export function SecurityHeaders() {
     // Set security headers via meta tags for client-side security
     const setSecurityHeaders = () => {
       // Content Security Policy
-      const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+      const csp = document.querySelector(
+        'meta[http-equiv="Content-Security-Policy"]'
+      );
       if (!csp) {
         const cspMeta = document.createElement('meta');
         cspMeta.httpEquiv = 'Content-Security-Policy';
         cspMeta.content = `
           default-src 'self';
-          script-src 'self' 'unsafe-inline' 'unsafe-eval' https://jktaapzaskbebwhfswth.supabase.co;
+          script-src 'self' 'unsafe-inline' 'unsafe-eval';
           style-src 'self' 'unsafe-inline' https://api.mapbox.com;
           img-src 'self' data: https: blob: https://api.mapbox.com;
           font-src 'self' data: https://api.mapbox.com;
-          connect-src 'self' https://jktaapzaskbebwhfswth.supabase.co wss://jktaapzaskbebwhfswth.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://a.tiles.mapbox.com https://b.tiles.mapbox.com;
+          connect-src 'self' http://localhost:4000 ws://localhost:4000 wss://localhost:4000 https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://a.tiles.mapbox.com https://b.tiles.mapbox.com;
           media-src 'self';
           object-src 'none';
           child-src 'self';
@@ -23,12 +25,16 @@ export function SecurityHeaders() {
           frame-ancestors 'none';
           form-action 'self';
           base-uri 'self';
-        `.replace(/\s+/g, ' ').trim();
+        `
+          .replace(/\s+/g, ' ')
+          .trim();
         document.head.appendChild(cspMeta);
       }
 
       // X-Frame-Options
-      const frameOptions = document.querySelector('meta[name="x-frame-options"]');
+      const frameOptions = document.querySelector(
+        'meta[name="x-frame-options"]'
+      );
       if (!frameOptions) {
         const frameOptionsMeta = document.createElement('meta');
         frameOptionsMeta.name = 'x-frame-options';
@@ -37,7 +43,9 @@ export function SecurityHeaders() {
       }
 
       // X-Content-Type-Options
-      const contentType = document.querySelector('meta[name="x-content-type-options"]');
+      const contentType = document.querySelector(
+        'meta[name="x-content-type-options"]'
+      );
       if (!contentType) {
         const contentTypeMeta = document.createElement('meta');
         contentTypeMeta.name = 'x-content-type-options';
@@ -55,11 +63,14 @@ export function SecurityHeaders() {
       }
 
       // Permissions Policy
-      const permissions = document.querySelector('meta[http-equiv="Permissions-Policy"]');
+      const permissions = document.querySelector(
+        'meta[http-equiv="Permissions-Policy"]'
+      );
       if (!permissions) {
         const permissionsMeta = document.createElement('meta');
         permissionsMeta.httpEquiv = 'Permissions-Policy';
-        permissionsMeta.content = 'geolocation=(), camera=(), microphone=(), payment=()';
+        permissionsMeta.content =
+          'geolocation=(), camera=(), microphone=(), payment=()';
         document.head.appendChild(permissionsMeta);
       }
     };

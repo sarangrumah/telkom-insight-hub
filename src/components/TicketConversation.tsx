@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { MessagesAPI, UploadAPI } from '@/lib/apiClient';
+import { wsClient, type WSEvent } from '@/lib/wsClient';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,7 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [fileUrl, setFileUrl] = useState<string>('');
+  const [newMessageFile, setNewMessageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -44,45 +46,37 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
     markMessagesAsRead();
   }, [ticketId, isAdmin]);
 
-  // Separate effect for real-time subscription
+  // Realtime subscription via global WebSocket client
   useEffect(() => {
-    const channel = supabase
-      .channel('ticket-messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'ticket_messages',
-          filter: `ticket_id=eq.${ticketId}`
-        },
-        (payload) => {
-          const newMessage = payload.new as TicketMessage;
-          setMessages(prev => [...prev, newMessage]);
-          
-          // Clear optimistic message if it matches the new message
-          setOptimisticMessage(prevOptimistic => {
-            if (prevOptimistic && 
-                newMessage.message === prevOptimistic.message && 
-                newMessage.is_admin_message === prevOptimistic.is_admin_message) {
-              return null;
-            }
-            return prevOptimistic;
-          });
-          
-          if (!historyOpen && newMessage.is_admin_message !== isAdmin) {
-            setUnreadCount(prev => prev + 1);
+    const unsubscribe = wsClient.subscribe((evt: WSEvent) => {
+      if (evt.type === 'messageCreated' && evt.message?.ticket_id === ticketId) {
+        const serverMsg = evt.message;
+        setMessages(prev => [...prev, serverMsg]);
+
+        // Clear optimistic message if it matches the new message
+        setOptimisticMessage(prevOptimistic => {
+          if (
+            prevOptimistic &&
+            serverMsg.message === prevOptimistic.message &&
+            serverMsg.is_admin_message === prevOptimistic.is_admin_message
+          ) {
+            return null;
           }
+          return prevOptimistic;
+        });
 
-          // Trigger parent refresh for ticket list
-          window.dispatchEvent(new CustomEvent('refreshTickets'));
+        if (!historyOpen && serverMsg.is_admin_message !== isAdmin) {
+          setUnreadCount(prev => prev + 1);
         }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+        // Trigger parent refresh for ticket list
+        window.dispatchEvent(new CustomEvent('refreshTickets'));
+      }
+      if (evt.type === 'ticketUpdated' || evt.type === 'ticketClosed' || evt.type === 'ticketCreated') {
+        window.dispatchEvent(new CustomEvent('refreshTickets'));
+      }
+    });
+    return () => unsubscribe();
   }, [ticketId, isAdmin, historyOpen]);
 
   // Auto-clear optimistic message after timeout
@@ -97,89 +91,99 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
   }, [optimisticMessage]);
 
   const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from('ticket_messages')
-      .select('*')
-      .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
+    try {
+      const data = await MessagesAPI.list(ticketId);
+      setMessages(data || []);
+      const unread = (data || []).filter(msg => !msg.is_read && msg.is_admin_message !== isAdmin).length;
+      setUnreadCount(unread);
+    } catch (error) {
       console.error('Error fetching messages:', error);
-      return;
+      toast({
+        title: 'Error',
+        description: 'Failed to load messages',
+        variant: 'destructive',
+      });
     }
-
-    setMessages(data || []);
-    
-    // Count unread messages
-    const unread = data?.filter(msg => 
-      !msg.is_read && msg.is_admin_message !== isAdmin
-    ).length || 0;
-    setUnreadCount(unread);
   };
 
   const markMessagesAsRead = async () => {
-    // For visitors: mark admin messages as read
-    // For admins: mark user messages as read
-    await supabase
-      .from('ticket_messages')
-      .update({ is_read: true })
-      .eq('ticket_id', ticketId)
-      .eq('is_admin_message', isAdmin ? false : true);
+    try {
+      await MessagesAPI.markRead(ticketId);
+      // Optimistically update local messages
+      setMessages(prev =>
+        prev.map(m =>
+          m.is_admin_message !== isAdmin ? { ...m, is_read: true } : m
+        )
+      );
+    } catch {
+      // non-blocking
+    }
   };
 
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
 
     setLoading(true);
-    
-    // Create optimistic message for immediate feedback
+
+    // Snapshot current inputs
+    const currentMessage = newMessage;
+    const fileToUpload = newMessageFile;
+    const existingUrl = fileUrl;
+
+    // Create optimistic message (without attachment URL yet if deferred)
     const tempMessage: TicketMessage = {
       id: 'temp-' + Date.now(),
       ticket_id: ticketId,
       user_id: '',
-      message: newMessage,
+      message: currentMessage,
       is_admin_message: isAdmin,
-      file_url: fileUrl || undefined,
+      file_url: fileToUpload ? undefined : existingUrl || undefined,
       is_read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
-    
+
     // Show optimistic message immediately
     setOptimisticMessage(tempMessage);
-    const currentMessage = newMessage;
-    const currentFile = fileUrl;
+
+    // Clear input UI
     setNewMessage('');
     setFileUrl('');
-    
-    const { error } = await supabase
-      .from('ticket_messages')
-      .insert({
-        ticket_id: ticketId,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+    setNewMessageFile(null);
+
+    try {
+      // Deferred upload if a file object is selected
+      let finalFileUrl: string | undefined = existingUrl || undefined;
+      if (fileToUpload) {
+        const uploaded = await UploadAPI.uploadPdf(fileToUpload);
+        finalFileUrl = uploaded.file_url;
+      }
+
+      await MessagesAPI.create(ticketId, {
         message: currentMessage,
-        is_admin_message: isAdmin,
-        file_url: currentFile || null
+        file_url: finalFileUrl,
       });
 
-    if (error) {
+      toast({
+        title: 'Message sent',
+        description: isAdmin
+          ? 'Your admin response has been sent'
+          : 'Your message has been sent successfully',
+      });
+    } catch (error) {
       // Restore message on error and clear optimistic
       setNewMessage(currentMessage);
-      setFileUrl(currentFile);
+      setFileUrl(existingUrl);
+      if (fileToUpload) setNewMessageFile(fileToUpload);
       setOptimisticMessage(null);
       toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive',
       });
       console.error('Error sending message:', error);
-    } else {
-      toast({
-        title: "Message sent",
-        description: isAdmin ? "Your admin response has been sent" : "Your message has been sent successfully",
-      });
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   // Auto-scroll to bottom when new messages arrive
@@ -309,6 +313,8 @@ export function TicketConversation({ ticketId, isAdmin = false }: TicketConversa
             <div className="space-y-3">
               <FileUpload
                 value={fileUrl}
+                deferred
+                onFileSelect={setNewMessageFile}
                 onChange={(url) => setFileUrl(url || '')}
               />
               

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +10,36 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Download, FileSpreadsheet } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { toast } from 'sonner';
 import { useLocationData } from '@/hooks/useLocationData';
 import { fetchServices, fetchSubServices } from '@/constants/serviceTypes';
+
+type TelekomExportFilters = {
+  service_type?: string;
+  status?: string;
+  province_id?: string;
+  kabupaten_id?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+interface TelekomDataExportRow {
+  id: string;
+  company_name?: string | null;
+  service_type?: string | null;
+  sub_service_type?: string | null;
+  license_number?: string | null;
+  license_date?: string | null;
+  region?: string | null;
+  status?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  created_at?: string | null;
+  data_source?: string | null;
+  province?: { id: string; name: string } | null;
+  kabupaten?: { id: string; name: string; type: string } | null;
+}
 
 interface TelekomDataRow {
   id: string;
@@ -31,13 +58,15 @@ interface TelekomDataRow {
 }
 
 interface ExcelExportButtonProps {
-  currentFilters?: any;
+  currentFilters?: TelekomExportFilters;
   className?: string;
+  count?: number;
 }
 
 export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   currentFilters,
-  className
+  className,
+  count,
 }) => {
   const [exporting, setExporting] = useState(false);
   const { provinces, allKabupaten } = useLocationData();
@@ -126,45 +155,68 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   const exportCurrentData = async () => {
     try {
       setExporting(true);
-      
-      // Build query with current filters
-      let query = supabase
-        .from('telekom_data')
-        .select(`
-          *,
-          province:provinces(name),
-          kabupaten:kabupaten(name, type)
-        `);
-      
-      // Apply filters if provided
-      if (currentFilters) {
-        if (currentFilters.service_type) {
-          query = query.eq('service_type', currentFilters.service_type);
+
+      // Fetch all pages from backend REST API with filters
+      const PAGE_SIZE = 100;
+      let page = 1;
+      let total = 0;
+      let all: TelekomDataExportRow[] = [];
+
+      while (true) {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('pageSize', String(PAGE_SIZE));
+
+        if (currentFilters) {
+          if (currentFilters.service_type) {
+            params.set('service_type', currentFilters.service_type);
+          }
+          if (currentFilters.status) {
+            params.set('status', currentFilters.status);
+          }
+          if (currentFilters.province_id) {
+            params.set('province_id', currentFilters.province_id);
+          }
+          if (currentFilters.kabupaten_id) {
+            params.set('kabupaten_id', currentFilters.kabupaten_id);
+          }
+          if (currentFilters.date_from) {
+            params.set('date_from', currentFilters.date_from);
+          }
+          if (currentFilters.date_to) {
+            params.set('date_to', currentFilters.date_to);
+          }
         }
-        if (currentFilters.status) {
-          query = query.eq('status', currentFilters.status);
-        }
-        if (currentFilters.province_id) {
-          query = query.eq('province_id', currentFilters.province_id);
-        }
-        if (currentFilters.kabupaten_id) {
-          query = query.eq('kabupaten_id', currentFilters.kabupaten_id);
+
+        const resp = await apiFetch(`/api/telekom-data?${params.toString()}`) as {
+          data: TelekomDataExportRow[];
+          total: number;
+          page: number;
+          pageSize: number;
+        };
+
+        const chunk = resp?.data || [];
+        all = all.concat(chunk);
+        total = resp?.total ?? chunk.length;
+
+        if (all.length >= total || chunk.length === 0) break;
+        page += 1;
+
+        if (page > 200) {
+          console.warn('Pagination safety cap reached during export.');
+          break;
         }
       }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      if (!data || data.length === 0) {
+
+      if (!all || all.length === 0) {
         toast.error('No data to export');
         return;
       }
-      
+
       // Transform data for Excel export
-      const exportData = data.map((row: any) => ({
-        'Company Name': row.company_name,
-        'Service Type': row.service_type,
+      const exportData = all.map((row: TelekomDataExportRow) => ({
+        'Company Name': row.company_name || '',
+        'Service Type': row.service_type || '',
         'Sub Service Type': row.sub_service_type || '',
         'License Number': row.license_number || '',
         'License Date': row.license_date || '',
@@ -172,21 +224,21 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
         'Kabupaten/Kota': row.kabupaten?.name || '',
         'Region (Legacy)': row.region || '',
         'Status': row.status || '',
-        'Latitude (Legacy)': row.latitude || '',
-        'Longitude (Legacy)': row.longitude || '',
-        'Created At': new Date(row.created_at).toLocaleDateString(),
+        'Latitude (Legacy)': row.latitude ?? '',
+        'Longitude (Legacy)': row.longitude ?? '',
+        'Created At': row.created_at ? new Date(row.created_at).toLocaleDateString() : '',
         'Data Source': row.data_source || ''
       }));
-      
+
       // Create workbook and export
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Telekom Data');
-      
+
       const fileName = `telekom_data_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
-      
-      toast.success(`Exported ${data.length} records successfully`);
+
+      toast.success(`Exported ${all.length} records successfully`);
     } catch (error) {
       console.error('Error exporting data:', error);
       toast.error('Failed to export data');
@@ -198,9 +250,18 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" disabled={exporting} className={className}>
-          <Download className="h-4 w-4 mr-2" />
-          {exporting ? 'Exporting...' : 'Export'}
+        <Button
+          variant="outline"
+          disabled={exporting}
+          className={`${className} flex items-center justify-between`}
+        >
+          <span className="flex items-center">
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? 'Exporting...' : 'Export'}
+          </span>
+          {typeof count === 'number' && (
+            <Badge variant="outline" className="ml-2">{count}</Badge>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

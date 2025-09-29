@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 interface ErrorInfo {
   message: string;
@@ -19,15 +19,16 @@ interface PerformanceMetrics {
 }
 
 export function useMonitoring() {
+  const { token } = useAuth();
+  const backendUrl = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+
   const logError = useCallback(async (error: Error, component?: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       const errorInfo: ErrorInfo = {
         message: error.message,
         stack: error.stack,
         component,
-        userId: user?.id,
+        userId: '', // Will be set by backend from token
         timestamp: new Date().toISOString(),
         url: window.location.href,
         userAgent: navigator.userAgent,
@@ -38,22 +39,33 @@ export function useMonitoring() {
         console.error('Application Error:', errorInfo);
       }
 
-      // In production, you would send this to your monitoring service
-      // Example: await monitoringService.logError(errorInfo);
+      // Send to backend monitoring service
+      if (token()) {
+        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token()}`
+          },
+          body: JSON.stringify({
+            action: 'error_logged',
+            details: errorInfo,
+            page: window.location.pathname
+          })
+        });
+      }
       
     } catch (loggingError) {
       console.error('Failed to log error:', loggingError);
     }
-  }, []);
+  }, [token, backendUrl]);
 
   const logPerformance = useCallback(async (page: string, loadTime: number) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       const metrics: PerformanceMetrics = {
         page,
         loadTime,
-        userId: user?.id,
+        userId: '', // Will be set by backend from token
         timestamp: new Date().toISOString(),
       };
 
@@ -62,22 +74,33 @@ export function useMonitoring() {
         console.log('Performance Metrics:', metrics);
       }
 
-      // In production, send to analytics service
-      // Example: await analyticsService.logPerformance(metrics);
+      // Send to backend analytics service
+      if (token()) {
+        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token()}`
+          },
+          body: JSON.stringify({
+            action: 'performance_logged',
+            details: metrics,
+            page
+          })
+        });
+      }
       
     } catch (error) {
       console.error('Failed to log performance:', error);
     }
-  }, []);
+  }, [token, backendUrl]);
 
-  const logUserAction = useCallback(async (action: string, details?: any) => {
+  const logUserAction = useCallback(async (action: string, details?: unknown) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
       const actionLog = {
         action,
         details,
-        userId: user?.id,
+        userId: '', // Will be set by backend from token
         timestamp: new Date().toISOString(),
         page: window.location.pathname,
       };
@@ -87,13 +110,26 @@ export function useMonitoring() {
         console.log('User Action:', actionLog);
       }
 
-      // In production, send to analytics service
-      // Example: await analyticsService.logUserAction(actionLog);
+      // Send to backend analytics service
+      if (token()) {
+        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token()}`
+          },
+          body: JSON.stringify({
+            action,
+            details,
+            page: window.location.pathname
+          })
+        });
+      }
       
     } catch (error) {
       console.error('Failed to log user action:', error);
     }
-  }, []);
+  }, [token, backendUrl]);
 
   useEffect(() => {
     // Global error handler

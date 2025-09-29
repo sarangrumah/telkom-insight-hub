@@ -1,11 +1,10 @@
-import Dashboard from "@/components/Dashboard";
-import { useAuth } from "@/hooks/useAuth";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Navigate } from "react-router-dom";
+import Dashboard from '@/components/Dashboard';
+import { useAuth } from '@/hooks/useAuth';
+import { Navigate } from 'react-router-dom';
 
 const DashboardPage = () => {
-  const { user, session, loading, sessionError } = useAuth();
-  
+  const { user, loading, sessionExpired } = useAuth();
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -17,17 +16,22 @@ const DashboardPage = () => {
     );
   }
 
-  if (sessionError) {
+  if (sessionExpired) {
     return <Navigate to="/auth" replace />;
   }
 
-  if (!user || !session) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
-  
-  return <Dashboard user={user} session={session} onLogout={() => {
-    // This will be handled by AppLayout
-  }} />;
+
+  return (
+    <Dashboard
+      user={user}
+      onLogout={() => {
+        // logout handled upstream
+      }}
+    />
+  );
 };
 
 export default DashboardPage;

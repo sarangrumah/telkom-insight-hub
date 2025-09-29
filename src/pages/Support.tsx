@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+// Using REST API (Express + PostgreSQL) instead of Supabase
+import { TicketsAPI, type TicketRecord, UploadAPI } from "@/lib/apiClient";
+import { wsClient, type WSEvent } from "@/lib/wsClient";
 import { TicketConversation } from "@/components/TicketConversation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,9 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { FileUpload } from "@/components/FileUpload";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { Database } from "@/integrations/supabase/types";
 
-type Ticket = Database["public"]["Tables"]["tickets"]["Row"];
+type Ticket = TicketRecord;
 
 const Support = () => {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ const Support = () => {
     category: "general",
     file_url: null as string | null
   });
+  const [newTicketFile, setNewTicketFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -48,19 +50,36 @@ const Support = () => {
     return () => window.removeEventListener('refreshTickets', handleRefresh);
   }, [user]);
 
+  // Realtime via global WS client (singleton)
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsubscribe = wsClient.subscribe((evt: WSEvent) => {
+      if (evt.type === 'ticketCreated' || evt.type === 'ticketUpdated' || evt.type === 'ticketClosed') {
+        // if payload has ticket, ensure it belongs to current user
+        const t = evt.ticket;
+        if (!t || t.user_id === user.id) {
+          fetchTickets();
+        }
+      }
+      if (evt.type === 'messageCreated') {
+        const t = evt.ticket;
+        if (!t || t.user_id === user.id) {
+          fetchTickets();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [user?.id]);
+
   const fetchTickets = async () => {
     if (!user?.id) return;
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setTickets(data || []);
+      const data = await TicketsAPI.list();
+      // Filter tickets belonging to current user on client-side
+      const userTickets = (data || []).filter((t) => t.user_id === user.id);
+      setTickets(userTickets);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast({
@@ -84,25 +103,27 @@ const Support = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('tickets')
-        .insert({
-          title: newTicket.title.trim(),
-          description: newTicket.description.trim(),
-          priority: newTicket.priority,
-          category: newTicket.category as any,
-          file_url: newTicket.file_url,
-          user_id: user.id,
-          status: 'open'
-        });
+      // Deferred upload: jika ada file yang dipilih namun belum diunggah, unggah sekarang
+      let finalFileUrl: string | null = newTicket.file_url || null;
+      if (newTicketFile) {
+        const res = await UploadAPI.uploadPdf(newTicketFile);
+        finalFileUrl = res.file_url;
+      }
 
-      if (error) throw error;
+      await TicketsAPI.create({
+        title: newTicket.title.trim(),
+        description: newTicket.description.trim(),
+        priority: newTicket.priority,
+        category: newTicket.category,
+        file_url: finalFileUrl,
+      });
 
       toast({
         title: "Success",
         description: "Support ticket created successfully",
       });
 
+      setNewTicketFile(null);
       setNewTicket({ title: "", description: "", priority: "medium", category: "general", file_url: null });
       setIsCreateDialogOpen(false);
       fetchTickets();
@@ -160,16 +181,7 @@ const Support = () => {
 
   const closeTicket = async (ticketId: string) => {
     try {
-      const { error } = await supabase
-        .from('tickets')
-        .update({ 
-          status: 'closed',
-          resolved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', ticketId);
-
-      if (error) throw error;
+      await TicketsAPI.update(ticketId, { status: 'closed' });
 
       toast({
         title: "Success",
@@ -338,6 +350,8 @@ const Support = () => {
                         <div className="col-span-3">
                           <FileUpload
                             value={newTicket.file_url}
+                            deferred
+                            onFileSelect={(file) => setNewTicketFile(file)}
                             onChange={(fileUrl) => setNewTicket({ ...newTicket, file_url: fileUrl })}
                           />
                         </div>
