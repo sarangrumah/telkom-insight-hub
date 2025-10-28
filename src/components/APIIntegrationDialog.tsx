@@ -9,13 +9,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface APICallData {
   endpoint: string;
-  method: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   parameters: string;
   apiName: string;
 }
+
+type APITestResponse = {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+  apiName?: string;
+  timestamp?: string;
+} | null;
 
 export const APIIntegrationDialog = () => {
   const [formData, setFormData] = useState<APICallData>({
@@ -24,35 +33,50 @@ export const APIIntegrationDialog = () => {
     parameters: '{}',
     apiName: 'example-api'
   });
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<APITestResponse>(null);
   const { callAPIWithToast, loading, error } = useThirdPartyAPI();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Validasi: endpoint harus absolute URL http/https
+    if (!/^https?:\/\//i.test(formData.endpoint)) {
+      toast.error('Endpoint harus berupa URL absolute (http/https)');
+      return;
+    }
+
+    let parsedParams: unknown;
     try {
-      const parsedParams = JSON.parse(formData.parameters);
-      const result = await callAPIWithToast(
-        {
-          endpoint: formData.endpoint,
-          method: formData.method,
-          parameters: parsedParams
-        },
-        { 
-          apiName: formData.apiName,
-          timeout: 30000,
-          retries: 2
-        }
-      );
-      
-      setResponse(result);
+      parsedParams = JSON.parse(formData.parameters);
     } catch (parseError) {
       console.error('Invalid JSON in parameters:', parseError);
+      toast.error('Parameters harus berupa JSON yang valid');
+      return;
     }
+
+    const result = await callAPIWithToast(
+      {
+        endpoint: formData.endpoint,
+        method: formData.method,
+        parameters: parsedParams
+      },
+      {
+        apiName: formData.apiName,
+        timeout: 30000,
+        retries: 2
+      }
+    );
+
+    setResponse(result);
   };
 
   const handleInputChange = (field: keyof APICallData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      if (field === 'method') {
+        return { ...prev, method: value as APICallData['method'] };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   return (
@@ -103,7 +127,7 @@ export const APIIntegrationDialog = () => {
                     id="endpoint"
                     value={formData.endpoint}
                     onChange={(e) => handleInputChange('endpoint', e.target.value)}
-                    placeholder="/api/v1/resource"
+                    placeholder="https://httpbin.org/get"
                     required
                   />
                 </div>

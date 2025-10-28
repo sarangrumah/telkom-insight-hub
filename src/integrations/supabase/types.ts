@@ -14,42 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          action: string
-          created_at: string
-          details: Json | null
-          id: string
-          ip_address: unknown | null
-          resource_id: string | null
-          resource_type: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: unknown | null
-          resource_id?: string | null
-          resource_type: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          ip_address?: unknown | null
-          resource_id?: string | null
-          resource_type?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       api_integration_logs: {
         Row: {
           api_name: string
@@ -89,132 +53,6 @@ export type Database = {
         }
         Relationships: []
       }
-      application_documents: {
-        Row: {
-          application_id: string
-          document_name: string
-          file_path: string
-          file_size: number
-          id: string
-          mime_type: string
-          uploaded_at: string
-          uploaded_by: string
-        }
-        Insert: {
-          application_id: string
-          document_name: string
-          file_path: string
-          file_size: number
-          id?: string
-          mime_type: string
-          uploaded_at?: string
-          uploaded_by: string
-        }
-        Update: {
-          application_id?: string
-          document_name?: string
-          file_path?: string
-          file_size?: number
-          id?: string
-          mime_type?: string
-          uploaded_at?: string
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_documents_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "license_applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_evaluations: {
-        Row: {
-          application_id: string
-          comments: string | null
-          decision: string | null
-          evaluated_at: string
-          evaluator_id: string
-          evaluator_role: Database["public"]["Enums"]["user_role"]
-          id: string
-          status: string
-        }
-        Insert: {
-          application_id: string
-          comments?: string | null
-          decision?: string | null
-          evaluated_at?: string
-          evaluator_id: string
-          evaluator_role: Database["public"]["Enums"]["user_role"]
-          id?: string
-          status: string
-        }
-        Update: {
-          application_id?: string
-          comments?: string | null
-          decision?: string | null
-          evaluated_at?: string
-          evaluator_id?: string
-          evaluator_role?: Database["public"]["Enums"]["user_role"]
-          id?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_evaluations_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "license_applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      application_workflow: {
-        Row: {
-          application_id: string
-          assigned_to: string | null
-          created_at: string
-          current_step: string
-          id: string
-          step_completed_at: string | null
-          step_notes: string | null
-          updated_at: string
-          workflow_role: Database["public"]["Enums"]["user_role"]
-        }
-        Insert: {
-          application_id: string
-          assigned_to?: string | null
-          created_at?: string
-          current_step: string
-          id?: string
-          step_completed_at?: string | null
-          step_notes?: string | null
-          updated_at?: string
-          workflow_role: Database["public"]["Enums"]["user_role"]
-        }
-        Update: {
-          application_id?: string
-          assigned_to?: string | null
-          created_at?: string
-          current_step?: string
-          id?: string
-          step_completed_at?: string | null
-          step_notes?: string | null
-          updated_at?: string
-          workflow_role?: Database["public"]["Enums"]["user_role"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "application_workflow_application_id_fkey"
-            columns: ["application_id"]
-            isOneToOne: false
-            referencedRelation: "license_applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       audit_logs: {
         Row: {
           action: string
@@ -253,188 +91,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      captcha_sessions: {
-        Row: {
-          answer: string
-          created_at: string | null
-          expires_at: string | null
-          id: string
-          session_token: string
-          used: boolean | null
-        }
-        Insert: {
-          answer: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          session_token: string
-          used?: boolean | null
-        }
-        Update: {
-          answer?: string
-          created_at?: string | null
-          expires_at?: string | null
-          id?: string
-          session_token?: string
-          used?: boolean | null
-        }
-        Relationships: []
-      }
-      companies: {
-        Row: {
-          akta_number: string | null
-          business_field: string
-          company_address: string
-          company_name: string
-          company_type: Database["public"]["Enums"]["company_type"] | null
-          correction_notes: Json | null
-          correction_status:
-            | Database["public"]["Enums"]["correction_status"]
-            | null
-          created_at: string
-          email: string
-          id: string
-          kabupaten_id: string | null
-          kecamatan: string | null
-          kelurahan: string | null
-          nib: string | null
-          nib_number: string | null
-          npwp_number: string | null
-          phone: string
-          postal_code: string | null
-          province_id: string | null
-          status: Database["public"]["Enums"]["company_status"]
-          updated_at: string
-          verification_documents: Json | null
-          verification_notes: string | null
-          verified_at: string | null
-          verified_by: string | null
-          website: string | null
-        }
-        Insert: {
-          akta_number?: string | null
-          business_field: string
-          company_address: string
-          company_name: string
-          company_type?: Database["public"]["Enums"]["company_type"] | null
-          correction_notes?: Json | null
-          correction_status?:
-            | Database["public"]["Enums"]["correction_status"]
-            | null
-          created_at?: string
-          email: string
-          id?: string
-          kabupaten_id?: string | null
-          kecamatan?: string | null
-          kelurahan?: string | null
-          nib?: string | null
-          nib_number?: string | null
-          npwp_number?: string | null
-          phone: string
-          postal_code?: string | null
-          province_id?: string | null
-          status?: Database["public"]["Enums"]["company_status"]
-          updated_at?: string
-          verification_documents?: Json | null
-          verification_notes?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-          website?: string | null
-        }
-        Update: {
-          akta_number?: string | null
-          business_field?: string
-          company_address?: string
-          company_name?: string
-          company_type?: Database["public"]["Enums"]["company_type"] | null
-          correction_notes?: Json | null
-          correction_status?:
-            | Database["public"]["Enums"]["correction_status"]
-            | null
-          created_at?: string
-          email?: string
-          id?: string
-          kabupaten_id?: string | null
-          kecamatan?: string | null
-          kelurahan?: string | null
-          nib?: string | null
-          nib_number?: string | null
-          npwp_number?: string | null
-          phone?: string
-          postal_code?: string | null
-          province_id?: string | null
-          status?: Database["public"]["Enums"]["company_status"]
-          updated_at?: string
-          verification_documents?: Json | null
-          verification_notes?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
-          website?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "companies_kabupaten_id_fkey"
-            columns: ["kabupaten_id"]
-            isOneToOne: false
-            referencedRelation: "kabupaten"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "companies_province_id_fkey"
-            columns: ["province_id"]
-            isOneToOne: false
-            referencedRelation: "provinces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      company_documents: {
-        Row: {
-          company_id: string
-          created_at: string | null
-          document_type: Database["public"]["Enums"]["document_type"]
-          file_name: string
-          file_path: string
-          file_size: number
-          id: string
-          mime_type: string
-          updated_at: string | null
-          uploaded_by: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string | null
-          document_type: Database["public"]["Enums"]["document_type"]
-          file_name: string
-          file_path: string
-          file_size: number
-          id?: string
-          mime_type?: string
-          updated_at?: string | null
-          uploaded_by: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string | null
-          document_type?: Database["public"]["Enums"]["document_type"]
-          file_name?: string
-          file_path?: string
-          file_size?: number
-          id?: string
-          mime_type?: string
-          updated_at?: string | null
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "company_documents_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       faq_categories: {
         Row: {
@@ -542,33 +198,6 @@ export type Database = {
           },
         ]
       }
-      indonesian_regions: {
-        Row: {
-          created_at: string | null
-          id: string
-          name: string
-          parent_id: string | null
-          region_id: string
-          type: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          name: string
-          parent_id?: string | null
-          region_id: string
-          type: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          name?: string
-          parent_id?: string | null
-          region_id?: string
-          type?: string
-        }
-        Relationships: []
-      }
       kabupaten: {
         Row: {
           code: string
@@ -612,132 +241,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      license_applications: {
-        Row: {
-          applicant_id: string
-          application_number: string
-          approved_at: string | null
-          approved_by: string | null
-          assigned_evaluator: string | null
-          company_id: string
-          created_at: string
-          form_data: Json | null
-          id: string
-          license_service_id: string
-          notes: string | null
-          status: Database["public"]["Enums"]["application_status"]
-          submitted_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          applicant_id: string
-          application_number: string
-          approved_at?: string | null
-          approved_by?: string | null
-          assigned_evaluator?: string | null
-          company_id: string
-          created_at?: string
-          form_data?: Json | null
-          id?: string
-          license_service_id: string
-          notes?: string | null
-          status?: Database["public"]["Enums"]["application_status"]
-          submitted_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          applicant_id?: string
-          application_number?: string
-          approved_at?: string | null
-          approved_by?: string | null
-          assigned_evaluator?: string | null
-          company_id?: string
-          created_at?: string
-          form_data?: Json | null
-          id?: string
-          license_service_id?: string
-          notes?: string | null
-          status?: Database["public"]["Enums"]["application_status"]
-          submitted_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "license_applications_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "license_applications_license_service_id_fkey"
-            columns: ["license_service_id"]
-            isOneToOne: false
-            referencedRelation: "license_services"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      license_services: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean | null
-          license_type: Database["public"]["Enums"]["license_type"]
-          name: string
-          requirements: Json | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          license_type: Database["public"]["Enums"]["license_type"]
-          name: string
-          requirements?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          license_type?: Database["public"]["Enums"]["license_type"]
-          name?: string
-          requirements?: Json | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      login_attempts: {
-        Row: {
-          attempted_at: string | null
-          email: string
-          id: string
-          ip_address: unknown | null
-          success: boolean | null
-          user_agent: string | null
-        }
-        Insert: {
-          attempted_at?: string | null
-          email: string
-          id?: string
-          ip_address?: unknown | null
-          success?: boolean | null
-          user_agent?: string | null
-        }
-        Update: {
-          attempted_at?: string | null
-          email?: string
-          id?: string
-          ip_address?: unknown | null
-          success?: boolean | null
-          user_agent?: string | null
-        }
-        Relationships: []
       }
       modules: {
         Row: {
@@ -879,126 +382,6 @@ export type Database = {
           },
         ]
       }
-      person_in_charge: {
-        Row: {
-          address: string
-          company_id: string
-          created_at: string | null
-          full_name: string
-          id: string
-          id_number: string
-          kabupaten_id: string | null
-          kecamatan: string | null
-          kelurahan: string | null
-          phone_number: string
-          position: string
-          postal_code: string | null
-          province_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          address: string
-          company_id: string
-          created_at?: string | null
-          full_name: string
-          id?: string
-          id_number: string
-          kabupaten_id?: string | null
-          kecamatan?: string | null
-          kelurahan?: string | null
-          phone_number: string
-          position: string
-          postal_code?: string | null
-          province_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          address?: string
-          company_id?: string
-          created_at?: string | null
-          full_name?: string
-          id?: string
-          id_number?: string
-          kabupaten_id?: string | null
-          kecamatan?: string | null
-          kelurahan?: string | null
-          phone_number?: string
-          position?: string
-          postal_code?: string | null
-          province_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "person_in_charge_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "person_in_charge_kabupaten_id_fkey"
-            columns: ["kabupaten_id"]
-            isOneToOne: false
-            referencedRelation: "kabupaten"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "person_in_charge_province_id_fkey"
-            columns: ["province_id"]
-            isOneToOne: false
-            referencedRelation: "provinces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      pic_documents: {
-        Row: {
-          created_at: string | null
-          document_type: Database["public"]["Enums"]["document_type"]
-          file_name: string
-          file_path: string
-          file_size: number
-          id: string
-          mime_type: string
-          pic_id: string
-          updated_at: string | null
-          uploaded_by: string
-        }
-        Insert: {
-          created_at?: string | null
-          document_type: Database["public"]["Enums"]["document_type"]
-          file_name: string
-          file_path: string
-          file_size: number
-          id?: string
-          mime_type?: string
-          pic_id: string
-          updated_at?: string | null
-          uploaded_by: string
-        }
-        Update: {
-          created_at?: string | null
-          document_type?: Database["public"]["Enums"]["document_type"]
-          file_name?: string
-          file_path?: string
-          file_size?: number
-          id?: string
-          mime_type?: string
-          pic_id?: string
-          updated_at?: string | null
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pic_documents_pic_id_fkey"
-            columns: ["pic_id"]
-            isOneToOne: false
-            referencedRelation: "person_in_charge"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           company_name: string | null
@@ -1006,7 +389,6 @@ export type Database = {
           full_name: string
           id: string
           is_validated: boolean | null
-          maksud_tujuan: string | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -1017,7 +399,6 @@ export type Database = {
           full_name: string
           id?: string
           is_validated?: boolean | null
-          maksud_tujuan?: string | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -1028,7 +409,6 @@ export type Database = {
           full_name?: string
           id?: string
           is_validated?: boolean | null
-          maksud_tujuan?: string | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -1159,59 +539,6 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      support_tickets: {
-        Row: {
-          assigned_to: string | null
-          company_id: string
-          created_at: string
-          created_by: string
-          description: string
-          id: string
-          priority: string
-          resolved_at: string | null
-          status: string
-          ticket_number: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          company_id: string
-          created_at?: string
-          created_by: string
-          description: string
-          id?: string
-          priority?: string
-          resolved_at?: string | null
-          status?: string
-          ticket_number: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          company_id?: string
-          created_at?: string
-          created_by?: string
-          description?: string
-          id?: string
-          priority?: string
-          resolved_at?: string | null
-          status?: string
-          ticket_number?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "support_tickets_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1505,109 +832,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ulo_applications: {
-        Row: {
-          created_at: string
-          digital_signature: string | null
-          id: string
-          issued_at: string | null
-          issued_by: string | null
-          license_application_id: string
-          qr_code_data: string | null
-          sk_commitment_number: string | null
-          sklo_number: string | null
-          status: Database["public"]["Enums"]["application_status"]
-          test_method: Database["public"]["Enums"]["test_method"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          digital_signature?: string | null
-          id?: string
-          issued_at?: string | null
-          issued_by?: string | null
-          license_application_id: string
-          qr_code_data?: string | null
-          sk_commitment_number?: string | null
-          sklo_number?: string | null
-          status?: Database["public"]["Enums"]["application_status"]
-          test_method: Database["public"]["Enums"]["test_method"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          digital_signature?: string | null
-          id?: string
-          issued_at?: string | null
-          issued_by?: string | null
-          license_application_id?: string
-          qr_code_data?: string | null
-          sk_commitment_number?: string | null
-          sklo_number?: string | null
-          status?: Database["public"]["Enums"]["application_status"]
-          test_method?: Database["public"]["Enums"]["test_method"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ulo_applications_license_application_id_fkey"
-            columns: ["license_application_id"]
-            isOneToOne: false
-            referencedRelation: "license_applications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_profiles: {
-        Row: {
-          company_id: string | null
-          created_at: string
-          full_name: string
-          id: string
-          is_company_admin: boolean | null
-          phone: string | null
-          position: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          specialization: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string
-          full_name: string
-          id?: string
-          is_company_admin?: boolean | null
-          phone?: string | null
-          position?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string
-          full_name?: string
-          id?: string
-          is_company_admin?: boolean | null
-          phone?: string | null
-          position?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -1634,10 +858,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_company: {
-        Args: { _company_id: string; _notes?: string; _verified_by: string }
-        Returns: undefined
-      }
       check_record_permission: {
         Args: {
           _action: string
@@ -1660,26 +880,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      get_companies_for_management: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          akta_number: string
-          company_id: string
-          company_name: string
-          created_at: string
-          document_count: number
-          email: string
-          nib_number: string
-          npwp_number: string
-          phone: string
-          pic_count: number
-          status: Database["public"]["Enums"]["company_status"]
-          verification_notes: string
-          verified_at: string
-          verified_by: string
-          verifier_name: string
-        }[]
-      }
       get_user_permissions: {
         Args: { _module_code?: string; _user_id: string }
         Returns: {
@@ -1701,37 +901,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      reject_company: {
-        Args: {
-          _company_id: string
-          _rejected_by: string
-          _rejection_notes: string
-        }
-        Returns: undefined
-      }
-      request_company_correction: {
-        Args: {
-          _company_id: string
-          _correction_notes: Json
-          _requested_by: string
-        }
-        Returns: undefined
-      }
-      submit_company_corrections: {
-        Args: {
-          _company_id: string
-          _submitted_by: string
-          _updated_data: Json
-        }
-        Returns: undefined
-      }
-      user_has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["user_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
       app_role:
@@ -1741,33 +910,7 @@ export type Database = {
         | "pengolah_data"
         | "internal_group"
         | "guest"
-      application_status:
-        | "draft"
-        | "submitted"
-        | "under_review"
-        | "need_correction"
-        | "approved"
-        | "rejected"
-        | "disposisi_ketua"
-        | "evaluasi_evaluator"
-        | "evaluasi_wakil_ketua"
-        | "evaluasi_ketua"
-        | "uji_laik_operasi"
-        | "completed"
       assignment_status: "unassigned" | "assigned" | "in_review" | "escalated"
-      company_status:
-        | "pending_verification"
-        | "verified"
-        | "rejected"
-        | "suspended"
-        | "needs_correction"
-      company_type: "pt" | "cv" | "ud" | "koperasi" | "yayasan" | "other"
-      correction_status: "pending_correction" | "corrected"
-      document_type: "nib" | "npwp" | "akta" | "ktp" | "assignment_letter"
-      license_type:
-        | "jasa_telekomunikasi"
-        | "jaringan_telekomunikasi"
-        | "penomoran_telekomunikasi"
       service_type:
         | "jasa"
         | "jaringan"
@@ -1776,7 +919,6 @@ export type Database = {
         | "tarif"
         | "sklo"
         | "lko"
-      test_method: "uji_petik" | "mandiri"
       ticket_category:
         | "technical"
         | "billing"
@@ -1784,15 +926,6 @@ export type Database = {
         | "data_request"
         | "account"
         | "other"
-      user_role:
-        | "pelaku_usaha"
-        | "ketua_tim"
-        | "evaluator"
-        | "wakil_ketua"
-        | "direktur"
-        | "verifikator_nib"
-        | "admin"
-        | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1928,36 +1061,7 @@ export const Constants = {
         "internal_group",
         "guest",
       ],
-      application_status: [
-        "draft",
-        "submitted",
-        "under_review",
-        "need_correction",
-        "approved",
-        "rejected",
-        "disposisi_ketua",
-        "evaluasi_evaluator",
-        "evaluasi_wakil_ketua",
-        "evaluasi_ketua",
-        "uji_laik_operasi",
-        "completed",
-      ],
       assignment_status: ["unassigned", "assigned", "in_review", "escalated"],
-      company_status: [
-        "pending_verification",
-        "verified",
-        "rejected",
-        "suspended",
-        "needs_correction",
-      ],
-      company_type: ["pt", "cv", "ud", "koperasi", "yayasan", "other"],
-      correction_status: ["pending_correction", "corrected"],
-      document_type: ["nib", "npwp", "akta", "ktp", "assignment_letter"],
-      license_type: [
-        "jasa_telekomunikasi",
-        "jaringan_telekomunikasi",
-        "penomoran_telekomunikasi",
-      ],
       service_type: [
         "jasa",
         "jaringan",
@@ -1967,7 +1071,6 @@ export const Constants = {
         "sklo",
         "lko",
       ],
-      test_method: ["uji_petik", "mandiri"],
       ticket_category: [
         "technical",
         "billing",
@@ -1975,16 +1078,6 @@ export const Constants = {
         "data_request",
         "account",
         "other",
-      ],
-      user_role: [
-        "pelaku_usaha",
-        "ketua_tim",
-        "evaluator",
-        "wakil_ketua",
-        "direktur",
-        "verifikator_nib",
-        "admin",
-        "superadmin",
       ],
     },
   },

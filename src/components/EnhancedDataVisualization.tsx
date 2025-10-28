@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { useToast } from '@/hooks/use-toast';
 import { fetchServices, fetchSubServices, type Service, type SubService } from '@/constants/serviceTypes';
 
@@ -32,6 +32,8 @@ type TelekomData = {
   longitude: number;
   license_date: string;
   license_number: string;
+  service_type?: string | null;
+  sub_service_type?: string | null;
   sub_service?: {
     id: string;
     name: string;
@@ -76,9 +78,8 @@ const EnhancedDataVisualization = () => {
 
   const fetchMapboxToken = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-      if (error) throw error;
-      return data.token;
+      const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+      return token || null;
     } catch (error) {
       console.error('Error fetching Mapbox token:', error);
       return null;
@@ -155,7 +156,7 @@ const EnhancedDataVisualization = () => {
     if (map.current && map.current.getSource('telekom-data')) {
       updateMapData();
     }
-  }, [filteredData]);
+  }, [filteredData, services]);
 
   const loadServices = async () => {
     try {
@@ -172,38 +173,41 @@ const EnhancedDataVisualization = () => {
 
   const fetchData = async () => {
     try {
-      const { data: telekomData, error } = await supabase
-        .from('telekom_data')
-        .select(`
-          id, 
-          company_name, 
-          sub_service_id, 
-          status, 
-          region, 
-          latitude, 
-          longitude, 
-          license_date, 
-          license_number,
-          sub_service:sub_services(
-            id,
-            name,
-            service:services(
-              id,
-              name,
-              code
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const pageSize = 100;
+      let page = 1;
+      let total = Infinity as number;
+      const all: TelekomData[] = [];
 
-      if (error) throw error;
-      setData(telekomData || []);
+      while (all.length < total) {
+        const resp = await apiFetch(`/api/telekom-data?page=${page}&pageSize=${pageSize}`);
+        const { data: chunk, total: t } = resp as {
+          data: TelekomData[];
+          page: number;
+          pageSize: number;
+          total: number;
+        };
+
+        total = typeof t === 'number' ? t : (Array.isArray(chunk) ? chunk.length : 0);
+
+        if (Array.isArray(chunk) && chunk.length > 0) {
+          all.push(...chunk);
+        }
+
+        if (!Array.isArray(chunk) || chunk.length < pageSize) {
+          break;
+        }
+
+        page += 1;
+        if (page > 200) break; // safety cap to avoid infinite loops
+      }
+
+      setData(all);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load visualization data",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to load visualization data',
+        variant: 'destructive',
       });
     }
   };
@@ -333,7 +337,7 @@ const EnhancedDataVisualization = () => {
     };
 
     filteredData.forEach(item => {
-      const serviceType = item.sub_service?.service?.code || 'unknown';
+      const serviceType = item.sub_service?.service?.code || item.service_type || 'unknown';
       serviceCounts[serviceType] = (serviceCounts[serviceType] || 0) + 1;
     });
 
@@ -573,26 +577,35 @@ const EnhancedDataVisualization = () => {
         map.current.removeSource('telekom-data');
       }
 
-      const features = validDataPoints.map(item => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
-        },
-        properties: {
-          id: item.id,
-          company_name: item.company_name,
-          service_type: item.sub_service?.service?.code || 'unknown',
-          service_name: item.sub_service?.service?.name || 'Unknown Service',
-          sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
-          status: item.status,
-          region: item.region,
-          license_date: item.license_date,
-          license_number: item.license_number,
-          longitude: item.longitude.toString(),
-          latitude: item.latitude.toString()
-        }
-      }));
+      const features = validDataPoints.map(item => {
+        const svcCode = item.sub_service?.service?.code || item.service_type || 'unknown';
+        const svcName =
+          item.sub_service?.service?.name ||
+          (item.service_type ? services.find(s => s.code === item.service_type)?.name : undefined) ||
+          'Unknown Service';
+        const subSvcName = item.sub_service?.name || item.sub_service_type || 'Unknown Sub-service';
+
+        return {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
+          },
+          properties: {
+            id: item.id,
+            company_name: item.company_name,
+            service_type: svcCode,
+            service_name: svcName,
+            sub_service_name: subSvcName,
+            status: item.status,
+            region: item.region,
+            license_date: item.license_date,
+            license_number: item.license_number,
+            longitude: item.longitude.toString(),
+            latitude: item.latitude.toString()
+          }
+        };
+      });
 
       map.current.addSource('telekom-data', {
         type: 'geojson',
@@ -669,26 +682,35 @@ const EnhancedDataVisualization = () => {
       console.log(`📍 Updating with ${validDataPoints.length} valid data points`);
 
       const source = map.current.getSource('telekom-data') as mapboxgl.GeoJSONSource;
-      const features = validDataPoints.map(item => ({
-        type: 'Feature' as const,
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
-        },
-        properties: {
-          id: item.id,
-          company_name: item.company_name,
-          service_type: item.sub_service?.service?.code || 'unknown',
-          service_name: item.sub_service?.service?.name || 'Unknown Service',
-          sub_service_name: item.sub_service?.name || 'Unknown Sub-service',
-          status: item.status,
-          region: item.region,
-          license_date: item.license_date,
-          license_number: item.license_number,
-          longitude: item.longitude.toString(),
-          latitude: item.latitude.toString()
-        }
-      }));
+      const features = validDataPoints.map(item => {
+        const svcCode = item.sub_service?.service?.code || item.service_type || 'unknown';
+        const svcName =
+          item.sub_service?.service?.name ||
+          (item.service_type ? services.find(s => s.code === item.service_type)?.name : undefined) ||
+          'Unknown Service';
+        const subSvcName = item.sub_service?.name || item.sub_service_type || 'Unknown Sub-service';
+
+        return {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [parseFloat(item.longitude.toString()), parseFloat(item.latitude.toString())]
+          },
+          properties: {
+            id: item.id,
+            company_name: item.company_name,
+            service_type: svcCode,
+            service_name: svcName,
+            sub_service_name: subSvcName,
+            status: item.status,
+            region: item.region,
+            license_date: item.license_date,
+            license_number: item.license_number,
+            longitude: item.longitude.toString(),
+            latitude: item.latitude.toString()
+          }
+        };
+      });
 
       source.setData({
         type: 'FeatureCollection',
@@ -714,15 +736,22 @@ const EnhancedDataVisualization = () => {
 
   const exportToCSV = () => {
     const headers = ['Company Name', 'Service Type', 'Sub Service', 'Region', 'Status', 'License Date', 'License Number'];
-    const csvData = filteredData.map(item => [
-      item.company_name,
-      item.sub_service?.service?.name || '',
-      item.sub_service?.name || '',
-      item.region || '',
-      item.status,
-      item.license_date || '',
-      item.license_number || ''
-    ]);
+    const csvData = filteredData.map(item => {
+      const svcName =
+        item.sub_service?.service?.name ||
+        (item.service_type ? (services.find(s => s.code === item.service_type)?.name) : undefined) ||
+        '';
+      const subSvcName = item.sub_service?.name || item.sub_service_type || '';
+      return [
+        item.company_name,
+        svcName,
+        subSvcName,
+        item.region || '',
+        item.status,
+        item.license_date || '',
+        item.license_number || ''
+      ];
+    });
 
     const csvContent = [headers, ...csvData]
       .map(row => row.map(cell => `"${cell}"`).join(','))
@@ -1331,10 +1360,27 @@ const EnhancedDataVisualization = () => {
                         <TableCell className="font-medium">{item.company_name}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {item.sub_service?.service?.name || 'Unknown'}
+                            {(() => {
+                              // Prefer enum code (stable), fallback ke related service code/name, lalu legacy text
+                              const code = item.service_type || item.sub_service?.service?.code || null;
+                              const serviceMap: Record<string, string> = {
+                                jasa: 'Jasa',
+                                jaringan: 'Jaringan',
+                                telekomunikasi_khusus: 'Telekomunikasi Khusus',
+                                isr: 'ISR',
+                                tarif: 'Tarif',
+                                sklo: 'SKLO',
+                                lko: 'LKO',
+                              };
+                              if (code) {
+                                const key = String(code).toLowerCase();
+                                return serviceMap[key] || String(code);
+                              }
+                              return item.sub_service?.service?.name || item.sub_service_type || 'N/A';
+                            })()}
                           </Badge>
                         </TableCell>
-                        <TableCell>{item.sub_service?.name || 'Unknown'}</TableCell>
+                        <TableCell>{item.sub_service?.name || item.sub_service_type || 'N/A'}</TableCell>
                         <TableCell>{item.region || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge 

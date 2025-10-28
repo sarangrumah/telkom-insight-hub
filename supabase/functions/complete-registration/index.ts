@@ -201,7 +201,7 @@ serve(async (req) => {
           .from('company_documents')
           .insert({
             company_id: companyRecord.id,
-            document_type: doc.type as any,
+            document_type: doc.type as string,
             file_path: doc.url!,
             file_name: `${doc.type}-document.pdf`,
             file_size: 0, // This should be set from actual file
@@ -227,7 +227,7 @@ serve(async (req) => {
           .from('pic_documents')
           .insert({
             pic_id: picRecord.id,
-            document_type: doc.type as any,
+            document_type: doc.type as string,
             file_path: doc.url!,
             file_name: `${doc.type}-document.pdf`,
             file_size: 0, // This should be set from actual file

@@ -10,25 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+// Using REST API (Express + PostgreSQL) instead of Supabase
+import { TicketsAPI, UserAPI, type TicketRecord } from "@/lib/apiClient";
+import { wsClient, type WSEvent } from "@/lib/wsClient";
 import { ArrowLeft, Download, Search, Filter, Users, Clock, CheckCircle, AlertTriangle, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
-type Ticket = {
-  id: string;
-  title: string;
-  user_id: string;
-  priority: string;
-  status: string;
-  description: string;
-  category?: string;
-  assigned_to?: string;
-  assignment_status?: string;
-  file_url?: string;
-  created_at: string;
-  updated_at: string;
+type Ticket = TicketRecord & {
   profiles?: {
     full_name: string;
     company_name?: string;
@@ -60,69 +50,55 @@ const AdminTickets = () => {
       fetchUserRole();
       fetchTickets();
     }
-    
+
     // Listen for refresh events
     const handleRefresh = () => {
       fetchTickets();
     };
-    
+
     window.addEventListener('refreshTickets', handleRefresh);
     return () => window.removeEventListener('refreshTickets', handleRefresh);
   }, [user]);
 
+  // Realtime via global WS client (singleton)
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsubscribe = wsClient.subscribe((evt: WSEvent) => {
+      if (evt.type === 'ticketCreated' || evt.type === 'ticketUpdated' || evt.type === 'ticketClosed') {
+        fetchTickets();
+      }
+      if (evt.type === 'messageCreated') {
+        fetchTickets();
+      }
+    });
+    return () => unsubscribe();
+  }, [user?.id]);
+
   const fetchUserRole = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setUserRole(data?.role || null);
+      const data = await UserAPI.getRoles();
+      // Check if user has admin roles
+      const roles = data.roles || [];
+      if (roles.includes('super_admin') || roles.includes('internal_admin') || roles.includes('pengolah_data')) {
+        setUserRole(roles[0]); // Use first admin role found
+      } else {
+        setUserRole(null);
+      }
     } catch (error) {
       console.error('Error fetching user role:', error);
+      setUserRole(null);
     }
   };
 
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('tickets')
-        .select(`
-          *
-        `)
-        .order('created_at', { ascending: false });
+      const data = await TicketsAPI.list();
 
-      if (error) throw error;
-      
-      // Fetch assignee profiles separately
-      const ticketsWithAssignees = data || [];
-      const assigneeIds = ticketsWithAssignees
-        .filter(ticket => ticket.assigned_to)
-        .map(ticket => ticket.assigned_to)
-        .filter((id): id is string => Boolean(id));
-      
-      let assigneeProfiles: Record<string, any> = {};
-      if (assigneeIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', assigneeIds);
-        
-        assigneeProfiles = profilesData?.reduce((acc, profile) => {
-          acc[profile.user_id] = profile;
-          return acc;
-        }, {} as Record<string, any>) || {};
-      }
-
-      const enrichedTickets = ticketsWithAssignees.map(ticket => ({
-        ...ticket,
-        assignee_profile: ticket.assigned_to ? assigneeProfiles[ticket.assigned_to] : undefined
-      }));
-
-      setTickets(enrichedTickets);
+      // For admin view, we show all tickets (no user filtering)
+      // Note: assignee profiles would need to be fetched separately if needed
+      // For now, we'll just use the tickets as-is
+      setTickets(data || []);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast({
@@ -137,22 +113,14 @@ const AdminTickets = () => {
 
   const updateTicketStatus = async (ticketId: string, status: string) => {
     try {
-      const updateData: any = { 
-        status, 
-        updated_at: new Date().toISOString() 
-      };
-      
+      const updateData: { status: string; resolved_at?: string } = { status };
+
       // Add resolved_at timestamp if status is resolved or closed
       if (status === 'resolved' || status === 'closed') {
         updateData.resolved_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('tickets')
-        .update(updateData)
-        .eq('id', ticketId);
-
-      if (error) throw error;
+      await TicketsAPI.update(ticketId, updateData);
 
       toast({
         title: "Success",
@@ -172,12 +140,7 @@ const AdminTickets = () => {
 
   const updateTicketPriority = async (ticketId: string, priority: string) => {
     try {
-      const { error } = await supabase
-        .from('tickets')
-        .update({ priority, updated_at: new Date().toISOString() })
-        .eq('id', ticketId);
-
-      if (error) throw error;
+      await TicketsAPI.update(ticketId, { priority });
 
       toast({
         title: "Success",
@@ -476,27 +439,25 @@ const AdminTickets = () => {
                                 </Badge>
                               )}
                             </CardTitle>
-                            <CardDescription>
-                              <div className="space-y-1">
-                                 <div>
-                                   Ticket ID: {ticket.id.substring(0, 8)}...
-                                 </div>
-                                <div>
-                                  Created: {new Date(ticket.created_at).toLocaleDateString()}
-                                  {ticket.updated_at !== ticket.created_at && (
-                                    <span className="ml-2">
-                                      Updated: {new Date(ticket.updated_at).toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </div>
-                                {ticket.assigned_to && (
-                                  <div className="flex items-center gap-2">
-                                    <span>Assigned to:</span>
-                                    <span className="font-medium">{ticket.assignee_profile?.full_name || 'Unknown'}</span>
-                                  </div>
+                            <div className="mt-1 text-sm text-muted-foreground space-y-1">
+                              <div>
+                                Ticket ID: {ticket.id.substring(0, 8)}...
+                              </div>
+                              <div>
+                                Created: {new Date(ticket.created_at).toLocaleDateString()}
+                                {ticket.updated_at !== ticket.created_at && (
+                                  <span className="ml-2">
+                                    Updated: {new Date(ticket.updated_at).toLocaleDateString()}
+                                  </span>
                                 )}
                               </div>
-                            </CardDescription>
+                              {ticket.assigned_to && (
+                                <div className="flex items-center gap-2">
+                                  <span>Assigned to:</span>
+                                  <span className="font-medium">{ticket.assigned_to}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-2 items-center flex-wrap">
                             <Badge variant={getPriorityColor(ticket.priority)}>

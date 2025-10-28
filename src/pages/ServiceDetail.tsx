@@ -42,7 +42,7 @@ const ServiceDetail = () => {
   const [filteredData, setFilteredData] = useState<LicenseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [serviceInfo, setServiceInfo] = useState<ServiceInfo | null>(null);
-  const [provinces, setProvinces] = useState<any[]>([]);
+  const [provinces, setProvinces] = useState<Array<{ id: string; name: string; [key: string]: unknown }>>([]);
 
   // Service info mapping
   const serviceTypes: Record<string, ServiceInfo> = {
@@ -126,7 +126,17 @@ const ServiceDetail = () => {
         }
 
         // Transform data for display
-        const transformedData: LicenseData[] = (telekomData || []).map((item: any) => ({
+        const transformedData: LicenseData[] = (telekomData || []).map((item: {
+          id: string;
+          company_name: string;
+          license_number?: string;
+          license_date?: string;
+          status?: string;
+          provinces?: { name?: string };
+          kabupaten?: { name?: string };
+          sub_services?: { name?: string };
+          region?: string;
+        }) => ({
           id: item.id,
           company_name: item.company_name,
           license_number: item.license_number || 'N/A',
@@ -180,7 +190,7 @@ const ServiceDetail = () => {
   }, [searchQuery, statusFilter, regionFilter, licenseData]);
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; variant: any }> = {
+    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
       active: { label: "Aktif", variant: "default" },
       inactive: { label: "Tidak Aktif", variant: "secondary" },
       pending: { label: "Pending", variant: "outline" },

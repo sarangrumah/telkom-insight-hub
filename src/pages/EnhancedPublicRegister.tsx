@@ -168,8 +168,12 @@ const EnhancedPublicRegister = () => {
       
       setCompletedSteps(prev => [...prev.filter(s => s !== 1), 1]);
       setCurrentStep(2);
-    } catch (error: any) {
-      setGlobalError(error.message || "Terjadi kesalahan saat memvalidasi data");
+    } catch (error: unknown) {
+      if (error && typeof error === "object" && "message" in error) {
+        setGlobalError((error as { message: string }).message || "Terjadi kesalahan saat memvalidasi data");
+      } else {
+        setGlobalError("Terjadi kesalahan saat memvalidasi data");
+      }
     } finally {
       setLoading(false);
     }
@@ -197,8 +201,12 @@ const EnhancedPublicRegister = () => {
       setCompanyData(data);
       setCompletedSteps(prev => [...prev.filter(s => s !== 2), 2]);
       setCurrentStep(3);
-    } catch (error: any) {
-      setGlobalError(error.message || "Terjadi kesalahan saat memvalidasi data");
+    } catch (error: unknown) {
+      if (error && typeof error === "object" && "message" in error) {
+        setGlobalError((error as { message: string }).message || "Terjadi kesalahan saat memvalidasi data");
+      } else {
+        setGlobalError("Terjadi kesalahan saat memvalidasi data");
+      }
     } finally {
       setLoading(false);
     }
@@ -244,9 +252,13 @@ const EnhancedPublicRegister = () => {
         throw new Error(result.error);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
-      setGlobalError(error.message || "Terjadi kesalahan saat mendaftar");
+      if (error && typeof error === "object" && "message" in error) {
+        setGlobalError((error as { message: string }).message || "Terjadi kesalahan saat mendaftar");
+      } else {
+        setGlobalError("Terjadi kesalahan saat mendaftar");
+      }
     } finally {
       setLoading(false);
     }

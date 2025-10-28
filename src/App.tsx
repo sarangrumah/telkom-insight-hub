@@ -1,134 +1,258 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { SecurityHeaders } from "@/components/SecurityHeaders";
-import { useMonitoring } from "@/hooks/useMonitoring";
-import DashboardPage from "./components/DashboardPage";
-import DataManagement from "./pages/DataManagement";
-import DataVisualization from "./pages/DataVisualization";
-import FAQ from "./pages/FAQ";
-import Support from "./pages/Support";
-import AdminFAQ from "./pages/AdminFAQ";
-import AdminTickets from "./pages/AdminTickets";
-import UserManagement from "./pages/UserManagement";
-import PermissionManagement from "./pages/PermissionManagement";
-import CompanyManagement from "./pages/CompanyManagement";
-import NotFound from "./pages/NotFound";
-import Homepage from "./pages/Homepage";
-import PublicRegister from "./pages/PublicRegister";
-import SearchResults from "./pages/SearchResults";
-import PublicDataView from "./pages/PublicDataView";
-import ServiceDetail from "./pages/ServiceDetail";
-import AppLayout from "./components/AppLayout";
-import { useAuth } from "./hooks/useAuth";
-import AuthPage from "./components/AuthPage";
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
+import { SecurityHeaders } from '@/components/SecurityHeaders';
+import { useMonitoring } from '@/hooks/useMonitoring';
+import DashboardPage from './components/DashboardPage';
+import DataManagement from './pages/DataManagement';
+import DataVisualization from './pages/DataVisualization';
+import FAQ from './pages/FAQ';
+import Support from './pages/Support';
+import AdminFAQ from './pages/AdminFAQ';
+import AdminTickets from './pages/AdminTickets';
+import UserManagement from './pages/UserManagement';
+import PermissionManagement from './pages/PermissionManagement';
+import NotFound from './pages/NotFound';
+import Homepage from './pages/Homepage';
+import PublicRegister from './pages/PublicRegister';
+import SearchResults from './pages/SearchResults';
+import PublicDataView from './pages/PublicDataView';
+import TelekomDataDetail from './pages/TelekomDataDetail';
+import Jasa from './pages/services/Jasa';
+import Jaringan from './pages/services/Jaringan';
+import Penomoran from './pages/services/Penomoran';
+import Tarif from './pages/services/Tarif';
+import Telsus from './pages/services/Telsus';
+import SKLO from './pages/services/SKLO';
+import ISR from './pages/services/ISR';
+import LKO from './pages/services/LKO';
+import AppLayout from './components/AppLayout';
+import { useAuth } from './hooks/useAuth';
+import { AuthProvider } from './hooks/AuthProvider';
+import AuthPage from './components/AuthPage';
+import type { ReactNode } from 'react';
 
 const queryClient = new QueryClient();
 
-const PublicRoutes = () => {
-  const navigate = useNavigate();
-  
-  return (
-    <Routes>
-      <Route path="/" element={<Homepage />} />
-      <Route path="/public-data" element={<PublicDataView />} />
-      <Route path="/public-register" element={<PublicRegister />} />
-      <Route path="/register" element={<Navigate to="/public-register" replace />} />
-      <Route path="/search" element={<SearchResults />} />
-      <Route path="/faq" element={<FAQ />} />
-      <Route path="/support" element={<Support />} />
-      <Route path="/service/:serviceName" element={<ServiceDetail />} />
-      <Route path="/auth" element={<AuthPage onAuthSuccess={() => navigate("/dashboard")} />} />
-      {/* Redirect expired session attempts to dashboard to auth */}
-      <Route path="/dashboard" element={<Navigate to="/auth" replace />} />
-      <Route path="/data-management" element={<Navigate to="/auth" replace />} />
-      <Route path="/data-visualization" element={<Navigate to="/auth" replace />} />
-      <Route path="/admin/*" element={<Navigate to="/auth" replace />} />
-      <Route path="/user-management" element={<Navigate to="/auth" replace />} />
-      <Route path="/permission-management" element={<Navigate to="/auth" replace />} />
-      <Route path="/company-management" element={<Navigate to="/auth" replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-};
-
-const AuthenticatedRoutes: React.FC<{ user: any; session: any }> = ({ user, session }) => {
-  const navigate = useNavigate();
-  
-  return (
-    <AppLayout user={user} session={session} onLogout={() => navigate("/")}>
-      <Routes>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/data-management" element={<DataManagement />} />
-        <Route path="/data-visualization" element={<DataVisualization />} />
-        <Route path="/faq" element={<FAQ />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/admin/faq" element={<AdminFAQ />} />
-        <Route path="/admin/tickets" element={<AdminTickets />} />
-        <Route path="/user-management" element={<UserManagement />} />
-        <Route path="/permission-management" element={<PermissionManagement />} />
-        <Route path="/company-management" element={<CompanyManagement />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AppLayout>
-  );
-};
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      <p className="mt-2 text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
 
 const AppRoutes: React.FC = () => {
-  const { user, session, loading, sessionError } = useAuth();
+  const { user, loading, sessionExpired, logout } = useAuth();
+  const navigate = useNavigate();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  // Handle session errors with user-friendly message
-  if (sessionError) {
+  if (sessionExpired) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md mx-auto p-6">
           <div className="text-destructive text-lg">Session Expired</div>
-          <p className="text-muted-foreground">Your session has expired. Please log in again to continue.</p>
+          <p className="text-muted-foreground">
+            Your session has expired. Please log in again to continue.
+          </p>
           <Navigate to="/auth" replace />
         </div>
       </div>
     );
   }
 
-  // Check if user is trying to access authenticated routes
-  const isAuthenticatedRoute = window.location.pathname.startsWith('/dashboard') || 
-                              window.location.pathname.startsWith('/data-management') ||
-                              window.location.pathname.startsWith('/data-visualization') ||
-                               window.location.pathname.startsWith('/admin') ||
-                               window.location.pathname.startsWith('/user-management') ||
-                               window.location.pathname.startsWith('/permission-management') ||
-                               window.location.pathname.startsWith('/company-management');
+  const ProtectedLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
+    if (!user) return <Navigate to="/auth" replace />;
+    return (
+      <AppLayout
+        user={user}
+        onLogout={() => {
+          logout();
+          navigate('/');
+        }}
+      >
+        {children}
+      </AppLayout>
+    );
+  };
 
-  // If trying to access authenticated routes without proper session, redirect to auth
-  if (isAuthenticatedRoute && (!user || !session)) {
-    return <Navigate to="/auth" replace />;
-  }
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<Homepage />} />
+      <Route path="/public-data" element={<PublicDataView />} />
+      <Route path="/public-register" element={<PublicRegister />} />
+      <Route
+        path="/register"
+        element={<Navigate to="/public-register" replace />}
+      />
+      <Route path="/search" element={<SearchResults />} />
+      <Route path="/detail/:id" element={<TelekomDataDetail />} />
+      <Route path="/public/faq" element={<FAQ />} />
+      <Route
+        path="/auth"
+        element={<AuthPage onAuthSuccess={() => navigate('/dashboard')} />}
+      />
 
-  // If authenticated and accessing authenticated routes, show authenticated routes
-  if (user && session && isAuthenticatedRoute) {
-    return <AuthenticatedRoutes user={user} session={session} />;
-  }
+      {/* Protected routes */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedLayout>
+            <DashboardPage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/data-management"
+        element={
+          <ProtectedLayout>
+            <DataManagement />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/data-visualization"
+        element={
+          <ProtectedLayout>
+            <DataVisualization />
+          </ProtectedLayout>
+        }
+      />
 
-  // Default to public routes for all other cases
-  return <PublicRoutes />;
+      <Route
+        path="/services/jasa"
+        element={
+          <ProtectedLayout>
+            <Jasa />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/jaringan"
+        element={
+          <ProtectedLayout>
+            <Jaringan />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/penomoran"
+        element={
+          <ProtectedLayout>
+            <Penomoran />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/tarif"
+        element={
+          <ProtectedLayout>
+            <Tarif />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/telsus"
+        element={
+          <ProtectedLayout>
+            <Telsus />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/sklo"
+        element={
+          <ProtectedLayout>
+            <SKLO />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/isr"
+        element={
+          <ProtectedLayout>
+            <ISR />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/services/lko"
+        element={
+          <ProtectedLayout>
+            <LKO />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/faq"
+        element={
+          <ProtectedLayout>
+            <FAQ />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/support"
+        element={
+          <ProtectedLayout>
+            <Support />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/admin/faq"
+        element={
+          <ProtectedLayout>
+            <AdminFAQ />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/admin/tickets"
+        element={
+          <ProtectedLayout>
+            <AdminTickets />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/user-management"
+        element={
+          <ProtectedLayout>
+            <UserManagement />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/permission-management"
+        element={
+          <ProtectedLayout>
+            <PermissionManagement />
+          </ProtectedLayout>
+        }
+      />
+
+      {/* 404 */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
 };
 
 const AppWithMonitoring: React.FC = () => {
   useMonitoring();
-  
   return (
     <BrowserRouter>
       <AppRoutes />
@@ -137,14 +261,16 @@ const AppWithMonitoring: React.FC = () => {
 };
 
 const App: React.FC = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <SecurityHeaders />
-      <Toaster />
-      <Sonner />
-      <AppWithMonitoring />
-    </TooltipProvider>
-  </QueryClientProvider>
+  <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <SecurityHeaders />
+        <Toaster />
+        <Sonner />
+        <AppWithMonitoring />
+      </TooltipProvider>
+    </QueryClientProvider>
+  </AuthProvider>
 );
 
 export default App;

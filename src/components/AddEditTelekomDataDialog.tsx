@@ -1,34 +1,95 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { FileUpload } from "./FileUpload";
-import { useLocationData } from "@/hooks/useLocationData";
-import type { Database } from "@/integrations/supabase/types";
-import { fetchServices, fetchSubServices, getSubServicesForService, type Service, type SubService } from "@/constants/serviceTypes";
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { FileUpload } from './FileUpload';
+import { useLocationData } from '@/hooks/useLocationData';
+// Removed direct Supabase dependency; using backend REST via React Query hooks
+import {
+  useCreateTelekomData,
+  useUpdateTelekomData,
+} from '@/hooks/useTelekomData';
+import {
+  fetchServices,
+  fetchSubServices,
+  getSubServicesForService,
+  type Service,
+  type SubService,
+} from '@/constants/serviceTypes';
+import { UploadAPI } from '@/lib/apiClient';
 
-type TelekomData = Database["public"]["Tables"]["telekom_data"]["Row"];
-type TelekomDataInsert = Database["public"]["Tables"]["telekom_data"]["Insert"];
+// Minimal type for edit context (subset of fields we care about). In future unify with TelekomDataRecord if needed.
+interface TelekomDataEditRecord {
+  id: string;
+  company_name: string;
+  sub_service_id: string | null;
+  license_number: string | null;
+  license_date: string | null;
+  province_id: string | null;
+  kabupaten_id: string | null;
+  region: string | null;
+  status: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  file_url: string | null;
+  service_type?: string | null;
+  sub_service_type?: string | null;
+  sub_service?: {
+    id: string;
+    name: string;
+    service?: { id: string; name: string; code?: string | null } | null;
+  } | null;
+}
+
+const numberFromInput = z.preprocess(val => {
+  if (val === '' || val === null || typeof val === 'undefined')
+    return undefined;
+  if (typeof val === 'number') return isNaN(val) ? undefined : val;
+  if (typeof val === 'string') {
+    const n = parseFloat(val.trim());
+    return isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}, z.number().finite().optional());
 
 const formSchema = z.object({
-  company_name: z.string().min(1, "Company name is required"),
-  sub_service_id: z.string().min(1, "Sub-service is required"),
+  company_name: z.string().min(1, 'Company name is required'),
+  sub_service_id: z.string().min(1, 'Sub-service is required'),
   license_number: z.string().optional(),
   license_date: z.string().optional(),
   province_id: z.string().optional(),
   kabupaten_id: z.string().optional(),
   region: z.string().optional(),
-  status: z.enum(["active", "inactive", "suspended"]).default("active"),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  status: z.enum(['active', 'inactive', 'suspended']).default('active'),
+  latitude: numberFromInput,
+  longitude: numberFromInput,
   file_url: z.string().optional(),
 });
 
@@ -37,42 +98,61 @@ type FormData = z.infer<typeof formSchema>;
 interface AddEditTelekomDataDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  data?: TelekomData | null;
+  data?: TelekomDataEditRecord | null;
   onSuccess: () => void;
 }
 
-export const AddEditTelekomDataDialog = ({ 
-  open, 
-  onOpenChange, 
-  data, 
-  onSuccess 
+export const AddEditTelekomDataDialog = ({
+  open,
+  onOpenChange,
+  data,
+  onSuccess,
 }: AddEditTelekomDataDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const createMutation = useCreateTelekomData();
+  const updateMutation = useUpdateTelekomData();
   const [loading, setLoading] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [subServices, setSubServices] = useState<SubService[]>([]);
-  const [selectedServiceId, setSelectedServiceId] = useState<string>("");
-  const [availableSubServices, setAvailableSubServices] = useState<SubService[]>([]);
-  const [selectedProvinceId, setSelectedProvinceId] = useState<string>("");
-  const [availableKabupaten, setAvailableKabupaten] = useState<any[]>([]);
-  
-  const { provinces, getKabupaténByProvince, getKabupaténById, getProvinceById } = useLocationData();
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [availableSubServices, setAvailableSubServices] = useState<
+    SubService[]
+  >([]);
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string>('');
+  interface KabupatenOption {
+    id: string;
+    name: string;
+    type: string;
+    latitude?: number;
+    longitude?: number;
+  }
+  const [availableKabupaten, setAvailableKabupaten] = useState<
+    KabupatenOption[]
+  >([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  const {
+    provinces,
+    getKabupaténByProvince,
+    getKabupaténById,
+    getProvinceById,
+  } = useLocationData();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      company_name: "",
-      sub_service_id: "",
-      license_number: "",
-      license_date: "",
-      province_id: "",
-      kabupaten_id: "",
-      region: "",
-      status: "active",
-      latitude: undefined,
-      longitude: undefined,
-      file_url: "",
+      company_name: '',
+      sub_service_id: '',
+      license_number: '',
+      license_date: '',
+      province_id: '',
+      kabupaten_id: '',
+      region: '',
+      status: 'active',
+      latitude: '',
+      longitude: '',
+      file_url: '',
     },
   });
 
@@ -80,7 +160,7 @@ export const AddEditTelekomDataDialog = ({
     const loadData = async () => {
       const [servicesData, subServicesData] = await Promise.all([
         fetchServices(),
-        fetchSubServices()
+        fetchSubServices(),
       ]);
       setServices(servicesData);
       setSubServices(subServicesData);
@@ -90,120 +170,149 @@ export const AddEditTelekomDataDialog = ({
 
   useEffect(() => {
     if (data && subServices.length > 0) {
-      const subService = subServices.find(ss => ss.id === data.sub_service_id);
+      const effectiveSubServiceId =
+        data.sub_service_id || data.sub_service?.id || '';
+      const subService = subServices.find(
+        ss => ss.id === effectiveSubServiceId
+      );
       if (subService) {
         setSelectedServiceId(subService.service_id);
-        setAvailableSubServices(subServices.filter(ss => ss.service_id === subService.service_id));
+        setAvailableSubServices(
+          subServices.filter(ss => ss.service_id === subService.service_id)
+        );
+      } else {
+        setAvailableSubServices([]);
       }
-      
-      // Set location data
+
+      // Location data
       if (data.province_id) {
         setSelectedProvinceId(data.province_id);
         const kabupatenList = getKabupaténByProvince(data.province_id);
         setAvailableKabupaten(kabupatenList);
       }
-      
+
+      // Format license_date to YYYY-MM-DD for date input
+      const formattedLicenseDate = data.license_date
+        ? (() => {
+            const d = new Date(data.license_date);
+            return isNaN(d.getTime())
+              ? ''
+              : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+                  2,
+                  '0'
+                )}-${String(d.getDate()).padStart(2, '0')}`;
+          })()
+        : '';
+
       form.reset({
         company_name: data.company_name,
-        sub_service_id: data.sub_service_id || "",
-        license_number: data.license_number || "",
-        license_date: data.license_date || "",
-        province_id: data.province_id || "",
-        kabupaten_id: data.kabupaten_id || "",
-        region: data.region || "",
-        status: (data.status as "active" | "inactive" | "suspended") || "active",
-        latitude: data.latitude ? Number(data.latitude) : undefined,
-        longitude: data.longitude ? Number(data.longitude) : undefined,
-        file_url: data.file_url || "",
+        sub_service_id: effectiveSubServiceId,
+        license_number: data.license_number || '',
+        license_date: formattedLicenseDate,
+        province_id: data.province_id || '',
+        kabupaten_id: data.kabupaten_id || '',
+        region: data.region || '',
+        status:
+          (data.status as 'active' | 'inactive' | 'suspended') || 'active',
+        latitude: data.latitude != null ? String(data.latitude) : '',
+        longitude: data.longitude != null ? String(data.longitude) : '',
+        file_url: data.file_url || '',
       });
     } else if (!data) {
       form.reset({
-        company_name: "",
-        sub_service_id: "",
-        license_number: "",
-        license_date: "",
-        province_id: "",
-        kabupaten_id: "",
-        region: "",
-        status: "active",
-        latitude: undefined,
-        longitude: undefined,
-        file_url: "",
+        company_name: '',
+        sub_service_id: '',
+        license_number: '',
+        license_date: '',
+        province_id: '',
+        kabupaten_id: '',
+        region: '',
+        status: 'active',
+        latitude: '',
+        longitude: '',
+        file_url: '',
       });
-      setSelectedServiceId("");
+      setSelectedServiceId('');
       setAvailableSubServices([]);
-      setSelectedProvinceId("");
+      setSelectedProvinceId('');
       setAvailableKabupaten([]);
     }
+    // Dependencies intentionally narrowed to prevent infinite re-renders due to unstable function references
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.id, subServices.length, open]);
 
   const onSubmit = async (values: FormData) => {
     if (!user?.id) {
       toast({
-        title: "Error",
-        description: "You must be logged in to perform this action",
-        variant: "destructive",
+        title: 'Error',
+        description: 'You must be logged in to perform this action',
+        variant: 'destructive',
       });
       return;
     }
 
     setLoading(true);
     try {
-      // Find the selected sub-service to get the main service for backwards compatibility
-      const selectedSubService = subServices.find(ss => ss.id === values.sub_service_id);
-      
-      const submitData: TelekomDataInsert = {
+      const selectedSubService = subServices.find(
+        ss => ss.id === values.sub_service_id
+      );
+      // Deferred upload handling for attachment
+      let finalFileUrl: string | null = values.file_url || null;
+      if (pendingFile) {
+        const uploaded = await UploadAPI.uploadPdf(pendingFile);
+        finalFileUrl = uploaded.file_url;
+      }
+
+      const basePayload = {
         company_name: values.company_name,
         sub_service_id: values.sub_service_id,
-        service_type: selectedSubService?.service?.code as any || 'jasa', // Keep for backwards compatibility
-        sub_service_type: selectedSubService?.name || null, // Keep for backwards compatibility
         status: values.status,
-        created_by: user.id,
         province_id: values.province_id || null,
         kabupaten_id: values.kabupaten_id || null,
-        latitude: values.latitude || null,
-        longitude: values.longitude || null,
+        latitude: typeof values.latitude === 'number' ? values.latitude : null,
+        longitude:
+          typeof values.longitude === 'number' ? values.longitude : null,
         license_date: values.license_date || null,
         license_number: values.license_number || null,
         region: values.region || null,
-        file_url: values.file_url || null,
+        file_url: finalFileUrl,
+        // Legacy/backward compatibility fields
+        service_type: selectedSubService?.service?.code || null,
+        sub_service_type: selectedSubService?.name || null,
       };
 
       if (data) {
-        // Update existing data
-        const { error } = await supabase
-          .from('telekom_data')
-          .update(submitData)
-          .eq('id', data.id);
-
-        if (error) throw error;
-
+        await updateMutation.mutateAsync({ id: data.id, ...basePayload });
         toast({
-          title: "Success",
-          description: "Telecommunications data updated successfully",
+          title: 'Success',
+          description: 'Telecommunications data updated successfully',
         });
       } else {
-        // Create new data
-        const { error } = await supabase
-          .from('telekom_data')
-          .insert([submitData]);
-
-        if (error) throw error;
-
+        await createMutation.mutateAsync(basePayload);
         toast({
-          title: "Success",
-          description: "Telecommunications data created successfully",
+          title: 'Success',
+          description: 'Telecommunications data created successfully',
         });
       }
 
+      setPendingFile(null);
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error('Error saving data:', error);
+      let message = 'Failed to save telecommunications data';
+      if (
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof (error as { message?: unknown }).message === 'string'
+      ) {
+        message = (error as { message: string }).message || message;
+      }
       toast({
-        title: "Error",
-        description: "Failed to save telecommunications data",
-        variant: "destructive",
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -214,26 +323,32 @@ export const AddEditTelekomDataDialog = ({
     setSelectedServiceId(serviceId);
     const subServicesForService = await getSubServicesForService(serviceId);
     setAvailableSubServices(subServicesForService);
-    form.setValue("sub_service_id", ""); // Reset sub-service when main service changes
+    form.setValue('sub_service_id', ''); // Reset sub-service when main service changes
   };
 
   const handleProvinceChange = (provinceId: string) => {
     setSelectedProvinceId(provinceId);
-    form.setValue("province_id", provinceId);
-    form.setValue("kabupaten_id", ""); // Reset kabupaten when province changes
-    
+    form.setValue('province_id', provinceId);
+    form.setValue('kabupaten_id', ''); // Reset kabupaten when province changes
+
     const kabupatenList = getKabupaténByProvince(provinceId);
     setAvailableKabupaten(kabupatenList);
   };
 
   const handleKabupaténChange = (kabupaténId: string) => {
-    form.setValue("kabupaten_id", kabupaténId);
-    
+    form.setValue('kabupaten_id', kabupaténId);
+
     // Auto-populate coordinates from kabupaten
     const kabupaten = getKabupaténById(kabupaténId);
     if (kabupaten) {
-      form.setValue("latitude", kabupaten.latitude);
-      form.setValue("longitude", kabupaten.longitude);
+      form.setValue(
+        'latitude',
+        kabupaten.latitude != null ? String(kabupaten.latitude) : ''
+      );
+      form.setValue(
+        'longitude',
+        kabupaten.longitude != null ? String(kabupaten.longitude) : ''
+      );
     }
   };
 
@@ -242,13 +357,14 @@ export const AddEditTelekomDataDialog = ({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {data ? "Edit Telecommunications Data" : "Add New Telecommunications Data"}
+            {data
+              ? 'Edit Telecommunications Data'
+              : 'Add New Telecommunications Data'}
           </DialogTitle>
           <DialogDescription>
-            {data 
-              ? "Update the telecommunications data entry details below."
-              : "Fill in the details below to create a new telecommunications data entry."
-            }
+            {data
+              ? 'Update the telecommunications data entry details below.'
+              : 'Fill in the details below to create a new telecommunications data entry.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -275,15 +391,15 @@ export const AddEditTelekomDataDialog = ({
                 render={() => (
                   <FormItem>
                     <FormLabel>Main Service Type *</FormLabel>
-                    <Select 
-                      value={selectedServiceId} 
+                    <Select
+                      value={selectedServiceId}
                       onValueChange={handleServiceChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select main service type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services.map((service) => (
+                        {services.map(service => (
                           <SelectItem key={service.id} value={service.id}>
                             {service.name}
                           </SelectItem>
@@ -303,15 +419,21 @@ export const AddEditTelekomDataDialog = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Sub Service Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select sub service type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="max-h-60">
-                            {availableSubServices.map((subService) => (
-                              <SelectItem key={subService.id} value={subService.id}>
+                            {availableSubServices.map(subService => (
+                              <SelectItem
+                                key={subService.id}
+                                value={subService.id}
+                              >
                                 {subService.name}
                               </SelectItem>
                             ))}
@@ -358,8 +480,8 @@ export const AddEditTelekomDataDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Province</FormLabel>
-                    <Select 
-                      value={field.value} 
+                    <Select
+                      value={field.value}
                       onValueChange={handleProvinceChange}
                     >
                       <FormControl>
@@ -368,7 +490,7 @@ export const AddEditTelekomDataDialog = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-60">
-                        {provinces.map((province) => (
+                        {provinces.map(province => (
                           <SelectItem key={province.id} value={province.id}>
                             {province.name}
                           </SelectItem>
@@ -386,24 +508,27 @@ export const AddEditTelekomDataDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Kabupaten/Kota</FormLabel>
-                    <Select 
-                      value={field.value} 
+                    <Select
+                      value={field.value}
                       onValueChange={handleKabupaténChange}
                       disabled={!selectedProvinceId}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={
-                            selectedProvinceId 
-                              ? "Select kabupaten/kota" 
-                              : "Select province first"
-                          } />
+                          <SelectValue
+                            placeholder={
+                              selectedProvinceId
+                                ? 'Select kabupaten/kota'
+                                : 'Select province first'
+                            }
+                          />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-60">
-                        {availableKabupaten.map((kabupaten) => (
+                        {availableKabupaten.map(kabupaten => (
                           <SelectItem key={kabupaten.id} value={kabupaten.id}>
-                            {kabupaten.type === 'kota' ? 'Kota ' : 'Kabupaten '}{kabupaten.name}
+                            {kabupaten.type === 'kota' ? 'Kota ' : 'Kabupaten '}
+                            {kabupaten.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -457,12 +582,12 @@ export const AddEditTelekomDataDialog = ({
                   <FormItem>
                     <FormLabel>Latitude</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        type="number" 
+                      <Input
+                        {...field}
+                        type="number"
+                        inputMode="decimal"
                         step="any"
                         placeholder="Auto-filled from kabupaten"
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -477,12 +602,12 @@ export const AddEditTelekomDataDialog = ({
                   <FormItem>
                     <FormLabel>Longitude</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
-                        type="number" 
+                      <Input
+                        {...field}
+                        type="number"
+                        inputMode="decimal"
                         step="any"
                         placeholder="Auto-filled from kabupaten"
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -500,6 +625,8 @@ export const AddEditTelekomDataDialog = ({
                   <FormControl>
                     <FileUpload
                       value={field.value}
+                      deferred
+                      onFileSelect={(file) => setPendingFile(file)}
                       onChange={field.onChange}
                       disabled={loading}
                     />
@@ -510,11 +637,26 @@ export const AddEditTelekomDataDialog = ({
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Saving..." : data ? "Update" : "Create"}
+              <Button
+                type="submit"
+                disabled={
+                  loading ||
+                  createMutation.isPending ||
+                  updateMutation.isPending
+                }
+              >
+                {loading || createMutation.isPending || updateMutation.isPending
+                  ? 'Saving...'
+                  : data
+                  ? 'Update'
+                  : 'Create'}
               </Button>
             </DialogFooter>
           </form>

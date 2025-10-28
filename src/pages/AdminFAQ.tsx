@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,29 +16,33 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Database } from "@/integrations/supabase/types";
+import { FAQApi, Faq, FaqCategory } from "@/lib/faqApi";
+import { UploadAPI } from "@/lib/apiClient";
 
-type FAQ = Database["public"]["Tables"]["faqs"]["Row"];
-type FAQCategory = Database["public"]["Tables"]["faq_categories"]["Row"];
+type EditingFAQ = Omit<Faq, 'category_id'> & { category_id: string | 'none' | null };
 
 const AdminFAQ = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [faqs, setFaqs] = useState<FAQ[]>([]);
-  const [categories, setCategories] = useState<FAQCategory[]>([]);
+
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [categories, setCategories] = useState<FaqCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>("");
+
   const [isCreateFAQOpen, setIsCreateFAQOpen] = useState(false);
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
-  const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
-  const [editingCategory, setEditingCategory] = useState<FAQCategory | null>(null);
+
+  const [editingFAQ, setEditingFAQ] = useState<EditingFAQ | null>(null);
+  const [editingCategory, setEditingCategory] = useState<FaqCategory | null>(null);
   const [isEditFAQOpen, setIsEditFAQOpen] = useState(false);
   const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false);
+  const [newFAQFile, setNewFAQFile] = useState<File | null>(null);
+  const [editingFAQFile, setEditingFAQFile] = useState<File | null>(null);
 
   const [newFAQ, setNewFAQ] = useState({
     question: "",
     answer: "",
-    category_id: "none",
+    category_id: "none" as string | 'none',
     is_active: true,
     file_url: null as string | null
   });
@@ -49,45 +52,20 @@ const AdminFAQ = () => {
     description: ""
   });
 
+  const isAdmin = !!user?.roles?.some(r => r === 'super_admin' || r === 'internal_admin');
+
   useEffect(() => {
-    if (user) {
-      fetchUserRole();
+    if (user && isAdmin) {
       fetchFAQs();
       fetchCategories();
     }
-  }, [user]);
-
-  const fetchUserRole = async () => {
-    if (!user?.id) return;
-    
-    try {
-      const { data: roleData, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (error || !roleData) {
-        setUserRole('guest');
-        return;
-      }
-      
-      setUserRole(roleData.role);
-    } catch (error) {
-      console.error('Error fetching user role:', error);
-      setUserRole('guest');
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isAdmin]);
 
   const fetchCategories = async () => {
     try {
-      const { data, error } = await supabase
-        .from('faq_categories')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-      setCategories(data || []);
+      const list = await FAQApi.listCategoriesPublic();
+      setCategories(list || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
       toast({
@@ -101,13 +79,8 @@ const AdminFAQ = () => {
   const fetchFAQs = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('faqs')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setFaqs(data || []);
+      const list = await FAQApi.adminList();
+      setFaqs(list || []);
     } catch (error) {
       console.error('Error fetching FAQs:', error);
       toast({
@@ -120,7 +93,16 @@ const AdminFAQ = () => {
     }
   };
 
-  const isAdmin = ['super_admin', 'internal_admin'].includes(userRole);
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || !isAdmin) {
     return (
@@ -155,23 +137,25 @@ const AdminFAQ = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('faqs')
-        .insert({
-          question: newFAQ.question.trim(),
-          answer: newFAQ.answer.trim(),
-          category_id: newFAQ.category_id === "none" ? null : newFAQ.category_id,
-          is_active: newFAQ.is_active,
-          file_url: newFAQ.file_url
-        });
-
-      if (error) throw error;
+      let finalFileUrl = newFAQ.file_url || null;
+      if (newFAQFile) {
+        const uploaded = await UploadAPI.uploadPdf(newFAQFile);
+        finalFileUrl = uploaded.file_url;
+      }
+      await FAQApi.create({
+        question: newFAQ.question.trim(),
+        answer: newFAQ.answer.trim(),
+        category_id: newFAQ.category_id === "none" ? null : newFAQ.category_id,
+        is_active: newFAQ.is_active,
+        file_url: finalFileUrl,
+      });
 
       toast({
         title: "Success",
         description: "FAQ created successfully",
       });
 
+      setNewFAQFile(null);
       setNewFAQ({ question: "", answer: "", category_id: "none", is_active: true, file_url: null });
       setIsCreateFAQOpen(false);
       fetchFAQs();
@@ -179,7 +163,7 @@ const AdminFAQ = () => {
       console.error('Error creating FAQ:', error);
       toast({
         title: "Error",
-        description: "Failed to create FAQ",
+        description: error instanceof Error ? error.message : "Failed to create FAQ",
         variant: "destructive",
       });
     }
@@ -196,14 +180,10 @@ const AdminFAQ = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('faq_categories')
-        .insert({
-          name: newCategory.name.trim(),
-          description: newCategory.description.trim() || null
-        });
-
-      if (error) throw error;
+      await FAQApi.categories.create({
+        name: newCategory.name.trim(),
+        description: newCategory.description.trim() || null,
+      });
 
       toast({
         title: "Success",
@@ -217,20 +197,15 @@ const AdminFAQ = () => {
       console.error('Error creating category:', error);
       toast({
         title: "Error",
-        description: "Failed to create category",
+        description: error instanceof Error ? error.message : "Failed to create category",
         variant: "destructive",
       });
     }
   };
 
-  const toggleFAQStatus = async (faq: FAQ) => {
+  const toggleFAQStatus = async (faq: Faq) => {
     try {
-      const { error } = await supabase
-        .from('faqs')
-        .update({ is_active: !faq.is_active })
-        .eq('id', faq.id);
-
-      if (error) throw error;
+      await FAQApi.update(faq.id, { is_active: !faq.is_active });
 
       toast({
         title: "Success",
@@ -242,7 +217,7 @@ const AdminFAQ = () => {
       console.error('Error updating FAQ status:', error);
       toast({
         title: "Error",
-        description: "Failed to update FAQ status",
+        description: error instanceof Error ? error.message : "Failed to update FAQ status",
         variant: "destructive",
       });
     }
@@ -250,12 +225,7 @@ const AdminFAQ = () => {
 
   const deleteFAQ = async (faqId: string) => {
     try {
-      const { error } = await supabase
-        .from('faqs')
-        .delete()
-        .eq('id', faqId);
-
-      if (error) throw error;
+      await FAQApi.remove(faqId);
 
       toast({
         title: "Success",
@@ -267,7 +237,7 @@ const AdminFAQ = () => {
       console.error('Error deleting FAQ:', error);
       toast({
         title: "Error",
-        description: "Failed to delete FAQ",
+        description: error instanceof Error ? error.message : "Failed to delete FAQ",
         variant: "destructive",
       });
     }
@@ -284,24 +254,25 @@ const AdminFAQ = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('faqs')
-        .update({
-          question: editingFAQ.question.trim(),
-          answer: editingFAQ.answer.trim(),
-          category_id: editingFAQ.category_id === "none" ? null : editingFAQ.category_id,
-          is_active: editingFAQ.is_active,
-          file_url: editingFAQ.file_url
-        })
-        .eq('id', editingFAQ.id);
-
-      if (error) throw error;
+      let finalFileUrl = editingFAQ.file_url || null;
+      if (editingFAQFile) {
+        const uploaded = await UploadAPI.uploadPdf(editingFAQFile);
+        finalFileUrl = uploaded.file_url;
+      }
+      await FAQApi.update(editingFAQ.id, {
+        question: editingFAQ.question.trim(),
+        answer: editingFAQ.answer.trim(),
+        category_id: editingFAQ.category_id === "none" ? null : editingFAQ.category_id,
+        is_active: editingFAQ.is_active,
+        file_url: finalFileUrl,
+      });
 
       toast({
         title: "Success",
         description: "FAQ updated successfully",
       });
 
+      setEditingFAQFile(null);
       setEditingFAQ(null);
       setIsEditFAQOpen(false);
       fetchFAQs();
@@ -309,7 +280,7 @@ const AdminFAQ = () => {
       console.error('Error updating FAQ:', error);
       toast({
         title: "Error",
-        description: "Failed to update FAQ",
+        description: error instanceof Error ? error.message : "Failed to update FAQ",
         variant: "destructive",
       });
     }
@@ -326,15 +297,10 @@ const AdminFAQ = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('faq_categories')
-        .update({
-          name: editingCategory.name.trim(),
-          description: editingCategory.description?.trim() || null
-        })
-        .eq('id', editingCategory.id);
-
-      if (error) throw error;
+      await FAQApi.categories.update(editingCategory.id, {
+        name: editingCategory.name.trim(),
+        description: editingCategory.description?.trim() || null,
+      });
 
       toast({
         title: "Success",
@@ -348,18 +314,18 @@ const AdminFAQ = () => {
       console.error('Error updating category:', error);
       toast({
         title: "Error",
-        description: "Failed to update category",
+        description: error instanceof Error ? error.message : "Failed to update category",
         variant: "destructive",
       });
     }
   };
 
   const deleteCategory = async (categoryId: string) => {
-    // Check if category has associated FAQs
+    // Client-side check to prevent accidental deletion when FAQs exist
     const associatedFAQs = faqs.filter(faq => faq.category_id === categoryId);
     if (associatedFAQs.length > 0) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: `Cannot delete category. It has ${associatedFAQs.length} associated FAQ(s).`,
         variant: "destructive",
       });
@@ -367,24 +333,17 @@ const AdminFAQ = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('faq_categories')
-        .delete()
-        .eq('id', categoryId);
-
-      if (error) throw error;
-
+      await FAQApi.categories.remove(categoryId);
       toast({
         title: "Success",
         description: "Category deleted successfully",
       });
-
       fetchCategories();
     } catch (error) {
       console.error('Error deleting category:', error);
       toast({
         title: "Error",
-        description: "Failed to delete category",
+        description: error instanceof Error ? error.message : "Failed to delete category",
         variant: "destructive",
       });
     }
@@ -494,6 +453,8 @@ const AdminFAQ = () => {
                         <Label htmlFor="file">Document (optional)</Label>
                         <FileUpload
                           value={newFAQ.file_url}
+                          deferred
+                          onFileSelect={setNewFAQFile}
                           onChange={(fileUrl) => setNewFAQ({ ...newFAQ, file_url: fileUrl })}
                         />
                         <p className="text-xs text-muted-foreground">
@@ -549,7 +510,7 @@ const AdminFAQ = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(faq.created_at).toLocaleDateString()}
+                        {faq.created_at ? new Date(faq.created_at).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
@@ -672,7 +633,7 @@ const AdminFAQ = () => {
                     <TableRow key={category.id}>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>{category.description || "No description"}</TableCell>
-                      <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{category.created_at ? new Date(category.created_at).toLocaleDateString() : '-'}</TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
                           <Button
@@ -749,8 +710,8 @@ const AdminFAQ = () => {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-category">Category</Label>
-                <Select 
-                  value={editingFAQ.category_id || "none"} 
+                <Select
+                  value={editingFAQ.category_id || "none"}
                   onValueChange={(value) => setEditingFAQ({ ...editingFAQ, category_id: value })}
                 >
                   <SelectTrigger>
@@ -770,6 +731,8 @@ const AdminFAQ = () => {
                 <Label htmlFor="edit-file">Document (optional)</Label>
                 <FileUpload
                   value={editingFAQ.file_url}
+                  deferred
+                  onFileSelect={setEditingFAQFile}
                   onChange={(fileUrl) => setEditingFAQ({ ...editingFAQ, file_url: fileUrl })}
                 />
                 <p className="text-xs text-muted-foreground">

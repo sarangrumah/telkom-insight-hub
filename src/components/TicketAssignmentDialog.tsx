@@ -6,25 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+// Using REST API instead of Supabase
+import { UserAPI, AssignmentAPI, type AdminUser, type AssignmentRecord } from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Users, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 
-interface Profile {
-  user_id: string;
-  full_name: string;
-}
+type Profile = AdminUser;
 
-interface AssignmentHistory {
-  id: string;
-  assigned_to: string;
-  assigned_by: string;
-  assigned_at: string;
-  unassigned_at: string | null;
-  notes: string | null;
-  assignee_profile?: { full_name: string };
-  assigner_profile?: { full_name: string };
-}
+type AssignmentHistory = AssignmentRecord;
 
 interface TicketAssignmentDialogProps {
   open: boolean;
@@ -62,27 +51,7 @@ export function TicketAssignmentDialog({
 
   const fetchAdminUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id
-        `)
-        .in('role', ['super_admin', 'internal_admin', 'pengolah_data']);
-
-      if (error) throw error;
-
-      // Fetch profiles separately to avoid relation issues
-      const userIds = data?.map(item => item.user_id) || [];
-      
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name')
-        .in('user_id', userIds);
-
-      if (profilesError) throw profilesError;
-
-      const admins = profilesData || [];
-
+      const admins = await UserAPI.getAdminUsers();
       setAdminUsers(admins);
     } catch (error) {
       console.error('Error fetching admin users:', error);
@@ -91,36 +60,8 @@ export function TicketAssignmentDialog({
 
   const fetchAssignmentHistory = async () => {
     try {
-      const { data, error } = await supabase
-        .from('ticket_assignments')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .order('assigned_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch profiles separately
-      const assigneeIds = [...new Set(data?.map(item => item.assigned_to) || [])];
-      const assignerIds = [...new Set(data?.map(item => item.assigned_by) || [])];
-      const allUserIds = [...new Set([...assigneeIds, ...assignerIds])];
-
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('user_id, full_name')
-        .in('user_id', allUserIds);
-
-      const profilesMap = profilesData?.reduce((acc, profile) => {
-        acc[profile.user_id] = profile;
-        return acc;
-      }, {} as Record<string, any>) || {};
-
-      const enrichedAssignments = data?.map(assignment => ({
-        ...assignment,
-        assignee_profile: profilesMap[assignment.assigned_to],
-        assigner_profile: profilesMap[assignment.assigned_by]
-      })) || [];
-
-      setAssignmentHistory(enrichedAssignments);
+      const assignments = await AssignmentAPI.getHistory(ticketId);
+      setAssignmentHistory(assignments);
     } catch (error) {
       console.error('Error fetching assignment history:', error);
     }
@@ -133,70 +74,19 @@ export function TicketAssignmentDialog({
     try {
       // If unassigning (selectedAssignee is "unassigned")
       if (selectedAssignee === "unassigned" && currentAssignee) {
-        // Update current assignment as unassigned
-        const { error: unassignError } = await supabase
-          .from('ticket_assignments')
-          .update({ unassigned_at: new Date().toISOString() })
-          .eq('ticket_id', ticketId)
-          .eq('assigned_to', currentAssignee)
-          .is('unassigned_at', null);
-
-        if (unassignError) throw unassignError;
-
-        // Update ticket assignment status
-        const { error: ticketError } = await supabase
-          .from('tickets')
-          .update({ 
-            assigned_to: null,
-            assignment_status: 'unassigned',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', ticketId);
-
-        if (ticketError) throw ticketError;
+        await AssignmentAPI.unassign(ticketId);
 
         toast({
           title: "Success",
           description: "Ticket unassigned successfully",
         });
-      } 
+      }
       // If assigning to someone new
       else if (selectedAssignee && selectedAssignee !== "unassigned") {
-        // If there's a current assignee, mark their assignment as ended
-        if (currentAssignee && currentAssignee !== selectedAssignee) {
-          await supabase
-            .from('ticket_assignments')
-            .update({ unassigned_at: new Date().toISOString() })
-            .eq('ticket_id', ticketId)
-            .eq('assigned_to', currentAssignee)
-            .is('unassigned_at', null);
-        }
-
-        // Create new assignment record only if it's a different assignee
-        if (currentAssignee !== selectedAssignee) {
-          const { error: assignmentError } = await supabase
-            .from('ticket_assignments')
-            .insert({
-              ticket_id: ticketId,
-              assigned_to: selectedAssignee,
-              assigned_by: user.id,
-              notes: notes.trim() || null
-            });
-
-          if (assignmentError) throw assignmentError;
-        }
-
-        // Update ticket
-        const { error: ticketError } = await supabase
-          .from('tickets')
-          .update({ 
-            assigned_to: selectedAssignee,
-            assignment_status: 'assigned',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', ticketId);
-
-        if (ticketError) throw ticketError;
+        await AssignmentAPI.assign(ticketId, {
+          assigned_to: selectedAssignee,
+          notes: notes.trim() || undefined
+        });
 
         toast({
           title: "Success",

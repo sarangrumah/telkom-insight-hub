@@ -50,7 +50,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
       try {
         // Get the kabupaten code from the kabupaten table
         const { data: kabupaténData, error: kabupaténError } = await supabase
-          .from('kabupaten')
+          .from<{ code: string }>('kabupaten')
           .select('code')
           .eq('id', value.kabupaténId)
           .single();
@@ -60,7 +60,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         if (kabupaténError) throw kabupaténError;
   
         const { data, error } = await supabase
-          .from('indonesian_regions')
+          .from<Kecamatan>('indonesian_regions')
           .select('region_id, name')
           .in('type', ['district', 'kecamatan'])
           .eq('parent_id', kabupaténData.code)
@@ -99,7 +99,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
         }
 
         const { data, error } = await supabase
-          .from('indonesian_regions')
+          .from<Kelurahan>('indonesian_regions')
           .select('region_id, name')
           .eq('type', 'village')
           .eq('parent_id', value.kecamatan)

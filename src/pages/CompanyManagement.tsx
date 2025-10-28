@@ -85,14 +85,54 @@ interface Company {
   verifier_name: string | null;
   pic_count: number;
   document_count: number;
-  correction_notes?: any;
+  correction_notes?: Record<string, string>;
   correction_status?: string;
 }
 
 interface CompanyDetails {
-  company: any;
-  pics: any[];
-  documents: any[];
+  company: {
+    company_id: string;
+    company_name: string;
+    email: string;
+    phone: string;
+    nib_number?: string | null;
+    npwp_number?: string | null;
+    akta_number?: string | null;
+    status: string;
+    created_at: string;
+    verified_at?: string | null;
+    verified_by?: string | null;
+    verification_notes?: string | null;
+    verifier_name?: string | null;
+    company_type?: string;
+    company_address?: string;
+    province_id?: string;
+    kabupaten_id?: string;
+    kecamatan?: string;
+    kelurahan?: string;
+    postal_code?: string;
+    [key: string]: unknown;
+  };
+  pics: Array<{
+    full_name: string;
+    id_number?: string;
+    phone_number?: string;
+    position?: string;
+    address?: string;
+    province_id?: string;
+    kabupaten_id?: string;
+    kecamatan?: string;
+    kelurahan?: string;
+    postal_code?: string;
+    [key: string]: unknown;
+  }>;
+  documents: Array<{
+    document_type: string;
+    file_name: string;
+    file_size: number;
+    file_path: string;
+    [key: string]: unknown;
+  }>;
 }
 
 interface CorrectionField {
@@ -209,11 +249,13 @@ const CompanyManagement = () => {
       setShowDialog(false);
       setVerificationNotes("");
       loadCompanies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error approving company:', error);
       toast({
         title: "Error",
-        description: error.message || "Gagal menyetujui perusahaan",
+        description: (error && typeof error === "object" && "message" in error)
+          ? (error as { message: string }).message
+          : "Gagal menyetujui perusahaan",
         variant: "destructive",
       });
     }
@@ -239,11 +281,13 @@ const CompanyManagement = () => {
       setShowDialog(false);
       setVerificationNotes("");
       loadCompanies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error rejecting company:', error);
       toast({
         title: "Error",
-        description: error.message || "Gagal menolak perusahaan",
+        description: (error && typeof error === "object" && "message" in error)
+          ? (error as { message: string }).message
+          : "Gagal menolak perusahaan",
         variant: "destructive",
       });
     }
@@ -275,11 +319,13 @@ const CompanyManagement = () => {
       setCorrectionFields([]);
       setShowDialog(false);
       loadCompanies();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error requesting correction:', error);
       toast({
         title: "Error",
-        description: error.message || "Gagal mengirim permintaan koreksi",
+        description: (error && typeof error === "object" && "message" in error)
+          ? (error as { message: string }).message
+          : "Gagal mengirim permintaan koreksi",
         variant: "destructive",
       });
     }

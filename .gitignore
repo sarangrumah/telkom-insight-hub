@@ -10,7 +10,17 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Local override files
 *.local
+
+# Environment & secrets (do not commit)
+.env
+.env.*
+!.env.example
+
+# If you later add docker compose override
+docker-compose.override.yml
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +32,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backup_telekom.sql
+storage/uploads/

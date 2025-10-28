@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { apiFetch } from '@/lib/apiClient';
 
 // Types for the new database structure
 export interface Service {
@@ -24,56 +24,38 @@ let subServicesCache: SubService[] | null = null;
 // Fetch all services from database
 export async function fetchServices(): Promise<Service[]> {
   if (servicesCache) return servicesCache;
-  
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .order('name');
-    
-  if (error) {
-    console.error('Error fetching services:', error);
+  try {
+    const resp = (await apiFetch('/api/services')) as { services?: Service[] };
+    servicesCache = resp.services || [];
+    return servicesCache;
+  } catch (e) {
+    console.error('Error fetching services:', e);
     return [];
   }
-  
-  servicesCache = data || [];
-  return servicesCache;
 }
 
 // Fetch all sub-services from database
 export async function fetchSubServices(): Promise<SubService[]> {
   if (subServicesCache) return subServicesCache;
-  
-  const { data, error } = await supabase
-    .from('sub_services')
-    .select(`
-      *,
-      service:services(*)
-    `)
-    .order('name');
-    
-  if (error) {
-    console.error('Error fetching sub-services:', error);
+  try {
+    const resp = (await apiFetch('/api/sub-services')) as {
+      sub_services?: SubService[];
+    };
+    subServicesCache = resp.sub_services || [];
+    return subServicesCache;
+  } catch (e) {
+    console.error('Error fetching sub-services:', e);
     return [];
   }
-  
-  subServicesCache = data || [];
-  return subServicesCache;
 }
 
 // Get sub-services for a specific service
-export async function getSubServicesForService(serviceId: string): Promise<SubService[]> {
-  const { data, error } = await supabase
-    .from('sub_services')
-    .select('*')
-    .eq('service_id', serviceId)
-    .order('name');
-    
-  if (error) {
-    console.error('Error fetching sub-services for service:', error);
-    return [];
-  }
-  
-  return data || [];
+export async function getSubServicesForService(
+  serviceId: string
+): Promise<SubService[]> {
+  // Use cached list then filter to minimize requests
+  const all = await fetchSubServices();
+  return all.filter(ss => ss.service_id === serviceId);
 }
 
 // Clear cache (useful for refreshing data)
@@ -89,13 +71,17 @@ export async function getServiceByCode(code: string): Promise<Service | null> {
 }
 
 // Helper function to get sub-service by ID
-export async function getSubServiceById(id: string): Promise<SubService | null> {
+export async function getSubServiceById(
+  id: string
+): Promise<SubService | null> {
   const subServices = await fetchSubServices();
   return subServices.find(ss => ss.id === id) || null;
 }
 
 // Legacy function for backward compatibility - now loads from database
-export const getSubServices = async (serviceCode: string): Promise<string[]> => {
+export const getSubServices = async (
+  serviceCode: string
+): Promise<string[]> => {
   const subServices = await getSubServicesForService(serviceCode);
   return subServices.map(ss => ss.name);
 };

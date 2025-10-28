@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useMonitoring } from '@/hooks/useMonitoring';
 import { useAPIMonitoring } from '@/hooks/useAPIMonitoring';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Shield, Activity, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
@@ -24,49 +24,64 @@ export function DevSecOpsMonitor() {
   const [loading, setLoading] = useState(true);
   const { logUserAction } = useMonitoring();
   const { metrics: apiMetrics, loading: apiLoading } = useAPIMonitoring();
+  const { token } = useAuth();
+  const backendUrl = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
 
   useEffect(() => {
     const fetchSecurityMetrics = async () => {
       try {
-        // Fetch audit logs count
-        const { count: auditCount } = await supabase
-          .from('audit_logs')
-          .select('*', { count: 'exact', head: true });
+        if (!token()) {
+          console.log('No auth token, skipping security metrics fetch');
+          setLoading(false);
+          return;
+        }
 
-        // Fetch recent security events (last 24 hours)
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        console.log('Fetching security metrics from backend...');
         
-        const { count: recentEvents } = await supabase
-          .from('audit_logs')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', yesterday.toISOString());
-
-        // Mock auth failures (in real implementation, get from auth logs)
-        const authFailures = 0;
-
-        // Determine system health based on metrics
-        let health: 'healthy' | 'warning' | 'critical' = 'healthy';
-        if (authFailures > 10) health = 'critical';
-        else if (authFailures > 5 || (recentEvents || 0) > 100) health = 'warning';
-
-        setMetrics({
-          totalAuditLogs: auditCount || 0,
-          recentSecurityEvents: recentEvents || 0,
-          authFailures,
-          systemHealth: health
+        const response = await fetch(`${backendUrl}/api/devsecops/security-metrics`, {
+          headers: {
+            'Authorization': `Bearer ${token()}`
+          }
         });
 
-        logUserAction('view_security_metrics', { metrics });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.metrics) {
+          setMetrics({
+            totalAuditLogs: data.metrics.totalAuditLogs,
+            recentSecurityEvents: data.metrics.recentSecurityEvents,
+            authFailures: data.metrics.authFailures,
+            systemHealth: data.metrics.systemHealth
+          });
+
+          logUserAction('view_security_metrics', { metrics: data.metrics });
+        }
+        
       } catch (error) {
         console.error('Failed to fetch security metrics:', error);
+        // Set default values on error
+        setMetrics({
+          totalAuditLogs: 0,
+          recentSecurityEvents: 0,
+          authFailures: 0,
+          systemHealth: 'healthy'
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchSecurityMetrics();
-  }, [logUserAction]);
+    
+    // Refresh metrics every 5 minutes
+    const interval = setInterval(fetchSecurityMetrics, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [logUserAction, token, backendUrl]);
 
   const getHealthBadge = () => {
     switch (metrics.systemHealth) {
