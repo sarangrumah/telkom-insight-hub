@@ -16,22 +16,18 @@ import {
   Mail, 
   Phone, 
   MapPin, 
+  BriefcaseIcon, 
   Globe, 
+  DollarSign, 
   Building2, 
   Hash, 
+  Map, 
   Home
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-const SimpleRegistrationForm: React.FC = () => {
+const FixedRegistrationForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     email: '',
@@ -45,9 +41,6 @@ const SimpleRegistrationForm: React.FC = () => {
     company_address: '',
     province_id: '',
     kabupaten_id: '',
-    kecamatan: '',
-    kelurahan: '',
-    postal_code: '',
     business_activity: '',
     business_scale: '',
     business_established_year: '',
@@ -55,7 +48,6 @@ const SimpleRegistrationForm: React.FC = () => {
     pic_id_number: '',
     pic_phone_number: '',
     pic_position: '',
-    pic_address: '',
   });
   
   const [documents, setDocuments] = useState({
@@ -147,18 +139,6 @@ const SimpleRegistrationForm: React.FC = () => {
           setError('Kabupaten/Kota is required');
           return false;
         }
-        if (!formData.kecamatan) {
-          setError('Kecamatan is required');
-          return false;
-        }
-        if (!formData.kelurahan) {
-          setError('Kelurahan is required');
-          return false;
-        }
-        if (!formData.postal_code) {
-          setError('Postal code is required');
-          return false;
-        }
         break;
         
       case 3: // Business Details
@@ -203,23 +183,19 @@ const SimpleRegistrationForm: React.FC = () => {
           setError('Person in charge position is required');
           return false;
         }
-        if (!formData.pic_address) {
-          setError('Person in charge address is required');
-          return false;
-        }
         break;
         
       case 5: // Documents
         if (!documents.nib_document) {
-          setError('NIB (Business Registration) document is required');
+          setError('NIB document is required');
           return false;
         }
         if (!documents.npwp_document) {
-          setError('NPWP (Tax ID) document is required');
+          setError('NPWP document is required');
           return false;
         }
         if (!documents.akta_document) {
-          setError('Company Deed document is required');
+          setError('Company deed document is required');
           return false;
         }
         if (!documents.ktp_document) {
@@ -274,9 +250,6 @@ const SimpleRegistrationForm: React.FC = () => {
         company_address: '',
         province_id: '',
         kabupaten_id: '',
-        kecamatan: '',
-        kelurahan: '',
-        postal_code: '',
         business_activity: '',
         business_scale: '',
         business_established_year: '',
@@ -284,7 +257,6 @@ const SimpleRegistrationForm: React.FC = () => {
         pic_id_number: '',
         pic_phone_number: '',
         pic_position: '',
-        pic_address: '',
       });
       setDocuments({
         profile_picture: null,
@@ -321,26 +293,6 @@ const SimpleRegistrationForm: React.FC = () => {
     }
   };
 
-  const businessFields = [
-    'Telecommunications Services',
-    'Internet Service Provider',
-    'Data Center Services',
-    'Network Infrastructure',
-    'Telecommunications Equipment',
-    'Software Development',
-    'IT Consulting',
-    'Cloud Services',
-    'Cybersecurity',
-    'Other'
-  ];
-
-  const businessScales = [
-    'Micro (1-5 employees)',
-    'Small (6-50 employees)',
-    'Medium (51-500 employees)',
-    'Large (501+ employees)'
-  ];
-
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
       {/* Step indicator */}
@@ -373,8 +325,9 @@ const SimpleRegistrationForm: React.FC = () => {
             </div>
           ))}
         </div>
+      </div>
       
-      <Progress value={(currentStep / steps.length) * 100} className="mb-6" />
+      <Progress value={(currentStep / 6) * 100} className="mb-6" />
       
       {error && (
         <Alert variant="destructive" className="mb-4">
@@ -494,35 +447,49 @@ const SimpleRegistrationForm: React.FC = () => {
                     required
                   />
                 </div>
+              </div>
               
               <div>
                 <Label htmlFor="company_type">Company Type *</Label>
-                <Select name="company_type" value={formData.company_type} onValueChange={(value) => handleInputChange({ target: { name: 'company_type', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select company type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pt">PT (Perseroan Terbatas)</SelectItem>
-                    <SelectItem value="cv">CV (Commanditaire Vennootschap)</SelectItem>
-                    <SelectItem value="firma">Firma</SelectItem>
-                    <SelectItem value="koperasi">Koperasi</SelectItem>
-                    <SelectItem value="umkm">UMKM</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select
+                  id="company_type"
+                  name="company_type"
+                  value={formData.company_type}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                  required
+                >
+                  <option value="">Select company type</option>
+                  <option value="pt">PT (Perseroan Terbatas)</option>
+                  <option value="cv">CV (Commanditaire Vennootschap)</option>
+                  <option value="firma">Firma</option>
+                  <option value="koperasi">Koperasi</option>
+                  <option value="umkm">UMKM</option>
+                </select>
               </div>
               
               <div>
                 <Label htmlFor="business_field">Business Field *</Label>
-                <Select name="business_field" value={formData.business_field} onValueChange={(value) => handleInputChange({ target: { name: 'business_field', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select business field" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {businessFields.map(field => (
-                      <SelectItem key={field} value={field.toLowerCase().replace(/\s+/g, '_')}>{field}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="business_field"
+                  name="business_field"
+                  value={formData.business_field}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded"
+                  required
+                >
+                  <option value="">Select business field</option>
+                  <option value="telecommunications">Telecommunications Services</option>
+                  <option value="internet_service">Internet Service Provider</option>
+                  <option value="data_center">Data Center Services</option>
+                  <option value="network_infrastructure">Network Infrastructure</option>
+                  <option value="equipment">Telecommunications Equipment</option>
+                  <option value="software">Software Development</option>
+                  <option value="consulting">IT Consulting</option>
+                  <option value="cloud">Cloud Services</option>
+                  <option value="cybersecurity">Cybersecurity</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
               
               <div>
@@ -545,79 +512,39 @@ const SimpleRegistrationForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="province_id">Province *</Label>
-                  <Select name="province_id" value={formData.province_id} onValueChange={(value) => handleInputChange({ target: { name: 'province_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Province" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="jakarta">DKI Jakarta</SelectItem>
-                      <SelectItem value="west_java">Jawa Barat</SelectItem>
-                      <SelectItem value="central_java">Jawa Tengah</SelectItem>
-                      <SelectItem value="east_java">Jawa Timur</SelectItem>
-                      <SelectItem value="banten">Banten</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="province_id"
+                    name="province_id"
+                    value={formData.province_id}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded"
+                    required
+                  >
+                    <option value="">Select Province</option>
+                    <option value="jakarta">DKI Jakarta</option>
+                    <option value="west_java">Jawa Barat</option>
+                    <option value="central_java">Jawa Tengah</option>
+                    <option value="east_java">Jawa Timur</option>
+                    <option value="banten">Banten</option>
+                  </select>
                 </div>
                 
                 <div>
                   <Label htmlFor="kabupaten_id">Kabupaten/Kota *</Label>
-                  <Select name="kabupaten_id" value={formData.kabupaten_id} onValueChange={(value) => handleInputChange({ target: { name: 'kabupaten_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Kabupaten/Kota" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bandung">Bandung</SelectItem>
-                      <SelectItem value="jakarta_pusat">Jakarta Pusat</SelectItem>
-                      <SelectItem value="surabaya">Surabaya</SelectItem>
-                      <SelectItem value="semarang">Semarang</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="kecamatan">Kecamatan *</Label>
-                  <div className="relative">
-                    <Input
-                      id="kecamatan"
-                      name="kecamatan"
-                      value={formData.kecamatan}
-                      onChange={handleInputChange}
-                      placeholder="Kecamatan"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="kelurahan">Kelurahan *</Label>
-                  <div className="relative">
-                    <Input
-                      id="kelurahan"
-                      name="kelurahan"
-                      value={formData.kelurahan}
-                      onChange={handleInputChange}
-                      placeholder="Kelurahan"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="postal_code">Postal Code *</Label>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="postal_code"
-                    name="postal_code"
-                    value={formData.postal_code}
+                  <select
+                    id="kabupaten_id"
+                    name="kabupaten_id"
+                    value={formData.kabupaten_id}
                     onChange={handleInputChange}
-                    placeholder="Postal code"
-                    className="pl-10"
+                    className="w-full p-2 border rounded"
                     required
-                  />
+                  >
+                    <option value="">Select Kabupaten/Kota</option>
+                    <option value="bandung">Bandung</option>
+                    <option value="jakarta_pusat">Jakarta Pusat</option>
+                    <option value="surabaya">Surabaya</option>
+                    <option value="semarang">Semarang</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -649,16 +576,20 @@ const SimpleRegistrationForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="business_scale">Business Scale *</Label>
-                  <Select name="business_scale" value={formData.business_scale} onValueChange={(value) => handleInputChange({ target: { name: 'business_scale', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select business scale" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {businessScales.map(scale => (
-                        <SelectItem key={scale} value={scale.toLowerCase().replace(/\s+/g, '_')}>{scale}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    id="business_scale"
+                    name="business_scale"
+                    value={formData.business_scale}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded"
+                    required
+                  >
+                    <option value="">Select business scale</option>
+                    <option value="micro">Micro (1-5 employees)</option>
+                    <option value="small">Small (6-50 employees)</option>
+                    <option value="medium">Medium (51-500 employees)</option>
+                    <option value="large">Large (501+ employees)</option>
+                  </select>
                 </div>
                 
                 <div>
@@ -698,11 +629,12 @@ const SimpleRegistrationForm: React.FC = () => {
                     name="pic_full_name"
                     value={formData.pic_full_name}
                     onChange={handleInputChange}
-                    placeholder="Full name of PIC"
+                    placeholder="Full name of Person in Charge"
                     className="pl-10"
                     required
                   />
                 </div>
+              </div>
               
               <div>
                 <Label htmlFor="pic_id_number">ID Number (KTP) *</Label>
@@ -720,53 +652,33 @@ const SimpleRegistrationForm: React.FC = () => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="pic_phone_number">Phone Number *</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_phone_number"
-                      name="pic_phone_number"
-                      value={formData.pic_phone_number}
-                      onChange={handleInputChange}
-                      placeholder="+62..."
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="pic_position">Position *</Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_position"
-                      name="pic_position"
-                      value={formData.pic_position}
-                      onChange={handleInputChange}
-                      placeholder="Position of PIC"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              
               <div>
-                <Label htmlFor="pic_address">Address *</Label>
+                <Label htmlFor="pic_phone_number">Phone Number *</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Textarea
-                    id="pic_address"
-                    name="pic_address"
-                    value={formData.pic_address}
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="pic_phone_number"
+                    name="pic_phone_number"
+                    value={formData.pic_phone_number}
                     onChange={handleInputChange}
-                    placeholder="Complete address of PIC"
+                    placeholder="+62..."
                     className="pl-10"
                     required
-                    rows={3}
+                  />
+                </div>
+              
+              <div>
+                <Label htmlFor="pic_position">Position *</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="pic_position"
+                    name="pic_position"
+                    value={formData.pic_position}
+                    onChange={handleInputChange}
+                    placeholder="Position of Person in Charge"
+                    className="pl-10"
+                    required
                   />
                 </div>
               </div>
@@ -873,8 +785,7 @@ const SimpleRegistrationForm: React.FC = () => {
                 <p>Type: {formData.company_type}</p>
                 <p>Business Field: {formData.business_field}</p>
                 <p>Address: {formData.company_address}</p>
-                <p>Location: {formData.kecamatan}, {formData.kelurahan}, {formData.kabupaten_id}, {formData.province_id}</p>
-                <p>Postal Code: {formData.postal_code}</p>
+                <p>Location: {formData.kabupaten_id}, {formData.province_id}</p>
               </div>
               
               <div>
@@ -890,7 +801,6 @@ const SimpleRegistrationForm: React.FC = () => {
                 <p>ID Number: {formData.pic_id_number}</p>
                 <p>Phone: {formData.pic_phone_number}</p>
                 <p>Position: {formData.pic_position}</p>
-                <p>Address: {formData.pic_address}</p>
               </div>
               
               <div>
@@ -940,4 +850,4 @@ const SimpleRegistrationForm: React.FC = () => {
   );
 };
 
-export default SimpleRegistrationForm;
+export default FixedRegistrationForm;

@@ -4,7 +4,9 @@ import { query } from './db.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
+// Define JWT constants
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+
 const TOKEN_EXPIRES_IN = process.env.ACCESS_EXPIRES_IN || '15m';
 const REFRESH_EXPIRES_DAYS = parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10);
 
@@ -60,6 +62,8 @@ async function createSessionAndRefreshToken(req, userId) {
 
 export async function register(req, res) {
   try {
+    // Redirect to enhanced registration which handles file uploads and complex data
+    // This function is now primarily for simple registrations without documents
     const {
       email,
       password,
@@ -167,6 +171,198 @@ export async function register(req, res) {
   } catch (e) {
     console.error('Registration error:', e.message);
     return res.status(500).json({ error: 'Registration failed' });
+  }
+}
+
+// Enhanced registration function that handles complex data and documents
+export async function registerWithDetails(req, res) {
+  try {
+    // This function expects multipart form data with files
+    const {
+      email,
+      password,
+      full_name,
+      company_name,
+      company_type,
+      business_field,
+      business_subfield,
+      phone,
+      position,
+      maksud_tujuan,
+      address,
+      province_id,
+      kabupaten_id,
+      kecamatan,
+      kelurahan,
+      postal_code,
+      npwp_number,
+      nib_number,
+      akta_number,
+      akta_date,
+      company_phone,
+      company_email,
+      company_website,
+      business_activity,
+      business_scale,
+      business_established_year,
+      employee_count,
+      annual_revenue,
+      business_license_type,
+      business_license_number,
+      business_license_expiry,
+      pic_full_name,
+      pic_id_number,
+      pic_phone_number,
+      pic_position,
+      pic_address,
+      pic_province_id,
+      pic_kabupaten_id,
+      pic_kecamatan,
+      pic_kelurahan,
+      pic_postal_code,
+      verification_notes
+    } = req.body;
+
+    if (!email || !password || !full_name || !company_name) {
+      return res.status(400).json({ error: 'Email, password, full name, and company name are required' });
+    }
+
+    await query('BEGIN');
+
+    try {
+      // Check if user already exists
+      const existing = await query(
+        'SELECT id FROM auth.users WHERE email = $1 LIMIT 1',
+        [email]
+      );
+
+      if (existing.rowCount > 0) {
+        await query('ROLLBACK');
+        return res.status(409).json({ error: 'Email already registered' });
+      }
+
+      const userId = uuidv4();
+      const hash = await bcrypt.hash(password, 10);
+
+      // Store user in auth.users table
+      await query(
+        `INSERT INTO auth.users (id, email, encrypted_password, created_at, updated_at, raw_user_meta_data)
+         VALUES ($1, $2, $3, now(), now(), $4::jsonb)`,
+        [
+          userId,
+          email,
+          hash,
+          JSON.stringify({ full_name, company_name, phone, maksud_tujuan })
+        ]
+      );
+
+      // Create company record with additional business details
+      const { rows: companyRows } = await query(
+        `INSERT INTO public.companies
+         (company_name, email, phone, company_address, province_id, kabupaten_id, kecamatan, kelurahan, postal_code,
+          business_field, business_subfield, status, nib_number, npwp_number, company_type, akta_number, akta_date,
+          company_phone, company_email, company_website, business_activity, business_scale, business_established_year,
+          employee_count, annual_revenue, business_license_type, business_license_number, business_license_expiry,
+          verification_notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+         RETURNING id`,
+        [
+          company_name, email, phone, address, province_id, kabupaten_id, kecamatan, kelurahan, postal_code,
+          business_field, business_subfield, 'pending_verification', nib_number, npwp_number, company_type,
+          akta_number, akta_date, company_phone, company_email, company_website, business_activity,
+          business_scale, parseInt(business_established_year), parseInt(employee_count), annual_revenue,
+          business_license_type, business_license_number, business_license_expiry, verification_notes
+        ]
+      );
+
+      const companyId = companyRows[0].id;
+
+      // Create profile record
+      await query(
+        `INSERT INTO public.profiles (user_id, full_name, company_name, phone, is_validated, maksud_tujuan)
+         VALUES ($1, $2, $3, $4, false, $5)`,
+        [userId, full_name, company_name, phone, maksud_tujuan]
+      );
+
+      // Create user-profile link
+      await query(
+        `INSERT INTO public.user_profiles (user_id, company_id, full_name, position, phone, role, is_company_admin)
+         VALUES ($1, $2, $3, $4, $5, 'pelaku_usaha', true)`,
+        [userId, companyId, full_name, position, phone]
+      );
+
+      // Create person in charge record
+      if (pic_full_name) {
+        await query(
+          `INSERT INTO public.person_in_charge
+           (company_id, full_name, id_number, phone_number, position, address, province_id, kabupaten_id, kecamatan, kelurahan, postal_code)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            companyId, pic_full_name, pic_id_number, pic_phone_number, pic_position,
+            pic_address, pic_province_id, pic_kabupaten_id, pic_kecamatan, pic_kelurahan, pic_postal_code
+          ]
+        );
+      }
+
+      // Handle file uploads if they exist
+      if (req.files) {
+        // Process each document type and store references
+        const documentTypes = [
+          { field: 'profile_picture', type: 'profile_picture' },
+          { field: 'nib_document', type: 'nib' },
+          { field: 'npwp_document', type: 'npwp' },
+          { field: 'akta_document', type: 'akta' },
+          { field: 'ktp_document', type: 'ktp' },
+          { field: 'assignment_letter', type: 'assignment_letter' },
+          { field: 'business_license_document', type: 'business_license' },
+          { field: 'company_stamp', type: 'company_stamp' },
+          { field: 'company_certificate', type: 'company_certificate' }
+        ];
+
+        for (const doc of documentTypes) {
+          if (req.files[doc.field]) {
+            const file = req.files[doc.field][0];
+            
+            // In a real implementation, we would upload to storage service
+            // For now, we'll just store file information in the database
+            await query(
+              `INSERT INTO public.company_documents
+               (company_id, document_type, file_name, file_size, mime_type, uploaded_by)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [companyId, doc.type, file.originalname, file.size, file.mimetype, userId]
+            );
+          }
+        }
+      }
+
+      await query('COMMIT');
+
+      // Issue access token for auto-login
+      const accessToken = generateAccessToken(userId, email);
+
+      // Create session and refresh token
+      const { sessionId, refreshToken } = await createSessionAndRefreshToken(req, userId);
+      setRefreshCookies(res, sessionId, refreshToken);
+
+      return res.json({
+        success: true,
+        token: accessToken,
+        user: {
+          id: userId,
+          email,
+          full_name,
+          roles: ['pelaku_usaha'],
+          is_validated: false,
+        },
+        company_id: companyId
+      });
+    } catch (transactionError) {
+      await query('ROLLBACK');
+      throw transactionError;
+    }
+  } catch (e) {
+    console.error('Enhanced registration error:', e.message);
+    return res.status(500).json({ error: 'Enhanced registration failed' });
   }
 }
 

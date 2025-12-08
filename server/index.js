@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
-import { authMiddleware, register, login, requireAuth, refresh, logout } from './auth.js';
+import { authMiddleware, register, registerWithDetails, login, requireAuth, refresh, logout } from './auth.js';
 import { listTickets, updateTicket, createTicket } from './tickets.js';
 import { getProfile } from './user.js';
 import {
@@ -105,6 +105,7 @@ try {
   console.warn('Failed to ensure upload dir exists:', e?.message);
 }
 
+// Multer configuration for general file uploads (PDFs)
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => {
@@ -126,8 +127,47 @@ const upload = multer({
       return cb(err);
     }
     cb(null, true);
+ },
+});
+
+// Multer configuration for registration with documents (PDFs and images)
+const storageWithImages = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const userId = req.user?.sub || 'anon';
+    const timestamp = Date.now();
+    const safeOriginal = String(file.originalname || 'file').replace(/[^\w.\-]+/g, '_');
+    cb(null, `${userId}-${timestamp}-${safeOriginal}`);
   },
 });
+
+const uploadWithImages = multer({
+  storage: storageWithImages,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    // Allow both PDFs and images for registration
+    if (!file.mimetype.match(/^(application\/pdf|image\/(jpeg|jpg|png|gif|webp))$/)) {
+      const err = new Error('Only PDF and image files are allowed');
+      // @ts-ignore
+      err.status = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  },
+});
+
+// Enhanced registration with document support (after multer middleware is defined)
+app.post('/api/auth/register-with-details', uploadWithImages.fields([
+  { name: 'profile_picture', maxCount: 1 },
+  { name: 'nib_document', maxCount: 1 },
+  { name: 'npwp_document', maxCount: 1 },
+  { name: 'akta_document', maxCount: 1 },
+  { name: 'ktp_document', maxCount: 1 },
+  { name: 'assignment_letter', maxCount: 1 },
+  { name: 'business_license_document', maxCount: 1 },
+  { name: 'company_stamp', maxCount: 1 },
+  { name: 'company_certificate', maxCount: 1 }
+]), registerWithDetails);
 
 // Serve static uploads
 app.use('/uploads', express.static(UPLOAD_DIR));

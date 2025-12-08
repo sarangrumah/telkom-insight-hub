@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useEmailAvailability } from '@/hooks/useEmailAvailability';
+import EnhancedRegistrationForm from '@/components/EnhancedRegistrationForm';
 
 interface AuthPageProps {
   onAuthSuccess: () => void;
@@ -196,101 +197,7 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-fullname">Full Name</Label>
-                  <Input
-                    id="signup-fullname"
-                    type="text"
-                    value={signupForm.fullName}
-                    onChange={e =>
-                      setSignupForm({ ...signupForm, fullName: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    value={signupForm.email}
-                    onChange={e =>
-                      setSignupForm({ ...signupForm, email: e.target.value })
-                    }
-                    required
-                  />
-                  {checkingEmail && (
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Checking
-                      availability...
-                    </p>
-                  )}
-                  {!checkingEmail &&
-                    emailAvailable === true &&
-                    !emailAvailabilityError && (
-                      <p className="text-xs text-emerald-600 mt-1">
-                        Email is available
-                      </p>
-                    )}
-                  {!checkingEmail &&
-                    emailAvailable === false &&
-                    !emailAvailabilityError && (
-                      <p className="text-xs text-destructive mt-1">
-                        Email already registered
-                      </p>
-                    )}
-                  {emailAvailabilityError && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      Cannot verify email right now: {emailAvailabilityError}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signupForm.password}
-                    onChange={e =>
-                      setSignupForm({ ...signupForm, password: e.target.value })
-                    }
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-company">Company Name</Label>
-                  <Input
-                    id="signup-company"
-                    type="text"
-                    value={signupForm.companyName}
-                    onChange={e =>
-                      setSignupForm({
-                        ...signupForm,
-                        companyName: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-phone">Phone Number</Label>
-                  <Input
-                    id="signup-phone"
-                    type="tel"
-                    value={signupForm.phone}
-                    onChange={e =>
-                      setSignupForm({ ...signupForm, phone: e.target.value })
-                    }
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Sign Up
-                </Button>
-              </form>
+              <EnhancedRegistrationForm />
             </TabsContent>
           </Tabs>
         </CardContent>

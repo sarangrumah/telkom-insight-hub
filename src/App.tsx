@@ -26,6 +26,8 @@ import PublicRegister from './pages/PublicRegister';
 import SearchResults from './pages/SearchResults';
 import PublicDataView from './pages/PublicDataView';
 import TelekomDataDetail from './pages/TelekomDataDetail';
+import CompanyProfileCompletionForm from './components/CompanyProfileCompletionForm';
+import { EnhancedRegistrationForm } from './components/EnhancedRegistrationForm';
 import Jasa from './pages/services/Jasa';
 import Jaringan from './pages/services/Jaringan';
 import Penomoran from './pages/services/Penomoran';
@@ -94,6 +96,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={<Homepage />} />
       <Route path="/public-data" element={<PublicDataView />} />
       <Route path="/public-register" element={<PublicRegister />} />
+      <Route path="/complete-registration" element={<CompanyProfileCompletionForm />} />
       <Route
         path="/register"
         element={<Navigate to="/public-register" replace />}

@@ -16,10 +16,15 @@ import {
   Mail, 
   Phone, 
   MapPin, 
+  BriefcaseIcon, 
   Globe, 
+  DollarSign, 
   Building2, 
   Hash, 
-  Home
+  Map, 
+  Home,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -31,7 +36,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-const SimpleRegistrationForm: React.FC = () => {
+const BasicRegistrationForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     email: '',
@@ -55,7 +60,6 @@ const SimpleRegistrationForm: React.FC = () => {
     pic_id_number: '',
     pic_phone_number: '',
     pic_position: '',
-    pic_address: '',
   });
   
   const [documents, setDocuments] = useState({
@@ -88,7 +92,6 @@ const SimpleRegistrationForm: React.FC = () => {
   };
 
   const validateStep = (step: number): boolean => {
-    setError(null);
     switch (step) {
       case 1: // Personal Information
         if (!formData.email) {
@@ -203,10 +206,6 @@ const SimpleRegistrationForm: React.FC = () => {
           setError('Person in charge position is required');
           return false;
         }
-        if (!formData.pic_address) {
-          setError('Person in charge address is required');
-          return false;
-        }
         break;
         
       case 5: // Documents
@@ -228,6 +227,7 @@ const SimpleRegistrationForm: React.FC = () => {
         }
         break;
     }
+    setError(null);
     return true;
   };
 
@@ -260,7 +260,7 @@ const SimpleRegistrationForm: React.FC = () => {
       return response.json();
     },
     onSuccess: () => {
-      alert(`Registration successful! Please check your email (${formData.email}) for confirmation and next steps.`);
+      alert('Registration successful! Please check your email for confirmation.');
       // Reset form
       setFormData({
         email: '',
@@ -284,7 +284,6 @@ const SimpleRegistrationForm: React.FC = () => {
         pic_id_number: '',
         pic_phone_number: '',
         pic_position: '',
-        pic_address: '',
       });
       setDocuments({
         profile_picture: null,
@@ -345,7 +344,7 @@ const SimpleRegistrationForm: React.FC = () => {
     <div className="w-full max-w-4xl mx-auto p-6">
       {/* Step indicator */}
       <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center mb-4">
           {steps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div className="flex items-center">
@@ -364,15 +363,16 @@ const SimpleRegistrationForm: React.FC = () => {
           ))}
         </div>
         
-        <div className="flex justify-between mt-2">
+        <div className="flex justify-between">
           {steps.map(step => (
-            <div key={step.id} className="text-center flex-1 px-2">
+            <div key={step.id} className="text-center flex-1">
               <div className={`text-sm ${currentStep === step.id ? 'font-semibold text-blue-500' : 'text-gray-500'}`}>
                 {step.title}
               </div>
             </div>
           ))}
         </div>
+      </div>
       
       <Progress value={(currentStep / steps.length) * 100} className="mb-6" />
       
@@ -494,6 +494,7 @@ const SimpleRegistrationForm: React.FC = () => {
                     required
                   />
                 </div>
+              </div>
               
               <div>
                 <Label htmlFor="company_type">Company Type *</Label>
@@ -510,6 +511,7 @@ const SimpleRegistrationForm: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
               
               <div>
                 <Label htmlFor="business_field">Business Field *</Label>
@@ -559,71 +561,75 @@ const SimpleRegistrationForm: React.FC = () => {
                   </Select>
                 </div>
                 
-                <div>
-                  <Label htmlFor="kabupaten_id">Kabupaten/Kota *</Label>
-                  <Select name="kabupaten_id" value={formData.kabupaten_id} onValueChange={(value) => handleInputChange({ target: { name: 'kabupaten_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Kabupaten/Kota" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bandung">Bandung</SelectItem>
-                      <SelectItem value="jakarta_pusat">Jakarta Pusat</SelectItem>
-                      <SelectItem value="surabaya">Surabaya</SelectItem>
-                      <SelectItem value="semarang">Semarang</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="kabupaten_id">Kabupaten/Kota *</Label>
+                <Select name="kabupaten_id" value={formData.kabupaten_id} onValueChange={(value) => handleInputChange({ target: { name: 'kabupaten_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select Kabupaten/Kota" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bandung">Bandung</SelectItem>
+                    <SelectItem value="jakarta_pusat">Jakarta Pusat</SelectItem>
+                    <SelectItem value="surabaya">Surabaya</SelectItem>
+                    <SelectItem value="semarang">Semarang</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="kecamatan">Kecamatan *</Label>
-                  <div className="relative">
-                    <Input
-                      id="kecamatan"
-                      name="kecamatan"
-                      value={formData.kecamatan}
-                      onChange={handleInputChange}
-                      placeholder="Kecamatan"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="kelurahan">Kelurahan *</Label>
-                  <div className="relative">
-                    <Input
-                      id="kelurahan"
-                      name="kelurahan"
-                      value={formData.kelurahan}
-                      onChange={handleInputChange}
-                      placeholder="Kelurahan"
-                      required
-                    />
-                  </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="kecamatan">Kecamatan *</Label>
+                <div className="relative">
+                  <Map className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="kecamatan"
+                    name="kecamatan"
+                    value={formData.kecamatan}
+                    onChange={handleInputChange}
+                    placeholder="Kecamatan"
+                    className="pl-10"
+                    required
+                  />
                 </div>
               </div>
               
               <div>
-                <Label htmlFor="postal_code">Postal Code *</Label>
+                <Label htmlFor="kelurahan">Kelurahan *</Label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    id="postal_code"
-                    name="postal_code"
-                    value={formData.postal_code}
+                    id="kelurahan"
+                    name="kelurahan"
+                    value={formData.kelurahan}
                     onChange={handleInputChange}
-                    placeholder="Postal code"
+                    placeholder="Kelurahan"
                     className="pl-10"
                     required
                   />
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            
+            <div>
+              <Label htmlFor="postal_code">Postal Code *</Label>
+              <div className="relative">
+                <Hash className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="postal_code"
+                  name="postal_code"
+                  value={formData.postal_code}
+                  onChange={handleInputChange}
+                  placeholder="Postal code"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )}
       
       {/* Step 3: Business Details */}
       {currentStep === 3 && (
@@ -703,6 +709,7 @@ const SimpleRegistrationForm: React.FC = () => {
                     required
                   />
                 </div>
+              </div>
               
               <div>
                 <Label htmlFor="pic_id_number">ID Number (KTP) *</Label>
@@ -720,53 +727,33 @@ const SimpleRegistrationForm: React.FC = () => {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="pic_phone_number">Phone Number *</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_phone_number"
-                      name="pic_phone_number"
-                      value={formData.pic_phone_number}
-                      onChange={handleInputChange}
-                      placeholder="+62..."
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="pic_position">Position *</Label>
-                  <div className="relative">
-                    <Briefcase className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_position"
-                      name="pic_position"
-                      value={formData.pic_position}
-                      onChange={handleInputChange}
-                      placeholder="Position of PIC"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              
               <div>
-                <Label htmlFor="pic_address">Address *</Label>
+                <Label htmlFor="pic_phone_number">Phone Number *</Label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Textarea
-                    id="pic_address"
-                    name="pic_address"
-                    value={formData.pic_address}
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="pic_phone_number"
+                    name="pic_phone_number"
+                    value={formData.pic_phone_number}
                     onChange={handleInputChange}
-                    placeholder="Complete address of PIC"
+                    placeholder="+62..."
                     className="pl-10"
                     required
-                    rows={3}
+                  />
+                </div>
+              
+              <div>
+                <Label htmlFor="pic_position">Position *</Label>
+                <div className="relative">
+                  <BriefcaseIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="pic_position"
+                    name="pic_position"
+                    value={formData.pic_position}
+                    onChange={handleInputChange}
+                    placeholder="Position of PIC"
+                    className="pl-10"
+                    required
                   />
                 </div>
               </div>
@@ -871,7 +858,7 @@ const SimpleRegistrationForm: React.FC = () => {
                 <h4 className="font-medium">Company Information</h4>
                 <p>Company Name: {formData.company_name}</p>
                 <p>Type: {formData.company_type}</p>
-                <p>Business Field: {formData.business_field}</p>
+                <p>Field: {formData.business_field}</p>
                 <p>Address: {formData.company_address}</p>
                 <p>Location: {formData.kecamatan}, {formData.kelurahan}, {formData.kabupaten_id}, {formData.province_id}</p>
                 <p>Postal Code: {formData.postal_code}</p>
@@ -890,11 +877,10 @@ const SimpleRegistrationForm: React.FC = () => {
                 <p>ID Number: {formData.pic_id_number}</p>
                 <p>Phone: {formData.pic_phone_number}</p>
                 <p>Position: {formData.pic_position}</p>
-                <p>Address: {formData.pic_address}</p>
               </div>
               
               <div>
-                <h4 className="font-medium">Uploaded Documents</h4>
+                <h4 className="font-medium">Documents</h4>
                 <p>Profile Picture: {documents.profile_picture?.name || 'Not uploaded'}</p>
                 <p>NIB Document: {documents.nib_document?.name || 'Not uploaded'}</p>
                 <p>NPWP Document: {documents.npwp_document?.name || 'Not uploaded'}</p>
@@ -906,7 +892,6 @@ const SimpleRegistrationForm: React.FC = () => {
                 <AlertDescription>
                   By submitting this registration, you confirm that all information provided is accurate and complete. 
                   You agree to comply with all applicable regulations and terms of service.
-                  Your registration will be reviewed by our team and you will be notified of the status.
                 </AlertDescription>
               </Alert>
             </div>
@@ -940,4 +925,4 @@ const SimpleRegistrationForm: React.FC = () => {
   );
 };
 
-export default SimpleRegistrationForm;
+export default BasicRegistrationForm;

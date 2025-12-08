@@ -1,11 +1,10 @@
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Globe } from 'lucide-react';
-
-// Import the enhanced registration form
+import { useNavigate } from 'react-router-dom';
 import EnhancedRegistrationForm from '@/components/EnhancedRegistrationForm';
 
-const PublicRegister = () => {
+const EnhancedRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
@@ -36,8 +35,7 @@ const PublicRegister = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Daftar Akun Perusahaan Baru</h1>
             <p className="text-muted-foreground">
-              Bergabung dengan platform visualisasi data penyelenggaraan
-              telekomunikasi
+              Bergabung dengan platform visualisasi data penyelenggaraan telekomunikasi
             </p>
           </div>
 
@@ -48,4 +46,4 @@ const PublicRegister = () => {
   );
 };
 
-export default PublicRegister;
+export default EnhancedRegistrationPage;
