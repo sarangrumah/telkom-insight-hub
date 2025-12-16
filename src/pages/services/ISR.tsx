@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, RotateCcw } from 'lucide-react';
 
 interface ISRRecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   penyelenggara: string;
   nib: string; // tampil kecil pada baris kedua
   layanan: string;
@@ -44,154 +44,62 @@ interface ISRRecord {
   tanggalValid: string;
 }
 
-// Contoh 5 data dasar + 15 data ter-generate untuk total 20
-const DUMMY_DATA: ISRRecord[] = (() => {
-  const base: ISRRecord[] = [
-    {
-      id: 1,
-      penyelenggara: 'PT SATELITA NUSANTARA',
-      nib: '9120309763416',
-      layanan: 'Stasiun Bumi VSAT',
-      stasiun: 'Earth Station',
-      area: 'Jakarta Pusat',
-      frequency: '14.25 GHz',
-      koordinat: '-6.2000, 106.8166',
-      tanggalIzin: '02 Jan 2024',
-      tanggalValid: '02 Jan 2025',
-    },
-    {
-      id: 2,
-      penyelenggara: 'PT GARUDA LINK',
-      nib: '9120001172944',
-      layanan: 'Mikrogelombang Terestrial',
-      stasiun: 'Repeater',
-      area: 'Bandung',
-      frequency: '7.5 GHz',
-      koordinat: '-6.9175, 107.6191',
-      tanggalIzin: '15 Feb 2024',
-      tanggalValid: '15 Feb 2025',
-    },
-    {
-      id: 3,
-      penyelenggara: 'PT ANDALAN CYBERINDO',
-      nib: '8120312071474',
-      layanan: 'Telemetri',
-      stasiun: 'Base Station',
-      area: 'Surabaya',
-      frequency: '410 MHz',
-      koordinat: '-7.2575, 112.7521',
-      tanggalIzin: '10 Mar 2024',
-      tanggalValid: '10 Mar 2025',
-    },
-    {
-      id: 4,
-      penyelenggara: 'PT BORNEO DATA',
-      nib: '2803230056199',
-      layanan: 'Radio Komunikasi Maritim',
-      stasiun: 'Coastal Station',
-      area: 'Balikpapan',
-      frequency: '156.8 MHz',
-      koordinat: '-1.2635, 116.8279',
-      tanggalIzin: '28 Mar 2024',
-      tanggalValid: '28 Mar 2025',
-    },
-    {
-      id: 5,
-      penyelenggara: 'PT PAPUA DIGITAL',
-      nib: '9120502762746',
-      layanan: 'Radio Trunking',
-      stasiun: 'Repeater',
-      area: 'Jayapura',
-      frequency: '450 MHz',
-      koordinat: '-2.5916, 140.6690',
-      tanggalIzin: '30 Apr 2024',
-      tanggalValid: '30 Apr 2025',
-    },
-  ];
+interface ISRResponse {
+  data: ISRRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
-  const names = [
-    'PT NUSANTARA HUB',
-    'PT SUMATERA TELEMEDIA',
-    'PT BALI NUSA NET',
-    'PT CELEBES LINK',
-    'PT JAWA MEDIA',
-    'PT METRO CIPTA DATA',
-    'PT SINERGI TELEMATIKA',
-    'PT MAJU MUNDUR NET',
-    'PT QUATTRO INTERNATIONAL',
-    'PT ANGKASA PERSADA NUSANTARA',
-    'PT PRIMA KOM',
-    'PT GARUDA NET SOLUSI',
-    'PT SAMUDRA DIGITAL',
-    'PT GLOBAL NUSANTARA LINK',
-    'PT BORNEO ENERGI DATA',
-  ];
-  const layanan = [
-    'Stasiun Bumi VSAT',
-    'Mikrogelombang Terestrial',
-    'Radio Trunking',
-    'Telemetri',
-  ];
-  const stasiun = ['Earth Station', 'Base Station', 'Repeater'];
-  const area = [
-    'Medan',
-    'Padang',
-    'Palembang',
-    'Semarang',
-    'Yogyakarta',
-    'Malang',
-    'Denpasar',
-    'Makassar',
-    'Manado',
-    'Pontianak',
-    'Samarinda',
-    'Banjarmasin',
-    'Pekanbaru',
-    'Balikpapan',
-    'Mataram',
-  ];
-  const freqs = ['2.4 GHz', '5.8 GHz', '7.5 GHz', '410 MHz', '450 MHz', '14.25 GHz'];
-
-  const extras: ISRRecord[] = [];
-  for (let i = 0; i < 15; i++) {
-    const idx = i % names.length;
-    const lat = (-11 + Math.random() * 16).toFixed(4); // approx Indonesia lat range
-    const lon = (95 + Math.random() * 25).toFixed(4); // approx Indonesia lon range
-    const day = String(5 + (i % 24)).padStart(2, '0');
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[i % 12];
-    extras.push({
-      id: 6 + i,
-      penyelenggara: names[idx],
-      nib: String(9120316012345000 + i + 1),
-      layanan: layanan[i % layanan.length],
-      stasiun: stasiun[i % stasiun.length],
-      area: area[i % area.length],
-      frequency: freqs[i % freqs.length],
-      koordinat: `${lat}, ${lon}`,
-      tanggalIzin: `${day} ${month} 2024`,
-      tanggalValid: `${day} ${month} 2025`,
-    });
-  }
-  return [...base, ...extras];
-})();
-
-const PAGE_SIZES = [10, 20, 50];
+// Remove the duplicate useEffect import from the middle of the file
+// useEffect is already imported at the top with other React hooks
 
 export default function ISRPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<ISRRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const total = DUMMY_DATA.length;
+  // Fetch ISR data from API
+  const fetchISRData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/isr?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: ISRResponse = await response.json();
+      
+      setData(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      console.error('Failed to fetch ISR data:', err);
+      setError('Failed to load ISR data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchISRData();
+  }, [page, pageSize]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  const current = useMemo(() => data.slice(start, end), [data, start, end]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    fetchISRData();
   };
 
   return (
@@ -221,7 +129,7 @@ export default function ISRPage() {
         <CardHeader>
           <CardTitle>Data ISR</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data Izin Stasiun Radio dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

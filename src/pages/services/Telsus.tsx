@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ import { RotateCcw } from 'lucide-react';
 type TelsusStatus = 'Permohonan Baru' | 'Disetujui' | 'Ditolak' | 'Diproses';
 
 interface TelsusRecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   penyelenggara: string;
   nib: string; // identitas kecil di bawah nama
   layanan: string;
@@ -47,269 +47,15 @@ interface TelsusRecord {
   status: TelsusStatus;
 }
 
-const DUMMY_DATA: TelsusRecord[] = [
-  {
-    id: 1,
-    penyelenggara: 'BCTech',
-    nib: '987654321',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: '999999',
-    tanggalPengajuan: '22 November 2024',
-    tanggalSubmit: '22 November 2024',
-    tanggalBerlaku: '22 November 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 2,
-    penyelenggara:
-      'BADAN PENANGGULANGAN BENCANA DAERAH KOTA YOGYAKARTA',
-    nib: 'BPBD KOTA YOGYAKARTA',
-    layanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorIzin: '1/TEL.03.02/2024',
-    tanggalPengajuan: '26 June 2024',
-    tanggalSubmit: '26 June 2024',
-    tanggalBerlaku: '26 June 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 3,
-    penyelenggara: 'AMSL DELTA MAS',
-    nib: '02201042613490004',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: '02201042613490004',
-    tanggalPengajuan: '04 June 2024',
-    tanggalSubmit: '04 June 2024',
-    tanggalBerlaku: '04 June 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 4,
-    penyelenggara: 'UNIVERSITAS MAJU MUNDUR',
-    nib: '002202019990001',
-    layanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorIzin: 'IP-2024-004',
-    tanggalPengajuan: '14 May 2024',
-    tanggalSubmit: '14 May 2024',
-    tanggalBerlaku: '15 May 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Diproses',
-  },
-  {
-    id: 5,
-    penyelenggara: 'PT NUSANTARA STEEL',
-    nib: '1906202012340001',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-015',
-    tanggalPengajuan: '10 May 2024',
-    tanggalSubmit: '11 May 2024',
-    tanggalBerlaku: '11 May 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 6,
-    penyelenggara: 'KEMENTERIAN CONTOH',
-    nib: 'INSTANSI PEMERINTAH',
-    layanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorIzin: 'IP-2024-016',
-    tanggalPengajuan: '02 May 2024',
-    tanggalSubmit: '03 May 2024',
-    tanggalBerlaku: '03 May 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 7,
-    penyelenggara: 'PT BORNEO ENERGI',
-    nib: '2001202011110002',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-018',
-    tanggalPengajuan: '25 April 2024',
-    tanggalSubmit: '26 April 2024',
-    tanggalBerlaku: '26 April 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 8,
-    penyelenggara: 'DINAS KOMINFO KOTA CONTOH',
-    nib: 'PEMDA KOTA CONTOH',
-    layanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorIzin: 'IP-2024-021',
-    tanggalPengajuan: '18 April 2024',
-    tanggalSubmit: '18 April 2024',
-    tanggalBerlaku: '18 April 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 9,
-    penyelenggara: 'PT METRO CIPTA DATA',
-    nib: '3101202211110003',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-023',
-    tanggalPengajuan: '10 April 2024',
-    tanggalSubmit: '11 April 2024',
-    tanggalBerlaku: '11 April 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Diproses',
-  },
-  {
-    id: 10,
-    penyelenggara: 'PT ANDALAN CYBERINDO',
-    nib: '0101202414140008',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-030',
-    tanggalPengajuan: '03 April 2024',
-    tanggalSubmit: '03 April 2024',
-    tanggalBerlaku: '03 April 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Ditolak',
-  },
-  {
-    id: 11,
-    penyelenggara: 'PT GLOBAL NUSANTARA LINK',
-    nib: '0202202415150009',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-033',
-    tanggalPengajuan: '28 March 2024',
-    tanggalSubmit: '29 March 2024',
-    tanggalBerlaku: '29 March 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 12,
-    penyelenggara: 'PT SINERGI TELEMATIKA',
-    nib: '0303202416160010',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-040',
-    tanggalPengajuan: '15 March 2024',
-    tanggalSubmit: '15 March 2024',
-    tanggalBerlaku: '15 March 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 13,
-    penyelenggara: 'PT MAJU MUNDUR NET',
-    nib: '0404202417170011',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-044',
-    tanggalPengajuan: '20 March 2024',
-    tanggalSubmit: '21 March 2024',
-    tanggalBerlaku: '21 March 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Diproses',
-  },
-  {
-    id: 14,
-    penyelenggara: 'PT GARUDA NET SOLUSI',
-    nib: '3101202211110003',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-051',
-    tanggalPengajuan: '05 March 2024',
-    tanggalSubmit: '06 March 2024',
-    tanggalBerlaku: '06 March 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 15,
-    penyelenggara: 'PT PRIMA KOM',
-    nib: '0606202212120006',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-059',
-    tanggalPengajuan: '26 February 2024',
-    tanggalSubmit: '26 February 2024',
-    tanggalBerlaku: '26 February 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 16,
-    penyelenggara: 'PT JAWA MEDIA',
-    nib: '2108202012340002',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-067',
-    tanggalPengajuan: '18 February 2024',
-    tanggalSubmit: '18 February 2024',
-    tanggalBerlaku: '18 February 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 17,
-    penyelenggara: 'DINAS X PROVINSI Y',
-    nib: 'PEMERINTAH DAERAH',
-    layanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorIzin: 'IP-2024-072',
-    tanggalPengajuan: '12 February 2024',
-    tanggalSubmit: '12 February 2024',
-    tanggalBerlaku: '12 February 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 18,
-    penyelenggara: 'PT BALI NUSA NET',
-    nib: '0707202420200014',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-081',
-    tanggalPengajuan: '06 February 2024',
-    tanggalSubmit: '06 February 2024',
-    tanggalBerlaku: '06 February 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-  {
-    id: 19,
-    penyelenggara: 'PT PAPUA DATA',
-    nib: '0606202419190013',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-089',
-    tanggalPengajuan: '28 January 2024',
-    tanggalSubmit: '28 January 2024',
-    tanggalBerlaku: '28 January 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Ditolak',
-  },
-  {
-    id: 20,
-    penyelenggara: 'PT SUMATERA TELEMEDIA',
-    nib: '0505202418180012',
-    layanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorIzin: 'TS-2024-095',
-    tanggalPengajuan: '20 January 2024',
-    tanggalSubmit: '21 January 2024',
-    tanggalBerlaku: '21 January 2024',
-    kbli: 'Aktivitas Telekomunikasi Khusus Untuk Keperluan Sendiri',
-    status: 'Disetujui',
-  },
-];
+interface TelsusApiResponse {
+  data: TelsusRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+// Remove the hardcoded DUMMY_DATA constant completely
 
 function StatusBadge({ value }: { value: TelsusStatus }) {
   const cls =
@@ -333,16 +79,47 @@ export default function TelsusPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<TelsusRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const total = DUMMY_DATA.length;
+  // Fetch Telsus data from API
+  const fetchTelsusData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/telsus?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: TelsusApiResponse = await response.json();
+      
+      setData(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      console.error('Failed to fetch Telsus data:', err);
+      setError('Failed to load Telsus data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchTelsusData();
+  }, [page, pageSize]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  const current = useMemo(() => data.slice(start, end), [data, start, end]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    fetchTelsusData();
   };
 
   return (
@@ -372,7 +149,7 @@ export default function TelsusPage() {
         <CardHeader>
           <CardTitle>Data Telekomunikasi Khusus</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data Telekomunikasi Khusus dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

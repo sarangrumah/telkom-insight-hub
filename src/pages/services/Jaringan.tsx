@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ import { RotateCcw } from 'lucide-react';
 type JaringanStatus = 'Permohonan Baru' | 'Disetujui' | 'Ditolak' | 'Diproses';
 
 interface JaringanRecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   penyelenggara: string;
   nib: string;
   layanan: string;
@@ -47,129 +47,13 @@ interface JaringanRecord {
   status: JaringanStatus;
 }
 
-const DUMMY_DATA: JaringanRecord[] = (() => {
-  const base: JaringanRecord[] = [
-    {
-      id: 1,
-      penyelenggara: 'BCTech',
-      nib: '987654321',
-      layanan: 'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Satelit',
-      nomorIzin: '9000000',
-      tanggalPengajuan: '22 November 2024',
-      tanggalSubmit: '22 November 2024',
-      tanggalBerlaku: '23 November 2024',
-      kbli: 'Aktivitas Telekomunikasi Satelit',
-      status: 'Disetujui',
-    },
-    {
-      id: 2,
-      penyelenggara: 'BCTech',
-      nib: '987654321',
-      layanan:
-        'Penyelenggaraan Jaringan Bergerak Terestrial Radio Trunking',
-      nomorIzin: '78965',
-      tanggalPengajuan: '22 November 2024',
-      tanggalSubmit: '22 November 2024',
-      tanggalBerlaku: '23 November 2024',
-      kbli: 'Aktivitas Telekomunikasi Tanpa Kabel',
-      status: 'Permohonan Baru',
-    },
-    {
-      id: 3,
-      penyelenggara: 'BCTech',
-      nib: '987654321',
-      layanan: 'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Satelit',
-      nomorIzin: '51231',
-      tanggalPengajuan: '21 November 2024',
-      tanggalSubmit: '21 November 2024',
-      tanggalBerlaku: '23 November 2024',
-      kbli: 'Aktivitas Telekomunikasi Satelit',
-      status: 'Ditolak',
-    },
-    {
-      id: 4,
-      penyelenggara: 'BCTech',
-      nib: '987654321',
-      layanan:
-        'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Fiber Optik Sistem Komunikasi Kabel Laut (SKKL)',
-      nomorIzin: '333422',
-      tanggalPengajuan: '21 November 2024',
-      tanggalSubmit: '21 November 2024',
-      tanggalBerlaku: '22 November 2024',
-      kbli: 'Aktivitas Telekomunikasi dengan Kabel',
-      status: 'Ditolak',
-    },
-    {
-      id: 5,
-      penyelenggara: 'BCTech',
-      nib: '987654321',
-      layanan: 'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Satelit',
-      nomorIzin: '123',
-      tanggalPengajuan: '22 November 2024',
-      tanggalSubmit: '22 November 2024',
-      tanggalBerlaku: '21 November 2024',
-      kbli: 'Aktivitas Telekomunikasi Satelit',
-      status: 'Permohonan Baru',
-    },
-  ];
-  const names = [
-    'NUSANTARA NET',
-    'GARUDA LINK',
-    'SATELIT INDO',
-    'FIBER OPTIKA INDONESIA',
-    'MEGA JARINGAN TEKNO',
-    'PRIMA KABEL NUSANTARA',
-    'GLOBALWIRE',
-    'SINERGI TELEKOM',
-    'ANDALAN NETWORK',
-    'BORNEO CONNECT',
-    'SUMATERA NET',
-    'CELEBES LINK',
-    'PAPUA DATA',
-    'JAWA MEDIA',
-    'BALI NUSA NET',
-  ];
-  const services = [
-    'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Satelit',
-    'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Serat Optik',
-    'Penyelenggaraan Jaringan Tetap Tertutup melalui Media Gelombang Mikro',
-    'Penyelenggaraan Jaringan Bergerak Terestrial Radio Trunking',
-  ];
-  const kblis = [
-    'Aktivitas Telekomunikasi Satelit',
-    'Aktivitas Telekomunikasi dengan Kabel',
-    'Aktivitas Telekomunikasi Tanpa Kabel',
-  ];
-  const statuses: JaringanStatus[] = [
-    'Disetujui',
-    'Permohonan Baru',
-    'Diproses',
-    'Ditolak',
-  ];
-  const extras: JaringanRecord[] = [];
-  for (let i = 0; i < 15; i++) {
-    const id = 6 + i;
-    const nm = names[i % names.length];
-    const service = services[i % services.length];
-    const kbli = kblis[i % kblis.length];
-    const status = statuses[i % statuses.length];
-    const day = 10 + (i % 14); // 10-23
-    const day2 = Math.min(day + 1, 23);
-    extras.push({
-      id,
-      penyelenggara: nm,
-      nib: String(9000000000000000 + i).padStart(16, '0'),
-      layanan: service,
-      nomorIzin: String(100000 + i * 7),
-      tanggalPengajuan: `${day} November 2024`,
-      tanggalSubmit: `${day} November 2024`,
-      tanggalBerlaku: `${day2} November 2024`,
-      kbli,
-      status,
-    });
-  }
-  return [...base, ...extras];
-})();
+interface JaringanApiResponse {
+  data: JaringanRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
 function StatusBadge({ value }: { value: JaringanStatus }) {
   const cls =
@@ -187,20 +71,53 @@ function StatusBadge({ value }: { value: JaringanStatus }) {
   );
 }
 
+const PAGE_SIZES = [10, 20, 50];
+
 export default function JaringanPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<JaringanRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const total = DUMMY_DATA.length;
+  // Fetch Jaringan data from API
+  const fetchJaringanData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/jaringan?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: JaringanApiResponse = await response.json();
+      
+      setData(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      console.error('Failed to fetch Jaringan data:', err);
+      setError('Failed to load Jaringan data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchJaringanData();
+  }, [page, pageSize]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  const current = useMemo(() => data.slice(start, end), [data, start, end]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    fetchJaringanData();
   };
 
   return (
@@ -230,7 +147,7 @@ export default function JaringanPage() {
         <CardHeader>
           <CardTitle>Data Jaringan</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data jaringan telekomunikasi dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

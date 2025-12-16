@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -34,7 +34,7 @@ import { RotateCcw } from 'lucide-react';
 type LKOStatus = 'Sudah menyampaikan' | 'Belum menyampaikan';
 
 interface LKORecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   penyelenggara: string;
   nib: string;
   alamat: string;
@@ -43,204 +43,15 @@ interface LKORecord {
   status: LKOStatus;
 }
 
-const DUMMY_DATA: LKORecord[] = [
-  {
-    id: 1,
-    penyelenggara: 'GNET BIARO AKSES',
-    nib: '8120313140358',
-    alamat:
-      'Jl. Raya Koto Marapak - Lambah Depan SMAN 1 IV Angkat, Kec. Angkat Kab. Agam, Sumatera Barat',
-    alamatKorespondensi:
-      'Jl. Raya Koto Marapak - Lambah Depan SMAN 1 IV Angkat, Kec. Angkat Kab. Agam, Sumatera Barat',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 2,
-    penyelenggara: 'TELEMEDIA KOMUNIKASI PRATAMA',
-    nib: '1233000320797',
-    alamat:
-      'RUKO CBP GALUH BLOK D NO.6C, KEL. SUKAHARJA, KEC. TELUKJAMBE TIMUR',
-    alamatKorespondensi:
-      'RUKO CBP GALUH BLOK D NO.6C, KEL. SUKAHARJA, KEC. TELUKJAMBE TIMUR',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 3,
-    penyelenggara: 'FAHASA TRI DATA',
-    nib: '1244000402113',
-    alamat:
-      'JL. PANDEAN RT. 004 RW. 003, DESA JEKULO, KEC. JEKULO, KAB. KUDUS',
-    alamatKorespondensi:
-      'JL. PANDEAN RT. 004 RW. 003, DESA JEKULO, KEC. JEKULO, KAB. KUDUS',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 4,
-    penyelenggara: 'PANCA DEWATA UTAMA',
-    nib: '8120314041765',
-    alamat: 'Graha Kapital 1 Lt. 3, Jl. Kemang Raya No. 4, Jakarta Selatan',
-    alamatKorespondensi:
-      'Graha Kapital 1 Lt. 3, Jl. Kemang Raya No. 4, Jakarta Selatan 12730',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  // Tambahan 16 data dummy
-  {
-    id: 5,
-    penyelenggara: 'BORNEO DATA NUSANTARA',
-    nib: '9120316012345001',
-    alamat: 'Jl. S. Parman No.12, Balikpapan Tengah, Kalimantan Timur',
-    alamatKorespondensi:
-      'Komplek Niaga Balikpapan Blok B2 No.8, Balikpapan, Kalimantan Timur',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 6,
-    penyelenggara: 'METRO CIPTA MEDIA',
-    nib: '9120316012345002',
-    alamat: 'Jl. Jenderal Sudirman No.88, Bandung, Jawa Barat',
-    alamatKorespondensi: 'Ruko Sudirman Plaza Blok A-5, Bandung, Jawa Barat',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 7,
-    penyelenggara: 'SAMUDRA DIGITAL',
-    nib: '9120316012345003',
-    alamat: 'Jl. Kertajaya Indah Timur, Surabaya, Jawa Timur',
-    alamatKorespondensi: 'Gedung Samudra Lt. 2, Surabaya, Jawa Timur',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 8,
-    penyelenggara: 'GARUDA NET SOLUSI',
-    nib: '9120316012345004',
-    alamat: 'Jl. Palagan Tentara Pelajar No.99, Sleman, DIY',
-    alamatKorespondensi: 'Ruko Palagan Square A-2, Sleman, DIY',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 9,
-    penyelenggara: 'PRIMA KOM',
-    nib: '9120316012345005',
-    alamat: 'Jl. Veteran No.10, Makassar, Sulawesi Selatan',
-    alamatKorespondensi: 'Graha Prima Lt. 3, Jl. Veteran No.10, Makassar',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 10,
-    penyelenggara: 'ANDALAN CYBERINDO',
-    nib: '9120316012345006',
-    alamat: 'Jl. Asia Afrika No. 100, Jakarta Pusat',
-    alamatKorespondensi: 'Menara Andalan Lt. 12, Jakarta Pusat',
-    tahun: '2024',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 11,
-    penyelenggara: 'GLOBAL NUSANTARA LINK',
-    nib: '9120316012345007',
-    alamat: 'Jl. Diponegoro No. 2, Denpasar, Bali',
-    alamatKorespondensi:
-      'Ruko Diponegoro Square Blok C-7, Denpasar, Bali',
-    tahun: '2024',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 12,
-    penyelenggara: 'SINERGI TELEMATIKA',
-    nib: '9120316012345008',
-    alamat: 'Jl. Ahmad Yani No. 5, Pontianak, Kalimantan Barat',
-    alamatKorespondensi: 'Komplek A. Yani Business Park A-3, Pontianak',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 13,
-    penyelenggara: 'MAJU MUNDUR NET',
-    nib: '9120316012345009',
-    alamat: 'Jl. Sisingamangaraja No. 77, Medan, Sumatera Utara',
-    alamatKorespondensi:
-      'Gedung MMN Lt. 6, Jl. Sisingamangaraja 77, Medan',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 14,
-    penyelenggara: 'BALI NUSA NET',
-    nib: '9120316012345010',
-    alamat: 'Jl. Gatot Subroto Barat, Badung, Bali',
-    alamatKorespondensi: 'Ruko Gatsu Center B-1, Badung, Bali',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 15,
-    penyelenggara: 'SUMATERA TELEMEDIA',
-    nib: '9120316012345011',
-    alamat: 'Jl. Jend. Sudirman No. 10, Pekanbaru, Riau',
-    alamatKorespondensi:
-      'Sudirman Business Park A-10, Pekanbaru, Riau',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 16,
-    penyelenggara: 'CELEBES LINK',
-    nib: '9120316012345012',
-    alamat: 'Jl. Sam Ratulangi No. 8, Manado, Sulawesi Utara',
-    alamatKorespondensi:
-      'Ruko Sam Ratulangi Kav. 12, Manado, Sulawesi Utara',
-    tahun: '2024',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 17,
-    penyelenggara: 'PAPUA DATA',
-    nib: '9120316012345013',
-    alamat: 'Jl. Yos Sudarso No. 45, Jayapura, Papua',
-    alamatKorespondensi:
-      'Ruko Yos Sudarso Center A-4, Jayapura, Papua',
-    tahun: '2024',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 18,
-    penyelenggara: 'JAWA MEDIA',
-    nib: '9120316012345014',
-    alamat: 'Jl. Gubernur Suryo No. 11, Surabaya, Jawa Timur',
-    alamatKorespondensi:
-      'Gedung Jawa Media Lt. 5, Surabaya, Jawa Timur',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 19,
-    penyelenggara: 'NUSANTARA HUB',
-    nib: '9120316012345015',
-    alamat: 'Jl. Pemuda No. 1, Semarang, Jawa Tengah',
-    alamatKorespondensi: 'Ruko Pemuda Indah C-2, Semarang',
-    tahun: '2023',
-    status: 'Sudah menyampaikan',
-  },
-  {
-    id: 20,
-    penyelenggara: 'ALFA DIGITAL MEDIA',
-    nib: '9120316012345016',
-    alamat: 'Jl. Raya Juanda No. 3, Sidoarjo, Jawa Timur',
-    alamatKorespondensi:
-      'Juanda Business Center B-5, Sidoarjo, Jawa Timur',
-    tahun: '2022',
-    status: 'Sudah menyampaikan',
-  },
-];
+interface LKOApiResponse {
+  data: LKORecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+// Removed hardcoded DUMMY_DATA array - will fetch from API instead
 
 function StatusLabel({ value }: { value: LKOStatus }) {
   const cls = value === 'Sudah menyampaikan' ? 'text-emerald-600' : 'text-rose-600';
@@ -253,16 +64,47 @@ export default function LKOPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<LKORecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const total = DUMMY_DATA.length;
+  // Fetch LKO data from API
+  const fetchLKOData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/lko?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: LKOApiResponse = await response.json();
+      
+      setData(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      console.error('Failed to fetch LKO data:', err);
+      setError('Failed to load LKO data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchLKOData();
+  }, [page, pageSize]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  const current = useMemo(() => data.slice(start, end), [data, start, end]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    fetchLKOData();
   };
 
   return (
@@ -292,7 +134,7 @@ export default function LKOPage() {
         <CardHeader>
           <CardTitle>Data LKO</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data Laporan Kegiatan Operasional dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

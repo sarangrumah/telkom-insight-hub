@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ import { Eye, RotateCcw } from 'lucide-react';
 type JasaStatus = 'Permohonan Baru' | 'Disetujui' | 'Ditolak' | 'Diproses';
 
 interface JasaRecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   penyelenggara: string;
   nib: string; // nomor identitas di bawah nama
   layanan: string; // teks lengkap (dengan bagian dalam tanda kurung)
@@ -47,256 +47,13 @@ interface JasaRecord {
   status: JasaStatus;
 }
 
-const DUMMY_DATA: JasaRecord[] = [
-  {
-    id: 1,
-    penyelenggara: 'BCTech',
-    nib: '987654321',
-    layanan: 'Penyelenggaraan Jasa Pusat Panggilan Informasi (Call Center)',
-    nomorIzin: '3463',
-    tanggalPengajuan: '22 November 2024',
-    tanggalSubmit: '22 November 2024',
-    tanggalBerlaku: '21 November 2024',
-    kbli: 'Aktivitas Call Centre',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 2,
-    penyelenggara: 'BCTech',
-    nib: '987654321',
-    layanan: 'Penyelenggaraan Jasa Sistem Komunikasi Data',
-    nomorIzin: '12',
-    tanggalPengajuan: '22 November 2024',
-    tanggalSubmit: '22 November 2024',
-    tanggalBerlaku: '22 November 2024',
-    kbli: 'Jasa Sistem Komunikasi Data',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 3,
-    penyelenggara: 'PETABYTE NETWORK INDONESIA',
-    nib: '28102300355850003',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: '28102300355850003',
-    tanggalPengajuan: '23 June 2024',
-    tanggalSubmit: '23 June 2024',
-    tanggalBerlaku: '23 June 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 4,
-    penyelenggara: 'ERKA JARINGAN UTAMA',
-    nib: '07112200382470005',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: '07112200382470005',
-    tanggalPengajuan: '23 June 2024',
-    tanggalSubmit: '23 June 2024',
-    tanggalBerlaku: '23 June 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 5,
-    penyelenggara: 'CORBEC COMMUNICATION',
-    nib: '91203160312160009',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: '91203160312160009',
-    tanggalPengajuan: '23 June 2024',
-    tanggalSubmit: '23 June 2024',
-    tanggalBerlaku: '23 June 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 6,
-    penyelenggara: 'ALFA DIGITAL MEDIA',
-    nib: '1906202012340001',
-    layanan: 'Penyelenggaraan Jasa Teleponi Dasar (Fixed Line)',
-    nomorIzin: 'TL-2020-001',
-    tanggalPengajuan: '10 Agustus 2024',
-    tanggalSubmit: '11 Agustus 2024',
-    tanggalBerlaku: '11 Agustus 2024',
-    kbli: 'Jasa Teleponi Dasar',
-    status: 'Diproses',
-  },
-  {
-    id: 7,
-    penyelenggara: 'NUSANTARA KOMUNIKA',
-    nib: '2108202012340002',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: 'ISP-2021-045',
-    tanggalPengajuan: '01 Juli 2024',
-    tanggalSubmit: '02 Juli 2024',
-    tanggalBerlaku: '02 Juli 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 8,
-    penyelenggara: 'GARUDA NET SOLUSI',
-    nib: '3101202211110003',
-    layanan: 'Penyelenggaraan Jasa Sistem Komunikasi Data',
-    nomorIzin: 'SKD-2022-010',
-    tanggalPengajuan: '05 Mei 2024',
-    tanggalSubmit: '06 Mei 2024',
-    tanggalBerlaku: '06 Mei 2024',
-    kbli: 'Jasa Sistem Komunikasi Data',
-    status: 'Disetujui',
-  },
-  {
-    id: 9,
-    penyelenggara: 'SATELITA PERSADA',
-    nib: '0101202310100004',
-    layanan: 'Penyelenggaraan Jasa VSAT (Very Small Aperture Terminal)',
-    nomorIzin: 'VSAT-2023-022',
-    tanggalPengajuan: '12 April 2024',
-    tanggalSubmit: '13 April 2024',
-    tanggalBerlaku: '13 April 2024',
-    kbli: 'Jasa Telekomunikasi Satelit',
-    status: 'Diproses',
-  },
-  {
-    id: 10,
-    penyelenggara: 'MEGA DATA TEKNO',
-    nib: '2205202310100005',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: 'ISP-2023-067',
-    tanggalPengajuan: '20 Maret 2024',
-    tanggalSubmit: '21 Maret 2024',
-    tanggalBerlaku: '21 Maret 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 11,
-    penyelenggara: 'PRIMA KOM',
-    nib: '0606202212120006',
-    layanan: 'Penyelenggaraan Jasa Teleponi Dasar (Mobile)',
-    nomorIzin: 'MOB-2022-101',
-    tanggalPengajuan: '14 Februari 2024',
-    tanggalSubmit: '15 Februari 2024',
-    tanggalBerlaku: '15 Februari 2024',
-    kbli: 'Jasa Teleponi Bergerak',
-    status: 'Ditolak',
-  },
-  {
-    id: 12,
-    penyelenggara: 'NUSANTARA MEDIA LINK',
-    nib: '1508202213130007',
-    layanan: 'Penyelenggaraan Jasa Pusat Panggilan Informasi (Call Center)',
-    nomorIzin: 'CC-2022-015',
-    tanggalPengajuan: '11 Januari 2024',
-    tanggalSubmit: '12 Januari 2024',
-    tanggalBerlaku: '12 Januari 2024',
-    kbli: 'Aktivitas Call Centre',
-    status: 'Disetujui',
-  },
-  {
-    id: 13,
-    penyelenggara: 'ANDALAN CYBERINDO',
-    nib: '0101202414140008',
-    layanan: 'Penyelenggaraan Jasa Sistem Komunikasi Data',
-    nomorIzin: 'SKD-2024-002',
-    tanggalPengajuan: '03 Januari 2024',
-    tanggalSubmit: '04 Januari 2024',
-    tanggalBerlaku: '04 Januari 2024',
-    kbli: 'Jasa Sistem Komunikasi Data',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 14,
-    penyelenggara: 'GLOBAL NUSANTARA LINK',
-    nib: '0202202415150009',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: 'ISP-2024-009',
-    tanggalPengajuan: '10 Februari 2024',
-    tanggalSubmit: '11 Februari 2024',
-    tanggalBerlaku: '11 Februari 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 15,
-    penyelenggara: 'SINERGI TELEMATIKA',
-    nib: '0303202416160010',
-    layanan: 'Penyelenggaraan Jasa VoIP (Voice over Internet Protocol)',
-    nomorIzin: 'VOIP-2024-005',
-    tanggalPengajuan: '15 Maret 2024',
-    tanggalSubmit: '16 Maret 2024',
-    tanggalBerlaku: '16 Maret 2024',
-    kbli: 'Jasa Teleponi Internet',
-    status: 'Diproses',
-  },
-  {
-    id: 16,
-    penyelenggara: 'MAJU MUNDUR NET',
-    nib: '0404202417170011',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: 'ISP-2024-021',
-    tanggalPengajuan: '17 April 2024',
-    tanggalSubmit: '18 April 2024',
-    tanggalBerlaku: '18 April 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Disetujui',
-  },
-  {
-    id: 17,
-    penyelenggara: 'SAMUDRA DIGITAL',
-    nib: '0505202418180012',
-    layanan: 'Penyelenggaraan Jasa Pusat Panggilan Informasi (Call Center)',
-    nomorIzin: 'CC-2024-006',
-    tanggalPengajuan: '20 Mei 2024',
-    tanggalSubmit: '21 Mei 2024',
-    tanggalBerlaku: '21 Mei 2024',
-    kbli: 'Aktivitas Call Centre',
-    status: 'Disetujui',
-  },
-  {
-    id: 18,
-    penyelenggara: 'METRO CIPTA DATA',
-    nib: '0606202419190013',
-    layanan: 'Penyelenggaraan Jasa Sistem Komunikasi Data',
-    nomorIzin: 'SKD-2024-012',
-    tanggalPengajuan: '10 Juni 2024',
-    tanggalSubmit: '11 Juni 2024',
-    tanggalBerlaku: '11 Juni 2024',
-    kbli: 'Jasa Sistem Komunikasi Data',
-    status: 'Permohonan Baru',
-  },
-  {
-    id: 19,
-    penyelenggara: 'BORNEO NET MANDIRI',
-    nib: '0707202420200014',
-    layanan:
-      'Penyelenggaraan Jasa Akses Internet (Internet Service Provider/ISP)',
-    nomorIzin: 'ISP-2024-030',
-    tanggalPengajuan: '05 Juli 2024',
-    tanggalSubmit: '06 Juli 2024',
-    tanggalBerlaku: '06 Juli 2024',
-    kbli: 'Internet Service Provider',
-    status: 'Diproses',
-  },
-  {
-    id: 20,
-    penyelenggara: 'TELEKOM PRIMA SOLUSI',
-    nib: '0808202421210015',
-    layanan: 'Penyelenggaraan Jasa VoIP (Voice over Internet Protocol)',
-    nomorIzin: 'VOIP-2024-010',
-    tanggalPengajuan: '18 Agustus 2024',
-    tanggalSubmit: '19 Agustus 2024',
-    tanggalBerlaku: '19 Agustus 2024',
-    kbli: 'Jasa Teleponi Internet',
-    status: 'Disetujui',
-  },
-];
+interface JasaApiResponse {
+  data: JasaRecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
 function StatusBadge({ value }: { value: JasaStatus }) {
   const cls =
@@ -338,18 +95,48 @@ export default function JasaPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<JasaRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    // Simulasi refetch data; ketika terhubung API ganti dengan pemanggilan ulang data
-    setTimeout(() => setRefreshing(false), 400);
+  // Fetch Jasa data from API
+  const fetchJasaData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/jasa?page=${page}&pageSize=${pageSize}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: JasaApiResponse = await response.json();
+      
+      setData(result.data);
+      setTotal(result.total);
+    } catch (err) {
+      console.error('Failed to fetch Jasa data:', err);
+      setError('Failed to load Jasa data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const total = DUMMY_DATA.length;
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchJasaData();
+  }, [page, pageSize]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  const current = useMemo(() => data.slice(start, end), [data, start, end]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchJasaData();
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -378,7 +165,7 @@ export default function JasaPage() {
         <CardHeader>
           <CardTitle>Data Jasa</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data jasa telekomunikasi dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

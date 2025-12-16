@@ -24,6 +24,7 @@ import { createServer } from 'http';
 import { attachWebSocket } from './ws.js';
 import { listTicketMessages, createTicketMessage, markMessagesRead } from './messages.js';
 import skloRoutes from './routes/sklo.js';
+import telekomDataRoutes from './routes/telekom-data.js';
 
 dotenv.config();
 
@@ -39,8 +40,9 @@ app.use(cors({
   credentials: true,
 }));
 
-// Register SKLO routes
+// Register telekom data routes
 app.use('/api', skloRoutes);
+app.use('/api', telekomDataRoutes);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
@@ -62,9 +64,9 @@ app.use(globalLimiter);
 
 // Login attempts: stricter
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000, // 10 attempts / 15m / IP
-  standardHeaders: true,
+  windowMs: 15 * 60 * 100,
+  max: 100, // 10 attempts / 15m / IP
+ standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts, please try again later' },
   skipSuccessfulRequests: true, // successful logins do not count toward limit
@@ -73,9 +75,9 @@ const loginLimiter = rateLimit({
 // Email availability check: lighter but still prevents hammering
 const emailCheckLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 3000, // 30 checks per minute per IP
+ max: 3000, // 30 checks per minute per IP
   standardHeaders: true,
-  legacyHeaders: false,
+ legacyHeaders: false,
   message: { error: 'Too many email checks, slow down' },
 });
 
@@ -200,7 +202,7 @@ app.post('/api/uploads', requireAuth, (req, res) => {
       file_name: file.originalname,
       size: file.size,
     });
-  });
+ });
 });
 
 // Tickets
@@ -285,7 +287,7 @@ app.post('/api/tickets/:id/assign', requireAuth, async (req, res) => {
 
     await query('COMMIT');
     res.json({ assignment: rows[0] });
-  } catch (e) {
+ } catch (e) {
     await query('ROLLBACK');
     console.error('Error assigning ticket:', e);
     res.status(500).json({ error: 'Failed to assign ticket' });
@@ -347,7 +349,6 @@ app.get('/api/admin/users/admins', requireAuth, requirePermission('user_manageme
     res.status(500).json({ error: 'Failed to fetch admin users' });
   }
 });
-
 
 
 
@@ -489,7 +490,7 @@ app.get('/api/telekom-data', requireAuth, requirePermission(['dashboard','data_m
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Failed to load telekom data' });
-  }
+ }
 });
 
 // Services (simple lookup lists)
@@ -676,7 +677,7 @@ app.get('/api/sub-services', requireAuth, async (_req, res) => {
   } catch (e) {
     console.error('Failed to load sub-services', e);
     res.status(500).json({ error: 'Failed to load sub-services' });
-  }
+ }
 });
 
 // Helper to map a single telekom_data row with joins to the shape used by list endpoint
@@ -836,7 +837,7 @@ app.get('/api/public/telekom-data/search', async (req, res) => {
     const { rows } = await query(dataSql, dataParams);
 
     res.json({ data: rows, total });
-  } catch (e) {
+ } catch (e) {
     console.error('Public telekom_data search failed', e);
     res.status(500).json({ error: 'Failed to perform search' });
   }
@@ -894,6 +895,7 @@ app.get('/api/kabupaten', async (_req, res) => {
     console.error('Failed to load kabupaten', e);
     res.status(500).json({ error: 'Failed to load kabupaten' });
  }
+});
 
 // Get kecamatan by kabupaten_id
 app.get('/api/kecamatan', async (req, res) => {
@@ -935,7 +937,7 @@ app.get('/api/kecamatan', async (req, res) => {
   } catch (e) {
     console.error('Failed to load kecamatan', e);
     res.status(500).json({ error: 'Failed to load kecamatan' });
-  }
+ }
 });
 
 // Get kelurahan by kecamatan_id
@@ -978,7 +980,6 @@ app.get('/api/kelurahan', async (req, res) => {
     console.error('Failed to load kelurahan', e);
     res.status(500).json({ error: 'Failed to load kelurahan' });
   }
-});
 });
 
 function isAdminRoleList(roleRows) {
@@ -1115,7 +1116,7 @@ app.post('/api/faqs', requireAuth, requireAdmin, async (req, res) => {
       [newId]
     );
     res.status(201).json({ data: fetched[0] });
-  } catch (e) {
+ } catch (e) {
     console.error('Create FAQ failed', e);
     res.status(500).json({ error: 'Failed to create FAQ' });
   }
@@ -1163,7 +1164,7 @@ app.patch('/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
       [id]
     );
     res.json({ data: rows[0] });
-  } catch (e) {
+ } catch (e) {
     console.error('Update FAQ failed', e);
     res.status(500).json({ error: 'Failed to update FAQ' });
   }
@@ -1243,7 +1244,7 @@ app.patch('/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res)
       [id]
     );
     res.json({ data: rows[0] });
-  } catch (e) {
+ } catch (e) {
     console.error('Update FAQ category failed', e);
     res.status(500).json({ error: 'Failed to update FAQ category' });
   }
@@ -1495,7 +1496,7 @@ app.post('/api/integrations/test', requireAuth, async (req, res) => {
 
     // Timeout handling
     const timeoutRaw = raw.timeout ?? data.timeout;
-    const timeoutMs = Math.min(Math.max(parseInt(timeoutRaw) || 30000, 1000), 60000);
+    const timeoutMs = Math.min(Math.max(parseInt(timeoutRaw) || 3000, 1000), 60000);
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
 
@@ -2302,7 +2303,7 @@ app.get('/api/tickets/stats', requireAuth, async (req, res) => {
         adminTickets: isAdmin ? unread : 0,
       },
     });
-  } catch (e) {
+ } catch (e) {
     console.error('Failed to compute ticket stats', e);
     res.status(500).json({
       error: 'Failed to compute ticket stats',
@@ -2379,5 +2380,3 @@ attachWebSocket(server);
 server.listen(PORT, () => {
   console.log(`Backend server running on port ${PORT}`);
 });
-
-

@@ -64,7 +64,7 @@ router.get('/sklo', async (req, res) => {
       FROM public.ulo_applications ua
       LEFT JOIN public.license_applications la ON ua.license_application_id = la.id
       LEFT JOIN public.companies c ON la.company_id = c.id
-      LEFT JOIN public.license_services ls ON la.license_service_id = ls.id
+      LEFT JOIN public.sub_services ss ON la.license_service_id = ss.id
     ${whereSql}
   `;
     const countResult = await query(countSql, params);
@@ -74,11 +74,12 @@ router.get('/sklo', async (req, res) => {
     const dataSql = `
       SELECT ua.id, ua.sklo_number, ua.status, ua.issued_at,
              c.company_name, la.application_number as license_number, la.submitted_at,
-             ls.name as sub_service_name
+             COALESCE(ss.name, ls.name) as sub_service_name
       FROM public.ulo_applications ua
       LEFT JOIN public.license_applications la ON ua.license_application_id = la.id
       LEFT JOIN public.companies c ON la.company_id = c.id
-      LEFT JOIN public.license_services ls ON la.license_service_id = ls.id
+      LEFT JOIN public.sub_services ss ON la.license_service_id = ss.id
+      LEFT JOIN public.services ls ON ss.service_id = ls.id
       ${whereSql}
       ORDER BY ua.issued_at DESC
       LIMIT $${params.length + 1} OFFSET $${params.length + 2}
