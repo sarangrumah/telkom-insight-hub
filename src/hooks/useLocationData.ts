@@ -20,6 +20,22 @@ export interface Kabupaten {
   province?: Province;
 }
 
+export interface Kecamatan {
+  id: string;
+  name: string;
+  type: string;
+  parent_id: string;
+  kabupaten_id: string;
+}
+
+export interface Kelurahan {
+  id: string;
+  name: string;
+  type: string;
+  parent_id: string;
+  kecamatan_id: string;
+}
+
 interface ProvincesResponse {
   provinces: Province[];
 }
@@ -35,6 +51,24 @@ interface KabupatenRow {
 }
 interface KabupatenResponse {
   kabupaten: KabupatenRow[];
+}
+interface KecamatanResponse {
+  kecamatan: {
+    id: string;
+    name: string;
+    type: string;
+    parent_id: string;
+    kabupaten_id: string;
+  }[];
+}
+interface KelurahanResponse {
+  kelurahan: {
+    id: string;
+    name: string;
+    type: string;
+    parent_id: string;
+    kecamatan_id: string;
+  }[];
 }
 
 function extractErrorMessage(err: unknown): string {
@@ -62,12 +96,8 @@ export const useLocationData = () => {
         setLoading(true);
         setError(null);
         // Hit backend endpoints (must be implemented on server)
-        const provincesResp = await apiFetch<ProvincesResponse>(
-          '/api/provinces'
-        );
-        const kabupatenResp = await apiFetch<KabupatenResponse>(
-          '/api/kabupaten'
-        );
+        const provincesResp = await apiFetch('/api/provinces') as ProvincesResponse;
+        const kabupatenResp = await apiFetch('/api/kabupaten') as KabupatenResponse;
 
         setProvinces(provincesResp.provinces || []);
         setAllKabupaten(
@@ -102,6 +132,40 @@ export const useLocationData = () => {
     return provinces.find(p => p.id === id);
   };
 
+  // Fetch kecamatan by kabupaten_id
+  const fetchKecamatanByKabupaten = async (kabupatenId: string): Promise<Kecamatan[]> => {
+    try {
+      const response = await apiFetch(`/api/kecamatan?kabupaten_id=${kabupatenId}`) as KecamatanResponse;
+      return (response.kecamatan || []).map(k => ({
+        id: k.id,
+        name: k.name,
+        type: k.type,
+        parent_id: k.parent_id,
+        kabupaten_id: k.kabupaten_id
+      }));
+    } catch (error) {
+      console.error('Error fetching kecamatan:', error);
+      return [];
+    }
+  };
+
+  // Fetch kelurahan by kecamatan_id
+  const fetchKelurahanByKecamatan = async (kecamatanId: string): Promise<Kelurahan[]> => {
+    try {
+      const response = await apiFetch(`/api/kelurahan?kecamatan_id=${kecamatanId}`) as KelurahanResponse;
+      return (response.kelurahan || []).map(k => ({
+        id: k.id,
+        name: k.name,
+        type: k.type,
+        parent_id: k.parent_id,
+        kecamatan_id: k.kecamatan_id
+      }));
+    } catch (error) {
+      console.error('Error fetching kelurahan:', error);
+      return [];
+    }
+  };
+
   return {
     provinces,
     allKabupaten,
@@ -110,6 +174,8 @@ export const useLocationData = () => {
     getKabupaténByProvince,
     getKabupaténById,
     getProvinceById,
+    fetchKecamatanByKabupaten,
+    fetchKelurahanByKecamatan,
     refetch: () => {
       // allow manual refetch by re-running effect logic
       // we could extract logic but simplest is to call fetchLocationData again
@@ -118,12 +184,8 @@ export const useLocationData = () => {
         try {
           setLoading(true);
           setError(null);
-          const provincesResp = await apiFetch<ProvincesResponse>(
-            '/api/provinces'
-          );
-          const kabupatenResp = await apiFetch<KabupatenResponse>(
-            '/api/kabupaten'
-          );
+          const provincesResp = await apiFetch('/api/provinces') as ProvincesResponse;
+          const kabupatenResp = await apiFetch('/api/kabupaten') as KabupatenResponse;
           setProvinces(provincesResp.provinces || []);
           setAllKabupaten(
             (kabupatenResp.kabupaten || []).map(k => ({

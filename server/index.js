@@ -23,9 +23,14 @@ import multer from 'multer';
 import { createServer } from 'http';
 import { attachWebSocket } from './ws.js';
 import { listTicketMessages, createTicketMessage, markMessagesRead } from './messages.js';
+import skloRoutes from './routes/sklo.js';
+
 dotenv.config();
 
 const app = express();
+
+// Register SKLO routes
+app.use('/api', skloRoutes);
 const allowedOrigins = (process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173'];
 app.use(cors({
   origin(origin, callback) {
@@ -728,7 +733,7 @@ async function fetchTelekomDataRecord(id) {
 }
 
 // Location data (provinces & kabupaten) replacing prior Supabase direct fetches
-app.get('/api/provinces', requireAuth, async (_req, res) => {
+app.get('/api/provinces', async (_req, res) => {
   try {
     const { rows } = await query(
       'SELECT id, code, name, latitude, longitude FROM public.provinces ORDER BY name ASC'
@@ -857,7 +862,7 @@ app.get('/api/public/telekom-data/:id', async (req, res) => {
   }
 });
 
-app.get('/api/kabupaten', requireAuth, async (_req, res) => {
+app.get('/api/kabupaten', async (_req, res) => {
   try {
     const { rows } = await query(`
       SELECT k.id, k.province_id, k.code, k.name, k.type, k.latitude, k.longitude,
@@ -887,7 +892,92 @@ app.get('/api/kabupaten', requireAuth, async (_req, res) => {
   } catch (e) {
     console.error('Failed to load kabupaten', e);
     res.status(500).json({ error: 'Failed to load kabupaten' });
+ }
+
+// Get kecamatan by kabupaten_id
+app.get('/api/kecamatan', async (req, res) => {
+  try {
+    const { kabupaten_id } = req.query;
+
+    let querySql = `
+      SELECT ir.region_id, ir.name, ir.type, ir.parent_id,
+             k.id AS kabupaten_id, k.code AS kabupaten_code, k.name AS kabupaten_name
+      FROM public.indonesian_regions ir
+      LEFT JOIN public.kabupaten k ON k.code = ir.parent_id
+      WHERE ir.type IN ('kecamatan', 'district')
+    `;
+    const params = [];
+
+    if (kabupaten_id && typeof kabupaten_id === 'string') {
+      querySql += ` AND k.id = $1`;
+      params.push(kabupaten_id);
+    }
+
+    querySql += ` ORDER BY ir.name ASC`;
+
+    const { rows } = await query(querySql, params);
+    const kecamatan = rows.map(r => ({
+      region_id: r.region_id,
+      name: r.name,
+      type: r.type,
+      parent_id: r.parent_id,
+      kabupaten: r.kabupaten_id
+        ? {
+            id: r.kabupaten_id,
+            code: r.kabupaten_code,
+            name: r.kabupaten_name,
+          }
+        : null,
+    }));
+
+    res.json({ kecamatan });
+  } catch (e) {
+    console.error('Failed to load kecamatan', e);
+    res.status(500).json({ error: 'Failed to load kecamatan' });
   }
+});
+
+// Get kelurahan by kecamatan_id
+app.get('/api/kelurahan', async (req, res) => {
+  try {
+    const { kecamatan_id } = req.query;
+
+    let querySql = `
+      SELECT ir.region_id, ir.name, ir.type, ir.parent_id,
+             k.region_id AS kecamatan_id, k.name AS kecamatan_name
+      FROM public.indonesian_regions ir
+      LEFT JOIN public.indonesian_regions k ON k.region_id = ir.parent_id
+      WHERE ir.type IN ('kelurahan', 'village')
+    `;
+    const params = [];
+
+    if (kecamatan_id && typeof kecamatan_id === 'string') {
+      querySql += ` AND ir.parent_id = $1`;
+      params.push(kecamatan_id);
+    }
+
+    querySql += ` ORDER BY ir.name ASC`;
+
+    const { rows } = await query(querySql, params);
+    const kelurahan = rows.map(r => ({
+      region_id: r.region_id,
+      name: r.name,
+      type: r.type,
+      parent_id: r.parent_id,
+      kecamatan: r.kecamatan_id
+        ? {
+            id: r.kecamatan_id,
+            name: r.kecamatan_name,
+          }
+        : null,
+    }));
+
+    res.json({ kelurahan });
+  } catch (e) {
+    console.error('Failed to load kelurahan', e);
+    res.status(500).json({ error: 'Failed to load kelurahan' });
+  }
+});
 });
 
 function isAdminRoleList(roleRows) {
@@ -2290,30 +2380,3 @@ server.listen(PORT, () => {
 });
 
 
-// Provinces list (for filters)
-app.get('/api/provinces', requireAuth, async (_req, res) => {
-  try {
-    // Select minimal stable columns used by the frontend filters
-    const { rows } = await query(
-      'SELECT id, name FROM public.provinces ORDER BY name ASC'
-    );
-    res.json({ provinces: rows });
-  } catch (e) {
-    console.error('Failed to load provinces', e);
-    res.status(500).json({ error: 'Failed to load provinces' });
-  }
-});
-
-// Kabupaten/Kota list (for filters)
-app.get('/api/kabupaten', requireAuth, async (_req, res) => {
-  try {
-    // Select minimal stable columns used by the frontend filters
-    const { rows } = await query(
-      'SELECT id, province_id, name, type FROM public.kabupaten ORDER BY name ASC'
-    );
-    res.json({ kabupaten: rows });
-  } catch (e) {
-    console.error('Failed to load kabupaten/kota', e);
-    res.status(500).json({ error: 'Failed to load kabupaten/kota' });
-  }
-});

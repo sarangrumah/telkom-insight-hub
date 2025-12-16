@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useLocationData } from '@/hooks/useLocationData';
-import { supabase } from '@/integrations/supabase/client';
 
 interface LocationSelectorProps {
   value: {
@@ -20,27 +19,16 @@ interface LocationSelectorProps {
   required?: boolean;
 }
 
-interface Kecamatan {
-  region_id: string;
-  name: string;
-}
-
-interface Kelurahan {
-  region_id: string;
-  name: string;
-}
-
 export function LocationSelector({ value, onChange, required = false }: LocationSelectorProps) {
-  const { provinces, getKabupaténByProvince, loading } = useLocationData();
-  const [kecamatanList, setKecamatanList] = useState<Kecamatan[]>([]);
-  const [kelurahanList, setKelurahanList] = useState<Kelurahan[]>([]);
+  const { provinces, getKabupaténByProvince, loading, fetchKecamatanByKabupaten, fetchKelurahanByKecamatan } = useLocationData();
+  const [kecamatanList, setKecamatanList] = useState<{ id: string; name: string }[]>([]);
+  const [kelurahanList, setKelurahanList] = useState<{ id: string; name: string }[]>([]);
   const [loadingKecamatan, setLoadingKecamatan] = useState(false);
   const [loadingKelurahan, setLoadingKelurahan] = useState(false);
 
   // Load kecamatan when kabupaten changes
   useEffect(() => {
     const loadKecamatan = async () => {
-      console.log("[LocationSelector] kabupaténId:", value.kabupaténId);
       if (!value.kabupaténId) {
         setKecamatanList([]);
         return;
@@ -48,28 +36,8 @@ export function LocationSelector({ value, onChange, required = false }: Location
   
       setLoadingKecamatan(true);
       try {
-        // Get the kabupaten code from the kabupaten table
-        const { data: kabupaténData, error: kabupaténError } = await supabase
-          .from<{ code: string }>('kabupaten')
-          .select('code')
-          .eq('id', value.kabupaténId)
-          .single();
-  
-        console.log("[LocationSelector] kabupaténData:", kabupaténData, "error:", kabupaténError);
-  
-        if (kabupaténError) throw kabupaténError;
-  
-        const { data, error } = await supabase
-          .from<Kecamatan>('indonesian_regions')
-          .select('region_id, name')
-          .in('type', ['district', 'kecamatan'])
-          .eq('parent_id', kabupaténData.code)
-          .order('name');
-  
-        console.log("[LocationSelector] kecamatan fetch result:", data, "error:", error);
-  
-        if (error) throw error;
-        setKecamatanList(data || []);
+        const kecamatanData = await fetchKecamatanByKabupaten(value.kabupaténId);
+        setKecamatanList(kecamatanData.map(k => ({ id: k.id, name: k.name })));
       } catch (error) {
         console.error('Error loading kecamatan:', error);
         setKecamatanList([]);
@@ -79,7 +47,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
     };
   
     loadKecamatan();
-  }, [value.kabupaténId]);
+  }, [value.kabupaténId, fetchKecamatanByKabupaten]);
 
   // Load kelurahan when kecamatan changes
   useEffect(() => {
@@ -91,22 +59,12 @@ export function LocationSelector({ value, onChange, required = false }: Location
 
       setLoadingKelurahan(true);
       try {
-        // Find the kecamatan region_id from the name
-        let parentId = value.kecamatan;
+        // Find the kecamatan id from the name
         const kecamatanItem = kecamatanList.find(k => k.name === value.kecamatan);
         if (kecamatanItem) {
-          parentId = kecamatanItem.region_id;
+          const kelurahanData = await fetchKelurahanByKecamatan(kecamatanItem.id);
+          setKelurahanList(kelurahanData.map(k => ({ id: k.id, name: k.name })));
         }
-
-        const { data, error } = await supabase
-          .from<Kelurahan>('indonesian_regions')
-          .select('region_id, name')
-          .eq('type', 'village')
-          .eq('parent_id', value.kecamatan)
-          .order('name');
-
-        if (error) throw error;
-        setKelurahanList(data || []);
       } catch (error) {
         console.error('Error loading kelurahan:', error);
         setKelurahanList([]);
@@ -116,7 +74,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
     };
 
     loadKelurahan();
-  }, [value.kecamatan, kecamatanList]);
+  }, [value.kecamatan, kecamatanList, fetchKelurahanByKecamatan]);
 
   const handleProvinceChange = (provinceId: string) => {
     onChange({
@@ -134,25 +92,24 @@ export function LocationSelector({ value, onChange, required = false }: Location
       kecamatan: undefined,
       kelurahan: undefined
     });
-  };
+ };
 
-// Fix kecamatan and kelurahan display - save names instead of codes
-  const handleKecamatanChange = (kecamatan: string) => {
+  const handleKecamatanChange = (kecamatanId: string) => {
     // Find the kecamatan name from the list
-    const kecamatanItem = kecamatanList.find(k => k.region_id === kecamatan);
+    const kecamatanItem = kecamatanList.find(k => k.id === kecamatanId);
     onChange({
       ...value,
-      kecamatan: kecamatanItem?.name || kecamatan, // Save name instead of code
+      kecamatan: kecamatanItem?.name || kecamatanId, // Save name instead of id
       kelurahan: undefined
     });
-  };
+ };
 
-  const handleKelurahanChange = (kelurahan: string) => {
+  const handleKelurahanChange = (kelurahanId: string) => {
     // Find the kelurahan name from the list
-    const kelurahanItem = kelurahanList.find(k => k.region_id === kelurahan);
+    const kelurahanItem = kelurahanList.find(k => k.id === kelurahanId);
     onChange({
       ...value,
-      kelurahan: kelurahanItem?.name || kelurahan // Save name instead of code
+      kelurahan: kelurahanItem?.name || kelurahanId // Save name instead of id
     });
   };
 
@@ -160,7 +117,7 @@ export function LocationSelector({ value, onChange, required = false }: Location
     return <div className="text-sm text-muted-foreground">Loading location data...</div>;
   }
 
-  const kabupatenList = value.provinceId ? getKabupaténByProvince(value.provinceId) : [];
+ const kabupatenList = value.provinceId ? getKabupaténByProvince(value.provinceId) : [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -202,45 +159,45 @@ export function LocationSelector({ value, onChange, required = false }: Location
 
       <div className="space-y-2">
         <Label>Kecamatan {required && <span className="text-destructive">*</span>}</Label>
-        <Select 
-          value={value.kecamatan ? 
-            kecamatanList.find(k => k.name === value.kecamatan)?.region_id || value.kecamatan 
-            : ''} 
+        <Select
+          value={value.kecamatan ?
+            kecamatanList.find(k => k.name === value.kecamatan)?.id || ''
+            : ''}
           onValueChange={handleKecamatanChange}
           disabled={!value.kabupaténId || loadingKecamatan}
         >
           <SelectTrigger>
             <SelectValue placeholder={loadingKecamatan ? "Loading..." : "Pilih Kecamatan"} />
           </SelectTrigger>
-        <SelectContent className="z-[100]">
-          {kecamatanList.map((kecamatan) => (
-            <SelectItem key={kecamatan.region_id} value={kecamatan.region_id}>
-              {kecamatan.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
+          <SelectContent className="z-[100]">
+            {kecamatanList.map((kecamatan) => (
+              <SelectItem key={kecamatan.id} value={kecamatan.id}>
+                {kecamatan.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
         <Label>Kelurahan {required && <span className="text-destructive">*</span>}</Label>
-        <Select 
-          value={value.kelurahan ? 
-            kelurahanList.find(k => k.name === value.kelurahan)?.region_id || value.kelurahan 
-            : ''} 
+        <Select
+          value={value.kelurahan ?
+            kelurahanList.find(k => k.name === value.kelurahan)?.id || ''
+            : ''}
           onValueChange={handleKelurahanChange}
           disabled={!value.kecamatan || loadingKelurahan}
         >
           <SelectTrigger>
             <SelectValue placeholder={loadingKelurahan ? "Loading..." : "Pilih Kelurahan"} />
           </SelectTrigger>
-        <SelectContent className="z-[100]">
-          {kelurahanList.map((kelurahan) => (
-            <SelectItem key={kelurahan.region_id} value={kelurahan.region_id}>
-              {kelurahan.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
+          <SelectContent className="z-[100]">
+            {kelurahanList.map((kelurahan) => (
+              <SelectItem key={kelurahan.id} value={kelurahan.id}>
+                {kelurahan.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
     </div>

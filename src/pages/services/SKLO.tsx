@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -31,11 +31,12 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
+import { apiFetch } from '@/lib/apiClient';
 
 type SKLOStatus = 'Disetujui' | 'Permohonan Baru' | 'Ditolak' | 'Diproses';
 
 interface SKLORecord {
-  id: number;
+  id: string; // Changed from number to string as it's a UUID
   perusahaan: string;
   perusahaanAlt?: string; // teks kecil di bawah nama (dalam kurung)
   izinLayanan: string;
@@ -44,214 +45,13 @@ interface SKLORecord {
   status: SKLOStatus;
 }
 
-const DUMMY_DATA: SKLORecord[] = [
-  {
-    id: 1,
-    perusahaan: 'SEKRETARIAT WAKIL PRESIDEN - SEKRETARIAT NEGARA RI',
-    perusahaanAlt: 'SEKRETARIAT WAKIL PRESIDEN - SEKRETARIAT NEGARA RI',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '193/DIRJEN/2010',
-    tanggalBerlaku: '04 June 2010',
-    status: 'Disetujui',
-  },
-  {
-    id: 2,
-    perusahaan: 'SEKRETARIAT DAERAH PEMERINTAH KABUPATEN BANTUL',
-    perusahaanAlt: 'SEKRETARIAT DAERAH PEMERINTAH KABUPATEN BANTUL',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '230/DIRJEN/2010',
-    tanggalBerlaku: '06 July 2010',
-    status: 'Disetujui',
-  },
-  {
-    id: 3,
-    perusahaan:
-      'SATUAN KERJA KHUSUS USAHA HULU MINYAK DAN GAS BUMI (SKK MIGAS) - BP INDONESIA',
-    perusahaanAlt:
-      'SATUAN KERJA KHUSUS USAHA HULU MINYAK DAN GAS BUMI (SKK MIGAS) - BP INDONESIA',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '001/TEL.03.02/2020',
-    tanggalBerlaku: '03 April 2020',
-    status: 'Disetujui',
-  },
-  {
-    id: 4,
-    perusahaan:
-      'SATUAN KERJA KHUSUS PELAKSANA KEGIATAN USAHA HULU MINYAK DAN GAS BUMI (SKK MIGAS) – PETROCHINA INTERNATIONAL JABUNG LTD',
-    perusahaanAlt:
-      'SATUAN KERJA KHUSUS PELAKSANA KEGIATAN USAHA HULU MINYAK DAN GAS BUMI (SKK MIGAS) – PETROCHINA INTERNATIONAL JABUNG LTD',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '113/TEL.03.02/2022',
-    tanggalBerlaku: '04 October 2022',
-    status: 'Disetujui',
-  },
-  // Tambahan 16 data dummy
-  {
-    id: 5,
-    perusahaan: 'DINAS KOMUNIKASI DAN INFORMATIKA KABUPATEN SLEMAN',
-    perusahaanAlt:
-      'DINAS KOMUNIKASI DAN INFORMATIKA KABUPATEN SLEMAN',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '205/TEL.03.02/2021',
-    tanggalBerlaku: '12 May 2021',
-    status: 'Disetujui',
-  },
-  {
-    id: 6,
-    perusahaan: 'PT NUSANTARA MINERAL PRIMA',
-    perusahaanAlt: 'PT NUSANTARA MINERAL PRIMA',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2021-045',
-    tanggalBerlaku: '20 May 2021',
-    status: 'Disetujui',
-  },
-  {
-    id: 7,
-    perusahaan: 'DINAS PERHUBUNGAN PROVINSI JAWA BARAT',
-    perusahaanAlt: 'DINAS PERHUBUNGAN PROVINSI JAWA BARAT',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '306/TEL.03.02/2021',
-    tanggalBerlaku: '28 June 2021',
-    status: 'Disetujui',
-  },
-  {
-    id: 8,
-    perusahaan: 'PT BORNEO ENERGI PERSADA',
-    perusahaanAlt: 'PT BORNEO ENERGI PERSADA',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2022-011',
-    tanggalBerlaku: '05 February 2022',
-    status: 'Diproses',
-  },
-  {
-    id: 9,
-    perusahaan: 'SEKRETARIAT DAERAH PROVINSI KALIMANTAN TIMUR',
-    perusahaanAlt: 'SEKRETARIAT DAERAH PROVINSI KALIMANTAN TIMUR',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '017/TEL.03.02/2022',
-    tanggalBerlaku: '10 March 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 10,
-    perusahaan: 'PT ANDALAN CYBERINDO',
-    perusahaanAlt: 'PT ANDALAN CYBERINDO',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2022-023',
-    tanggalBerlaku: '20 March 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 11,
-    perusahaan: 'SEKRETARIAT DAERAH KABUPATEN BADUNG',
-    perusahaanAlt: 'SEKRETARIAT DAERAH KABUPATEN BADUNG',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '051/TEL.03.02/2022',
-    tanggalBerlaku: '02 April 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 12,
-    perusahaan: 'PT METRO CIPTA MEDIA',
-    perusahaanAlt: 'PT METRO CIPTA MEDIA',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2022-041',
-    tanggalBerlaku: '12 April 2022',
-    status: 'Ditolak',
-  },
-  {
-    id: 13,
-    perusahaan: 'PT JAWA MEDIA DIGITAL',
-    perusahaanAlt: 'PT JAWA MEDIA DIGITAL',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2022-058',
-    tanggalBerlaku: '04 May 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 14,
-    perusahaan: 'SEKRETARIAT DAERAH PROVINSI DIY',
-    perusahaanAlt: 'SEKRETARIAT DAERAH PROVINSI DIY',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '077/TEL.03.02/2022',
-    tanggalBerlaku: '15 June 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 15,
-    perusahaan: 'PT BALI NUSA NET',
-    perusahaanAlt: 'PT BALI NUSA NET',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2022-091',
-    tanggalBerlaku: '03 July 2022',
-    status: 'Disetujui',
-  },
-  {
-    id: 16,
-    perusahaan: 'PT SUMATERA TELEMEDIA',
-    perusahaanAlt: 'PT SUMATERA TELEMEDIA',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2023-006',
-    tanggalBerlaku: '11 January 2023',
-    status: 'Diproses',
-  },
-  {
-    id: 17,
-    perusahaan: 'PT PAPUA DATA NUSANTARA',
-    perusahaanAlt: 'PT PAPUA DATA NUSANTARA',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2023-014',
-    tanggalBerlaku: '22 January 2023',
-    status: 'Disetujui',
-  },
-  {
-    id: 18,
-    perusahaan: 'SEKRETARIAT DAERAH KOTA BANDUNG',
-    perusahaanAlt: 'SEKRETARIAT DAERAH KOTA BANDUNG',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '012/TEL.03.02/2023',
-    tanggalBerlaku: '02 February 2023',
-    status: 'Disetujui',
-  },
-  {
-    id: 19,
-    perusahaan: 'PT NUSANTARA HUB',
-    perusahaanAlt: 'PT NUSANTARA HUB',
-    izinLayanan:
-      'Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Badan Hukum',
-    nomorSKLO: 'TS-2023-025',
-    tanggalBerlaku: '15 March 2023',
-    status: 'Disetujui',
-  },
-  {
-    id: 20,
-    perusahaan: 'SEKRETARIAT DAERAH KABUPATEN SIDOARJO',
-    perusahaanAlt: 'SEKRETARIAT DAERAH KABUPATEN SIDOARJO',
-    izinLayanan:
-      'Izin Prinsip Penyelenggaraan Telekomunikasi Khusus untuk Keperluan Instansi Pemerintah',
-    nomorSKLO: '023/TEL.03.02/2023',
-    tanggalBerlaku: '29 March 2023',
-    status: 'Disetujui',
-  },
-];
+interface SKLOApiResponse {
+  data: SKLORecord[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
 
 function StatusBadge({ value }: { value: SKLOStatus }) {
   const cls =
@@ -275,18 +75,45 @@ export default function SKLOPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [refreshing, setRefreshing] = useState(false);
+  const [skloData, setSkloData] = useState<SKLORecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const total = DUMMY_DATA.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const start = (page - 1) * pageSize;
-  const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => DUMMY_DATA.slice(start, end), [start, end]);
+  // Fetch SKLO data from API
+  const fetchSKLOData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data: SKLOApiResponse = await apiFetch(`/api/sklo?page=${page}&pageSize=${pageSize}`);
+      
+      setSkloData(data.data);
+      setTotal(data.total);
+      setTotalPages(data.totalPages);
+    } catch (err) {
+      console.error('Failed to fetch SKLO data:', err);
+      setError('Failed to load SKLO data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load and when pagination changes
+  useEffect(() => {
+    fetchSKLOData();
+  }, [page, pageSize]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 400);
+    fetchSKLOData();
   };
 
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+  
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -300,11 +127,11 @@ export default function SKLOPage() {
           <Button
             variant="outline"
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={refreshing || loading}
             aria-label="Refresh"
             title="Refresh"
           >
-            <RotateCcw className={'mr-2 h-4 w-4' + (refreshing ? ' animate-spin' : '')} />
+            <RotateCcw className={'mr-2 h-4 w-4' + (refreshing || loading ? ' animate-spin' : '')} />
             Refresh
           </Button>
         </div>
@@ -314,10 +141,16 @@ export default function SKLOPage() {
         <CardHeader>
           <CardTitle>Data SKLO</CardTitle>
           <CardDescription>
-            Tabel dengan 20 data dummy untuk uji pagination
+            Tabel data SKLO dari database
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {error && (
+            <div className="text-red-500 p-2 bg-red-50 rounded-md">
+              Error: {error}
+            </div>
+          )}
+          
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -331,34 +164,48 @@ export default function SKLOPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {current.map((row, idx) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-muted-foreground">
-                      {start + idx + 1}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold">{row.perusahaan}</div>
-                      <div className="text-xs text-muted-foreground">
-                        ({row.perusahaanAlt || ''})
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[520px]">
-                      {row.izinLayanan}
-                    </TableCell>
-                    <TableCell>{row.nomorSKLO}</TableCell>
-                    <TableCell>{row.tanggalBerlaku}</TableCell>
-                    <TableCell>
-                      <StatusBadge value={row.status} />
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : skloData.length > 0 ? (
+                  skloData.map((row, idx) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="text-muted-foreground">
+                        {start + idx - 1}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold">{row.perusahaan}</div>
+                        <div className="text-xs text-muted-foreground">
+                          ({row.perusahaanAlt || ''})
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[520px]">
+                        {row.izinLayanan}
+                      </TableCell>
+                      <TableCell>{row.nomorSKLO}</TableCell>
+                      <TableCell>{row.tanggalBerlaku}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={row.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No data available
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
-              Menampilkan {total === 0 ? 0 : start + 1}–{end} dari {total} data
+              Menampilkan {total === 0 ? 0 : start}–{end} dari {total} data
             </div>
 
             <div className="flex items-center gap-3">
@@ -392,6 +239,7 @@ export default function SKLOPage() {
                         e.preventDefault();
                         setPage((p) => Math.max(1, p - 1));
                       }}
+                      disabled={page === 1}
                     />
                   </PaginationItem>
 
@@ -408,6 +256,7 @@ export default function SKLOPage() {
                         e.preventDefault();
                         setPage((p) => Math.min(totalPages, p + 1));
                       }}
+                      disabled={page === totalPages}
                     />
                   </PaginationItem>
                 </PaginationContent>

@@ -35,7 +35,7 @@ export function useMonitoring() {
       };
 
       // Log to console for development
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Application Error:', errorInfo);
       }
 
@@ -70,7 +70,7 @@ export function useMonitoring() {
       };
 
       // Log performance metrics
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('Performance Metrics:', metrics);
       }
 
@@ -106,7 +106,7 @@ export function useMonitoring() {
       };
 
       // Log user actions for analytics
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('User Action:', actionLog);
       }
 

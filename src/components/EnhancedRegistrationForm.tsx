@@ -1,29 +1,29 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Upload, 
-  FileText, 
-  User, 
-  Building, 
-  CheckCircle, 
-  AlertCircle, 
-  XCircle, 
-  Check, 
-  Globe, 
-  Phone, 
-  MapPin, 
-  Briefcase, 
-  IdCard, 
-  Mail, 
-  DollarSign, 
-  Building2, 
-  Hash, 
-  Map, 
+import {
+  Upload,
+  FileText,
+  User,
+  Building,
+  CheckCircle,
+  AlertCircle,
+ XCircle,
+  Check,
+  Globe,
+  Phone,
+  MapPin,
+  Briefcase,
+  IdCard,
+ Mail,
+  DollarSign,
+  Building2,
+ Hash,
+  Map,
   Home,
   Eye,
   EyeOff
@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { LocationSelector } from './LocationSelector';
 
 interface DocumentUploadSectionProps {
   label: string;
@@ -50,14 +51,14 @@ interface DocumentUploadSectionProps {
 
 const DocumentUploadSection = React.forwardRef<HTMLInputElement, DocumentUploadSectionProps>(({
   label, 
-  type, 
+ type, 
   file, 
   onFileChange, 
   required = false,
   accept = '.pdf',
   description
 }, ref) => {
-  const [dragActive, setDragActive] = React.useState(false);
+ const [dragActive, setDragActive] = React.useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
@@ -144,7 +145,7 @@ const DocumentUploadSection = React.forwardRef<HTMLInputElement, DocumentUploadS
               </div>
             </div>
             <Button
-              variant="ghost" 
+              variant="ghost"
               size="sm"
               onClick={(e) => {
                 e.stopPropagation();
@@ -169,6 +170,11 @@ const DocumentUploadSection = React.forwardRef<HTMLInputElement, DocumentUploadS
 DocumentUploadSection.displayName = 'DocumentUploadSection';
 
 const EnhancedRegistrationForm: React.FC = () => {
+  const [provinces, setProvinces] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [kabupaten, setKabupaten] = useState<{ id: string; name: string; type: string; province_id: string }[]>([]);
+  const [filteredKabupaten, setFilteredKabupaten] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [filteredPicKabupaten, setFilteredPicKabupaten] = useState<{ id: string; name: string; type: string }[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Personal Information
@@ -238,10 +244,10 @@ const EnhancedRegistrationForm: React.FC = () => {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+ const [error, setError] = useState<string | null>(null);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const fileInputRefs = {
     profile_picture: useRef<HTMLInputElement>(null),
@@ -254,6 +260,108 @@ const EnhancedRegistrationForm: React.FC = () => {
     company_stamp: useRef<HTMLInputElement>(null),
     company_certificate: useRef<HTMLInputElement>(null),
   };
+
+  // Fetch provinces and kabupaten data on component mount
+  useEffect(() => {
+    const fetchLocationData = async () => {
+      try {
+        setLoadingLocations(true);
+        
+        // Fetch provinces - use relative path to allow Vite proxy to handle the request
+        // Ensure no credentials or auth headers are sent
+        const provincesResponse = await fetch('/api/provinces', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          credentials: 'omit', // Don't send any stored credentials
+          cache: 'no-store', // Don't use cached responses
+          mode: 'cors', // Ensure CORS mode is enabled
+          redirect: 'follow', // Follow redirects if any
+          // Explicitly prevent any default browser behavior that might include auth
+          referrerPolicy: 'no-referrer',
+        });
+        if (provincesResponse.ok) {
+          const provincesData = await provincesResponse.json();
+          // Check if the response is actually JSON and has the expected structure
+          if (provincesData && Array.isArray(provincesData.provinces)) {
+            setProvinces(provincesData.provinces || []);
+          } else {
+            console.error('Invalid provinces response structure:', provincesData);
+            setError('Invalid response structure for provinces. Please try again.');
+          }
+        } else {
+          console.error('Provinces API error:', provincesResponse.status, provincesResponse.statusText);
+          setError(`Failed to load provinces. Status: ${provincesResponse.status}`);
+        }
+        
+        // Fetch kabupaten - use relative path to allow Vite proxy to handle the request
+        // Ensure no credentials or auth headers are sent
+        const kabupatenResponse = await fetch('/api/kabupaten', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          },
+          credentials: 'omit', // Don't send any stored credentials
+          cache: 'no-store', // Don't use cached responses
+          mode: 'cors', // Ensure CORS mode is enabled
+          redirect: 'follow', // Follow redirects if any
+          // Explicitly prevent any default browser behavior that might include auth
+          referrerPolicy: 'no-referrer',
+        });
+        if (kabupatenResponse.ok) {
+          const kabupatenData = await kabupatenResponse.json();
+          // Check if the response is actually JSON and has the expected structure
+          if (kabupatenData && Array.isArray(kabupatenData.kabupaten)) {
+            setKabupaten(kabupatenData.kabupaten || []);
+          } else {
+            console.error('Invalid kabupaten response structure:', kabupatenData);
+            setError('Invalid response structure for kabupaten. Please try again.');
+          }
+        } else {
+          console.error('Kabupaten API error:', kabupatenResponse.status, kabupatenResponse.statusText);
+          setError(`Failed to load kabupaten. Status: ${kabupatenResponse.status}`);
+        }
+      } catch (error) {
+        console.error('Error fetching location data:', error);
+        if (error instanceof SyntaxError && error.message.includes('JSON')) {
+          setError('Invalid response format received from server. Please check the API.');
+        } else {
+          setError('Failed to load location data. Please try again.');
+        }
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    fetchLocationData();
+  }, []);
+
+  // Filter kabupaten based on selected province
+  useEffect(() => {
+    if (formData.province_id) {
+      const filtered = kabupaten.filter(k => k.province_id === formData.province_id);
+      setFilteredKabupaten(filtered);
+    } else {
+      setFilteredKabupaten([]);
+    }
+  }, [formData.province_id, kabupaten]);
+
+  // Filter kabupaten for PIC based on selected province
+  useEffect(() => {
+    if (formData.pic_province_id) {
+      const filtered = kabupaten.filter(k => k.province_id === formData.pic_province_id);
+      setFilteredPicKabupaten(filtered);
+    } else {
+      setFilteredPicKabupaten([]);
+    }
+  }, [formData.pic_province_id, kabupaten]);
 
   const steps = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -274,13 +382,15 @@ const EnhancedRegistrationForm: React.FC = () => {
     return strength;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (name === 'password') {
-      setPasswordStrength(calculatePasswordStrength(value));
-    }
+   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+     const { name, value } = e.target;
+     // Handle special values for Select components to prevent saving "loading" or "empty" values
+     const actualValue = (value === 'loading' || value === 'empty') ? '' : value;
+     setFormData(prev => ({ ...prev, [name]: actualValue }));
+     
+     if (name === 'password') {
+       setPasswordStrength(calculatePasswordStrength(actualValue));
+     }
   };
 
   const handleFileChange = (type: string, file: File | null) => {
@@ -322,6 +432,38 @@ const EnhancedRegistrationForm: React.FC = () => {
     }
 
     setDocuments(prev => ({ ...prev, [type]: file }));
+  };
+
+  // Handle location selection for company
+  const handleLocationChange = (location: {
+    provinceId?: string;
+    kabupaténId?: string;
+    kecamatan?: string;
+    kelurahan?: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      province_id: location.provinceId || '',
+      kabupaten_id: location.kabupaténId || '',
+      kecamatan: location.kecamatan || '',
+      kelurahan: location.kelurahan || '',
+    }));
+  };
+
+  // Handle PIC location selection
+  const handlePicLocationChange = (location: {
+    provinceId?: string;
+    kabupaténId?: string;
+    kecamatan?: string;
+    kelurahan?: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      pic_province_id: location.provinceId || '',
+      pic_kabupaten_id: location.kabupaténId || '',
+      pic_kecamatan: location.kecamatan || '',
+      pic_kelurahan: location.kelurahan || '',
+    }));
   };
 
   const validateStep = (step: number): boolean => {
@@ -753,7 +895,7 @@ const EnhancedRegistrationForm: React.FC = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
     }
-  };
+ };
 
   const getBusinessFields = () => {
     return [
@@ -835,7 +977,7 @@ const EnhancedRegistrationForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="font-medium text-gray-700">Email *</Label>
-                  <div className="relative">
+                  <div className="items-center">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       id="email"
@@ -1013,7 +1155,6 @@ const EnhancedRegistrationForm: React.FC = () => {
                   </Select>
                 </div>
               </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="business_field">Business Field *</Label>
@@ -1040,7 +1181,6 @@ const EnhancedRegistrationForm: React.FC = () => {
                   />
                 </div>
               </div>
-              
               <div>
                 <Label htmlFor="company_address">Company Address *</Label>
                 <div className="relative">
@@ -1060,68 +1200,61 @@ const EnhancedRegistrationForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="province_id">Province *</Label>
-                  <Select name="province_id" value={formData.province_id} onValueChange={(value) => handleInputChange({ target: { name: 'province_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
+                  <Select name="province_id" value={formData.province_id} onValueChange={(value) => {
+                    const actualValue = (value === 'loading' || value === 'empty') ? '' : value;
+                    handleInputChange({ target: { name: 'province_id', value: actualValue } } as unknown as React.ChangeEvent<HTMLSelectElement>);
+                  }} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Province" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="jakarta">DKI Jakarta</SelectItem>
-                      <SelectItem value="west_java">Jawa Barat</SelectItem>
-                      <SelectItem value="central_java">Jawa Tengah</SelectItem>
-                      <SelectItem value="east_java">Jawa Timur</SelectItem>
-                      <SelectItem value="banten">Banten</SelectItem>
+                      {loadingLocations ? (
+                        <SelectItem value="loading" disabled>Loading provinces...</SelectItem>
+                      ) : provinces.length > 0 ? (
+                        provinces.map(province => (
+                          <SelectItem key={province.id} value={province.id}>{province.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="empty" disabled>No provinces available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
                   <Label htmlFor="kabupaten_id">Kabupaten/Kota *</Label>
-                  <Select name="kabupaten_id" value={formData.kabupaten_id} onValueChange={(value) => handleInputChange({ target: { name: 'kabupaten_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
+                  <Select name="kabupaten_id" value={formData.kabupaten_id} onValueChange={(value) => {
+                    const actualValue = (value === 'loading' || value === 'empty') ? '' : value;
+                    handleInputChange({ target: { name: 'kabupaten_id', value: actualValue } } as unknown as React.ChangeEvent<HTMLSelectElement>);
+                  }} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Kabupaten/Kota" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bandung">Bandung</SelectItem>
-                      <SelectItem value="jakarta_pusat">Jakarta Pusat</SelectItem>
-                      <SelectItem value="surabaya">Surabaya</SelectItem>
-                      <SelectItem value="semarang">Semarang</SelectItem>
+                      {loadingLocations ? (
+                        <SelectItem value="loading" disabled>Loading kabupaten/kota...</SelectItem>
+                      ) : filteredKabupaten.length > 0 ? (
+                        filteredKabupaten.map(kabupaten => (
+                          <SelectItem key={kabupaten.id} value={kabupaten.id}>{kabupaten.name} ({kabupaten.type})</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="empty" disabled>Select province first</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="kecamatan" className="font-medium text-gray-700">Kecamatan *</Label>
-                  <div className="relative">
-                    <Map className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="kecamatan"
-                      name="kecamatan"
-                      value={formData.kecamatan}
-                      onChange={handleInputChange}
-                      placeholder="Kecamatan"
-                      className="pl-10 h-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="kelurahan" className="font-medium text-gray-700">Kelurahan *</Label>
-                  <div className="relative">
-                    <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="kelurahan"
-                      name="kelurahan"
-                      value={formData.kelurahan}
-                      onChange={handleInputChange}
-                      placeholder="Kelurahan"
-                      className="pl-10 h-10"
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-6">
+                <LocationSelector
+                  value={{
+                    provinceId: formData.province_id,
+                    kabupaténId: formData.kabupaten_id,
+                    kecamatan: formData.kecamatan,
+                    kelurahan: formData.kelurahan
+                  }}
+                  onChange={handleLocationChange}
+                  required={true}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1303,7 +1436,6 @@ const EnhancedRegistrationForm: React.FC = () => {
                   />
                 </div>
               </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="employee_count">Number of Employees</Label>
@@ -1465,68 +1597,62 @@ const EnhancedRegistrationForm: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="pic_province_id">Province *</Label>
-                  <Select name="pic_province_id" value={formData.pic_province_id} onValueChange={(value) => handleInputChange({ target: { name: 'pic_province_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
+                  <Select name="pic_province_id" value={formData.pic_province_id} onValueChange={(value) => {
+                    const actualValue = (value === 'loading' || value === 'empty') ? '' : value;
+                    handleInputChange({ target: { name: 'pic_province_id', value: actualValue } } as unknown as React.ChangeEvent<HTMLSelectElement>);
+                  }} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Province" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="jakarta">DKI Jakarta</SelectItem>
-                      <SelectItem value="west_java">Jawa Barat</SelectItem>
-                      <SelectItem value="central_java">Jawa Tengah</SelectItem>
-                      <SelectItem value="east_java">Jawa Timur</SelectItem>
-                      <SelectItem value="banten">Banten</SelectItem>
+                      {loadingLocations ? (
+                        <SelectItem value="loading" disabled>Loading provinces...</SelectItem>
+                      ) : provinces.length > 0 ? (
+                        provinces.map(province => (
+                          <SelectItem key={province.id} value={province.id}>{province.name}</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="empty" disabled>No provinces available</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
                 
                 <div>
                   <Label htmlFor="pic_kabupaten_id">Kabupaten/Kota *</Label>
-                  <Select name="pic_kabupaten_id" value={formData.pic_kabupaten_id} onValueChange={(value) => handleInputChange({ target: { name: 'pic_kabupaten_id', value } } as unknown as React.ChangeEvent<HTMLSelectElement>)} required>
+                  <Select name="pic_kabupaten_id" value={formData.pic_kabupaten_id} onValueChange={(value) => {
+                    const actualValue = (value === 'loading' || value === 'empty') ? '' : value;
+                    handleInputChange({ target: { name: 'pic_kabupaten_id', value: actualValue } } as unknown as React.ChangeEvent<HTMLSelectElement>);
+                  }} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Kabupaten/Kota" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bandung">Bandung</SelectItem>
-                      <SelectItem value="jakarta_pusat">Jakarta Pusat</SelectItem>
-                      <SelectItem value="surabaya">Surabaya</SelectItem>
-                      <SelectItem value="semarang">Semarang</SelectItem>
+                      {loadingLocations ? (
+                        <SelectItem value="loading" disabled>Loading kabupaten/kota...</SelectItem>
+                      ) : filteredPicKabupaten.length > 0 ? (
+                        filteredPicKabupaten.map(kabupaten => (
+                          <SelectItem key={kabupaten.id} value={kabupaten.id}>{kabupaten.name} ({kabupaten.type})</SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="empty" disabled>Select province first</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="pic_kecamatan">Kecamatan *</Label>
-                  <div className="relative">
-                    <Map className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_kecamatan"
-                      name="pic_kecamatan"
-                      value={formData.pic_kecamatan}
-                      onChange={handleInputChange}
-                      placeholder="Kecamatan"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="pic_kelurahan">Kelurahan *</Label>
-                  <div className="relative">
-                    <Home className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="pic_kelurahan"
-                      name="pic_kelurahan"
-                      value={formData.pic_kelurahan}
-                      onChange={handleInputChange}
-                      placeholder="Kelurahan"
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="space-y-6">
+                <LocationSelector
+                  value={{
+                    provinceId: formData.pic_province_id,
+                    kabupaténId: formData.pic_kabupaten_id,
+                    kecamatan: formData.pic_kecamatan,
+                    kelurahan: formData.pic_kelurahan
+                  }}
+                  onChange={handlePicLocationChange}
+                  required={true}
+                />
               </div>
               <div>
                 <Label htmlFor="pic_postal_code">Postal Code *</Label>
