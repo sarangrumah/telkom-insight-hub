@@ -29,9 +29,7 @@ dotenv.config();
 
 const app = express();
 
-// Register SKLO routes
-app.use('/api', skloRoutes);
-const allowedOrigins = (process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173'];
+const allowedOrigins = (process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173', 'http://localhost:8080'];
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
@@ -40,6 +38,9 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// Register SKLO routes
+app.use('/api', skloRoutes);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
@@ -439,7 +440,7 @@ app.get('/api/telekom-data', requireAuth, requirePermission(['dashboard','data_m
       LEFT JOIN public.kabupaten k ON k.id = td.kabupaten_id
       ${whereSql}
       ORDER BY td.created_at DESC
-      LIMIT $${i} OFFSET $${i + 1}
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
     const dataParams = [...params, pageSizeNum, offset];
     const { rows } = await query(dataSql, dataParams);
@@ -829,7 +830,7 @@ app.get('/api/public/telekom-data/search', async (req, res) => {
       FROM public.telekom_data
       ${whereSql}
       ORDER BY created_at DESC
-      LIMIT $${i} OFFSET $${i + 1}
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
     const dataParams = [...params, limitNum, offsetNum];
     const { rows } = await query(dataSql, dataParams);

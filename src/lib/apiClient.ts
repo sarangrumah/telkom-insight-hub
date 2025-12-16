@@ -75,7 +75,12 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       const payload = data as { message?: string; error?: string };
       message = payload.message ?? payload.error ?? 'API error';
     } catch {
-      message = await resp.text();
+      // Handle case where response body is already consumed or not JSON
+      try {
+        message = await resp.text();
+      } catch {
+        message = 'API error';
+      }
     }
     throw new Error(message || 'API error');
   }
@@ -124,7 +129,12 @@ export async function apiFetchFormData(path: string, formData: FormData) {
       const payload = data as { message?: string; error?: string };
       message = payload.message ?? payload.error ?? 'API error';
     } catch {
-      message = await resp.text();
+      // Handle case where response body is already consumed or not JSON
+      try {
+        message = await resp.text();
+      } catch {
+        message = 'API error';
+      }
     }
     throw new Error(message || 'API error');
   }

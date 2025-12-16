@@ -3,7 +3,7 @@ const router = express.Router();
 import { query } from '../db.js';
 
 // Get SKLO data with pagination and filtering
-router.get('/api/sklo', async (req, res) => {
+router.get('/sklo', async (req, res) => {
   try {
     const {
       page = '1',
@@ -64,6 +64,7 @@ router.get('/api/sklo', async (req, res) => {
       FROM public.ulo_applications ua
       LEFT JOIN public.license_applications la ON ua.license_application_id = la.id
       LEFT JOIN public.companies c ON la.company_id = c.id
+      LEFT JOIN public.license_services ls ON la.license_service_id = ls.id
     ${whereSql}
   `;
     const countResult = await query(countSql, params);
@@ -72,15 +73,15 @@ router.get('/api/sklo', async (req, res) => {
     // Data query
     const dataSql = `
       SELECT ua.id, ua.sklo_number, ua.status, ua.issued_at,
-             c.company_name, la.license_number, la.submitted_at,
-             ss.name as sub_service_name
+             c.company_name, la.application_number as license_number, la.submitted_at,
+             ls.name as sub_service_name
       FROM public.ulo_applications ua
       LEFT JOIN public.license_applications la ON ua.license_application_id = la.id
       LEFT JOIN public.companies c ON la.company_id = c.id
-      LEFT JOIN public.sub_services ss ON la.sub_service_id = ss.id
+      LEFT JOIN public.license_services ls ON la.license_service_id = ls.id
       ${whereSql}
       ORDER BY ua.issued_at DESC
-      LIMIT $${i} OFFSET $${i + 1}
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
     const dataParams = [...params, pageSizeNum, offset];
     const { rows } = await query(dataSql, dataParams);
