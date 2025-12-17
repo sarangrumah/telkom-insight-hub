@@ -61,17 +61,6 @@ export function SecurityHeaders() {
         document.head.appendChild(referrerMeta);
       }
 
-      // Permissions Policy
-      const permissions = document.querySelector(
-        'meta[http-equiv="Permissions-Policy"]'
-      );
-      if (!permissions) {
-        const permissionsMeta = document.createElement('meta');
-        permissionsMeta.httpEquiv = 'Permissions-Policy';
-        permissionsMeta.content =
-          'geolocation=(), camera=(), microphone=(), payment=()';
-        document.head.appendChild(permissionsMeta);
-      }
     };
 
     setSecurityHeaders();
