@@ -115,9 +115,10 @@ async function generateSyncSql() {
       const columns = columnsRes.rows.map(c => c.column_name);
       
       let pks = pk_columns;
-      if ((!pks || pks.length === 0) && columns.includes('id')) {
-          pks = ['id'];
-      }
+      // Fallback removed to avoid "no unique or exclusion constraint" error
+      // if ((!pks || pks.length === 0) && columns.includes('id')) {
+      //    pks = ['id'];
+      // }
 
       // Fetch data
       const dataRes = await client.query(`SELECT * FROM ${fullTableName}`);
