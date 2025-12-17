@@ -1,4 +1,6 @@
-const baseUrl = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+import { API_BASE_URL } from '@/config';
+
+const baseUrl = API_BASE_URL;
 
 const TOKEN_KEY = 'app.jwt.token';
 
@@ -331,5 +333,5 @@ export interface TarifDataRecord {
 }
 
 export const TarifAPI = {
-  getAll: () => apiFetch('/panel/api/tarif/tarif-data') as Promise<{ data: TarifDataRecord[] }>,
+  getAll: () => apiFetch('/panel/api/tarif-data') as Promise<{ data: TarifDataRecord[] }>,
 };

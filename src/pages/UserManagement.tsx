@@ -117,7 +117,8 @@ export default function UserManagement() {
   });
 
   // Fetch all users with their profiles and roles
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const rawApiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
   const token = localStorage.getItem('app.jwt.token');
   const authHeader = () => (token ? { Authorization: `Bearer ${token}` } : {});
 

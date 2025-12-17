@@ -50,8 +50,8 @@ class WSClient {
       return;
     }
 
-    const apiBase =
-      (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+    const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+    const apiBase = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
     const wsUrl = apiBase.replace(/^http/, 'ws') + '/ws';
     const token = localStorage.getItem('app.jwt.token') || '';
 

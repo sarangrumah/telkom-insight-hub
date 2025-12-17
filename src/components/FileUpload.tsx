@@ -3,7 +3,8 @@ import { Upload, X, Download, CheckCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
 
 interface FileUploadProps {
   value?: string;

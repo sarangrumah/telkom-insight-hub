@@ -72,7 +72,7 @@ export function mapRawToRow(items: RawTarifItem[]): TarifRow[] {
  */
 export async function getTarifRows(): Promise<TarifRow[]> {
   if (cache) return cache;
-  const res = await fetch('/api/tarif/tarif-data', { cache: 'no-cache' });
+  const res = await fetch('/panel/api/tarif-data', { cache: 'no-cache' });
   if (!res.ok) throw new Error(`Gagal memuat data tarif: ${res.status}`);
   const json = await res.json();
   const rows = mapRawToRow((json?.data || []) as RawTarifItem[]);

@@ -57,18 +57,18 @@ router.get('/tarif-data', async (req, res) => {
     const { tahun, periode, limit, jenis } = validateAndSanitizeParams(req);
     
     // Build the query dynamically based on provided parameters
-    let query = 'SELECT * FROM tariff_data WHERE 1=1';
+    let sqlQuery = 'SELECT * FROM tariff_data WHERE 1=1';
     const queryParams = [];
     let paramIndex = 1;
     
     if (tahun !== null) {
-      query += ` AND tahun = $${paramIndex}`;
+      sqlQuery += ` AND tahun = $${paramIndex}`;
       queryParams.push(tahun);
       paramIndex++;
     }
     
     if (periode !== null) {
-      query += ` AND periode = $${paramIndex}`;
+      sqlQuery += ` AND periode = $${paramIndex}`;
       queryParams.push(periode);
       paramIndex++;
     }
@@ -76,24 +76,24 @@ router.get('/tarif-data', async (req, res) => {
     if (jenis !== null) {
       // For jenis parameter, we need to match against jenis_izin field which contains 'Jasa-' or 'Jaringan-' prefix
       if (jenis === 'Jasa') {
-        query += ` AND jenis_izin LIKE $${paramIndex}`;
+        sqlQuery += ` AND jenis_izin LIKE $${paramIndex}`;
         queryParams.push('Jasa-%');
         paramIndex++;
       } else if (jenis === 'Jaringan') {
-        query += ` AND jenis_izin LIKE $${paramIndex}`;
+        sqlQuery += ` AND jenis_izin LIKE $${paramIndex}`;
         queryParams.push('Jaringan-%');
         paramIndex++;
       }
     }
     
-    query += ' ORDER BY id DESC';
+    sqlQuery += ' ORDER BY id DESC';
     
     if (limit !== null) {
-      query += ` LIMIT $${paramIndex}`;
+      sqlQuery += ` LIMIT $${paramIndex}`;
       queryParams.push(limit);
     }
     
-    const { rows: results } = await query(query, queryParams);
+    const { rows: results } = await query(sqlQuery, queryParams);
     
     res.json({
       status: true,
@@ -114,8 +114,8 @@ router.get('/tarif-data/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = 'SELECT * FROM tariff_data WHERE id = $1';
-    const { rows } = await query(query, [id]);
+    const sqlQuery = 'SELECT * FROM tariff_data WHERE id = $1';
+    const { rows } = await query(sqlQuery, [id]);
     const result = rows.length > 0 ? rows[0] : null;
     
     if (!result) {

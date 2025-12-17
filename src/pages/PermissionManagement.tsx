@@ -94,7 +94,8 @@ const PermissionManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('modules');
   const { toast } = useToast();
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const rawApiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+  const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
 
   // Konsistensi: token disimpan sebagai app.jwt.token (lihat useAuth & apiClient)
   const token = localStorage.getItem('app.jwt.token');
