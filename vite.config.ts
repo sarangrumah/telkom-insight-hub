@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   // IMPORTANT: This ensures assets load from domain.com/panel/assets/
   // instead of domain.com/assets/
-  base: "/panel/", 
+  base: "/panel/",
 
   server: {
     host: "::",
@@ -29,6 +29,42 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
+    },
+    historyApiFallback: {
+      // This ensures that all routes under /panel/ are served by index.html
+      // allowing client-side routing to work properly
+      rewrites: [
+        { from: /^\/panel\/.*$/, to: '/panel/index.html' },
+      ],
+    },
+  },
+  preview: {
+    host: "::",
+    port: 8080,
+    proxy: {
+      '/panel/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/panel/uploads': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Keep the original /uploads proxy for direct file access
+      '/uploads': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+    historyApiFallback: {
+      // This ensures that all routes under /panel/ are served by index.html
+      // allowing client-side routing to work properly
+      rewrites: [
+        { from: /^\/panel\/.*$/, to: '/panel/index.html' },
+      ],
     },
   },
   plugins: [
