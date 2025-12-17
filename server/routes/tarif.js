@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { query } from '../db.js';
+
 const router = express.Router();
-const db = require('../db');
 
 // Helper function to validate and sanitize query parameters
 const validateAndSanitizeParams = (req) => {
@@ -22,7 +23,7 @@ const validateAndSanitizeParams = (req) => {
     if (validPeriods.includes(periode)) {
       validatedPeriode = periode;
     }
-  }
+ }
   
   // Validate limit
   let validatedLimit = null;
@@ -58,34 +59,41 @@ router.get('/tarif-data', async (req, res) => {
     // Build the query dynamically based on provided parameters
     let query = 'SELECT * FROM tariff_data WHERE 1=1';
     const queryParams = [];
+    let paramIndex = 1;
     
     if (tahun !== null) {
-      query += ' AND tahun = ?';
+      query += ` AND tahun = $${paramIndex}`;
       queryParams.push(tahun);
+      paramIndex++;
     }
     
     if (periode !== null) {
-      query += ' AND periode = ?';
+      query += ` AND periode = $${paramIndex}`;
       queryParams.push(periode);
+      paramIndex++;
     }
     
     if (jenis !== null) {
       // For jenis parameter, we need to match against jenis_izin field which contains 'Jasa-' or 'Jaringan-' prefix
       if (jenis === 'Jasa') {
-        query += ' AND jenis_izin LIKE \'Jasa-%\'';
+        query += ` AND jenis_izin LIKE $${paramIndex}`;
+        queryParams.push('Jasa-%');
+        paramIndex++;
       } else if (jenis === 'Jaringan') {
-        query += ' AND jenis_izin LIKE \'Jaringan-%\'';
+        query += ` AND jenis_izin LIKE $${paramIndex}`;
+        queryParams.push('Jaringan-%');
+        paramIndex++;
       }
     }
     
     query += ' ORDER BY id DESC';
     
     if (limit !== null) {
-      query += ' LIMIT ?';
+      query += ` LIMIT $${paramIndex}`;
       queryParams.push(limit);
     }
     
-    const results = await db.all(query, queryParams);
+    const { rows: results } = await query(query, queryParams);
     
     res.json({
       status: true,
@@ -106,8 +114,9 @@ router.get('/tarif-data/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = 'SELECT * FROM tariff_data WHERE id = ?';
-    const result = await db.get(query, [id]);
+    const query = 'SELECT * FROM tariff_data WHERE id = $1';
+    const { rows } = await query(query, [id]);
+    const result = rows.length > 0 ? rows[0] : null;
     
     if (!result) {
       return res.status(404).json({
@@ -120,7 +129,7 @@ router.get('/tarif-data/:id', async (req, res) => {
       status: true,
       data: [result]
     });
-  } catch (error) {
+ } catch (error) {
     console.error('Error fetching tariff data by ID:', error);
     res.status(500).json({
       status: false,
@@ -157,38 +166,39 @@ router.post('/tarif-data', async (req, res) => {
     } = req.body;
     
     // Insert or update tariff data
-    const query = `
+    const insertQuery = `
       INSERT INTO tariff_data (
         jenis_izin, title, color, title_jenis, penyelenggara, pic, email, 
         status_email, id_user, app_name, id_jenis_izin, id_izin, 
         id_jenis_report, jenis_periode, jenis, tanggal, filename, 
         status, tahun, periode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       ON CONFLICT(id) DO UPDATE SET
-        jenis_izin = excluded.jenis_izin,
-        title = excluded.title,
-        color = excluded.color,
-        title_jenis = excluded.title_jenis,
-        penyelenggara = excluded.penyelenggara,
-        pic = excluded.pic,
-        email = excluded.email,
-        status_email = excluded.status_email,
-        id_user = excluded.id_user,
-        app_name = excluded.app_name,
-        id_jenis_izin = excluded.id_jenis_izin,
-        id_izin = excluded.id_izin,
-        id_jenis_report = excluded.id_jenis_report,
-        jenis_periode = excluded.jenis_periode,
-        jenis = excluded.jenis,
-        tanggal = excluded.tanggal,
-        filename = excluded.filename,
-        status = excluded.status,
-        tahun = excluded.tahun,
-        periode = excluded.periode,
+        jenis_izin = EXCLUDED.jenis_izin,
+        title = EXCLUDED.title,
+        color = EXCLUDED.color,
+        title_jenis = EXCLUDED.title_jenis,
+        penyelenggara = EXCLUDED.penyelenggara,
+        pic = EXCLUDED.pic,
+        email = EXCLUDED.email,
+        status_email = EXCLUDED.status_email,
+        id_user = EXCLUDED.id_user,
+        app_name = EXCLUDED.app_name,
+        id_jenis_izin = EXCLUDED.id_jenis_izin,
+        id_izin = EXCLUDED.id_izin,
+        id_jenis_report = EXCLUDED.id_jenis_report,
+        jenis_periode = EXCLUDED.jenis_periode,
+        jenis = EXCLUDED.jenis,
+        tanggal = EXCLUDED.tanggal,
+        filename = EXCLUDED.filename,
+        status = EXCLUDED.status,
+        tahun = EXCLUDED.tahun,
+        periode = EXCLUDED.periode,
         updated_at = CURRENT_TIMESTAMP
+      RETURNING id
     `;
     
-    const result = await db.run(query, [
+    const result = await query(insertQuery, [
       jenis_izin,
       title,
       color,
@@ -214,7 +224,7 @@ router.post('/tarif-data', async (req, res) => {
     res.json({
       status: true,
       message: 'Tariff data saved successfully',
-      id: result.lastID
+      id: result.rows[0]?.id || null
     });
   } catch (error) {
     console.error('Error saving tariff data:', error);
@@ -239,7 +249,7 @@ router.post('/tarif-data/bulk', async (req, res) => {
     }
     
     // Begin transaction for bulk insert
-    await db.run('BEGIN TRANSACTION');
+    await query('BEGIN');
     
     const insertQuery = `
       INSERT INTO tariff_data (
@@ -247,33 +257,33 @@ router.post('/tarif-data/bulk', async (req, res) => {
         status_email, id_user, app_name, id_jenis_izin, id_izin, 
         id_jenis_report, jenis_periode, jenis, tanggal, filename, 
         status, tahun, periode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       ON CONFLICT(id) DO UPDATE SET
-        jenis_izin = excluded.jenis_izin,
-        title = excluded.title,
-        color = excluded.color,
-        title_jenis = excluded.title_jenis,
-        penyelenggara = excluded.penyelenggara,
-        pic = excluded.pic,
-        email = excluded.email,
-        status_email = excluded.status_email,
-        id_user = excluded.id_user,
-        app_name = excluded.app_name,
-        id_jenis_izin = excluded.id_jenis_izin,
-        id_izin = excluded.id_izin,
-        id_jenis_report = excluded.id_jenis_report,
-        jenis_periode = excluded.jenis_periode,
-        jenis = excluded.jenis,
-        tanggal = excluded.tanggal,
-        filename = excluded.filename,
-        status = excluded.status,
-        tahun = excluded.tahun,
-        periode = excluded.periode,
+        jenis_izin = EXCLUDED.jenis_izin,
+        title = EXCLUDED.title,
+        color = EXCLUDED.color,
+        title_jenis = EXCLUDED.title_jenis,
+        penyelenggara = EXCLUDED.penyelenggara,
+        pic = EXCLUDED.pic,
+        email = EXCLUDED.email,
+        status_email = EXCLUDED.status_email,
+        id_user = EXCLUDED.id_user,
+        app_name = EXCLUDED.app_name,
+        id_jenis_izin = EXCLUDED.id_jenis_izin,
+        id_izin = EXCLUDED.id_izin,
+        id_jenis_report = EXCLUDED.id_jenis_report,
+        jenis_periode = EXCLUDED.jenis_periode,
+        jenis = EXCLUDED.jenis,
+        tanggal = EXCLUDED.tanggal,
+        filename = EXCLUDED.filename,
+        status = EXCLUDED.status,
+        tahun = EXCLUDED.tahun,
+        periode = EXCLUDED.periode,
         updated_at = CURRENT_TIMESTAMP
     `;
     
     for (const item of data) {
-      await db.run(insertQuery, [
+      await query(insertQuery, [
         item.jenis_izin,
         item.title,
         item.color,
@@ -297,7 +307,7 @@ router.post('/tarif-data/bulk', async (req, res) => {
       ]);
     }
     
-    await db.run('COMMIT');
+    await query('COMMIT');
     
     res.json({
       status: true,
@@ -305,7 +315,7 @@ router.post('/tarif-data/bulk', async (req, res) => {
     });
   } catch (error) {
     console.error('Error importing tariff data:', error);
-    await db.run('ROLLBACK');
+    await query('ROLLBACK');
     res.status(500).json({
       status: false,
       message: 'Internal server error',
@@ -314,4 +324,5 @@ router.post('/tarif-data/bulk', async (req, res) => {
   }
 });
 
-module.exports = router;
+// Export the router for use in the main server file
+export default router;
