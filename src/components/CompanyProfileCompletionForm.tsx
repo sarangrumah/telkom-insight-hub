@@ -51,7 +51,7 @@ const CompanyProfileCompletionForm: React.FC = () => {
   const completeRegistrationMutation = useMutation({
     mutationFn: async () => {
       const token = localStorage.getItem('app.jwt.token');
-      const response = await fetch('/api/auth/complete-registration', {
+      const response = await fetch('/panel/api/auth/complete-registration', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

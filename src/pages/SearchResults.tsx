@@ -38,7 +38,7 @@ const SearchResults = () => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await apiFetch(`/api/public/telekom-data/search?q=${encodeURIComponent(searchTerm)}&limit=20`);
+      const res = await apiFetch(`/panel/api/public/telekom-data/search?q=${encodeURIComponent(searchTerm)}&limit=20`);
       setResults(res.data || []);
       setTotalCount(res.total || 0);
     } catch (error: unknown) {

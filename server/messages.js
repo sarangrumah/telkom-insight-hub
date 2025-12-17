@@ -36,7 +36,7 @@ async function assertTicketAccess(ticketId, userId, isAdmin) {
   return ticket;
 }
 
-// GET /api/tickets/:id/messages
+// GET /panel/api/tickets/:id/messages
 export async function listTicketMessages(req, res) {
   try {
     const ticketId = req.params.id;
@@ -66,7 +66,7 @@ export async function listTicketMessages(req, res) {
   }
 }
 
-// POST /api/tickets/:id/messages
+// POST /panel/api/tickets/:id/messages
 // body: { message: string, file_url?: string | null }
 export async function createTicketMessage(req, res) {
   try {
@@ -114,7 +114,7 @@ export async function createTicketMessage(req, res) {
   }
 }
 
-// POST /api/tickets/:id/messages/read
+// POST /panel/api/tickets/:id/messages/read
 // Marks messages from the opposite party as read
 export async function markMessagesRead(req, res) {
   try {

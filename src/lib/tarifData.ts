@@ -66,13 +66,13 @@ export function mapRawToRow(items: RawTarifItem[]): TarifRow[] {
 }
 
 /**
- * Ambil data tarif dari JSON statis (public/data-tarif.json) dan cache di memori.
- * Penempatan file di public dipertahankan agar dapat di-fetch langsung oleh client (best-practice Vite),
- * sementara abstraksi akses datanya dipusatkan di layer lib ini sesuai arsitektur proyek.
+ * Ambil data tarif dari API server (endpoint dinamis) dan cache di memori.
+ * Penggunaan API server untuk mendapatkan data dari database sesuai dengan arsitektur baru.
+ *  sementara abstraksi akses datanya dipusatkan di layer lib ini sesuai arsitektur proyek.
  */
 export async function getTarifRows(): Promise<TarifRow[]> {
   if (cache) return cache;
-  const res = await fetch('/data-tarif.json', { cache: 'no-cache' });
+  const res = await fetch('/api/tarif/tarif-data', { cache: 'no-cache' });
   if (!res.ok) throw new Error(`Gagal memuat data tarif: ${res.status}`);
   const json = await res.json();
   const rows = mapRawToRow((json?.data || []) as RawTarifItem[]);

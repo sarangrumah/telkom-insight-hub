@@ -75,7 +75,7 @@ export default function LKOPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/lko?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/panel/api/lko?page=${page}&pageSize=${pageSize}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

@@ -90,7 +90,7 @@ export default function TelsusPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/telsus?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/panel/api/telsus?page=${page}&pageSize=${pageSize}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

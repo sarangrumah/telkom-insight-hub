@@ -8,7 +8,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const resp = await fetch(`${baseUrl}/api/auth/refresh`, {
+        const resp = await fetch(`${baseUrl}/panel/api/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
         });
@@ -177,14 +177,14 @@ export interface TicketRecord {
 }
 
 export const TicketsAPI = {
-  list: () => apiFetch('/api/tickets') as Promise<TicketRecord[]>,
+  list: () => apiFetch('/panel/api/tickets') as Promise<TicketRecord[]>,
   update: (id: string, data: TicketUpdatePayload) =>
-    apiFetch(`/api/tickets/${id}`, {
+    apiFetch(`/panel/api/tickets/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
   create: (data: TicketCreatePayload) =>
-    apiFetch('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
+    apiFetch('/panel/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Ticket messages helpers
@@ -207,18 +207,18 @@ export interface CreateMessagePayload {
 
 export const MessagesAPI = {
   list: async (ticketId: string) => {
-    const res = await apiFetch(`/api/tickets/${ticketId}/messages`) as { messages?: TicketMessageRecord[] };
+    const res = await apiFetch(`/panel/api/tickets/${ticketId}/messages`) as { messages?: TicketMessageRecord[] };
     return res.messages ?? [];
   },
   create: async (ticketId: string, payload: CreateMessagePayload) => {
-    const res = await apiFetch(`/api/tickets/${ticketId}/messages`, {
+    const res = await apiFetch(`/panel/api/tickets/${ticketId}/messages`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }) as { message: TicketMessageRecord };
     return res.message;
   },
   markRead: async (ticketId: string) => {
-    return apiFetch(`/api/tickets/${ticketId}/messages/read`, {
+    return apiFetch(`/panel/api/tickets/${ticketId}/messages/read`, {
       method: 'POST',
       body: JSON.stringify({}),
     });
@@ -230,7 +230,7 @@ export const UploadAPI = {
   uploadPdf: async (file: File) => {
     const form = new FormData();
     form.append('file', file);
-    return apiFetchFormData('/api/uploads', form) as Promise<{
+    return apiFetchFormData('/panel/api/uploads', form) as Promise<{
       file_url: string;
       file_name: string;
       size: number;
@@ -268,21 +268,21 @@ export interface AssignmentRecord {
 }
 
 export const UserAPI = {
-  getProfile: () => apiFetch('/api/user/profile') as Promise<UserProfile>,
-  getRoles: () => apiFetch('/api/roles') as Promise<{ roles: string[] }>,
-  getAdminUsers: () => apiFetch('/api/admin/users/admins') as Promise<AdminUser[]>,
+  getProfile: () => apiFetch('/panel/api/user/profile') as Promise<UserProfile>,
+  getRoles: () => apiFetch('/panel/api/roles') as Promise<{ roles: string[] }>,
+  getAdminUsers: () => apiFetch('/panel/api/admin/users/admins') as Promise<AdminUser[]>,
 };
 
 export const AssignmentAPI = {
   getHistory: (ticketId: string) =>
-    apiFetch(`/api/tickets/${ticketId}/assignments`) as Promise<AssignmentRecord[]>,
+    apiFetch(`/panel/api/tickets/${ticketId}/assignments`) as Promise<AssignmentRecord[]>,
   assign: (ticketId: string, data: { assigned_to: string; notes?: string }) =>
-    apiFetch(`/api/tickets/${ticketId}/assign`, {
+    apiFetch(`/panel/api/tickets/${ticketId}/assign`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
   unassign: (ticketId: string) =>
-    apiFetch(`/api/tickets/${ticketId}/unassign`, {
+    apiFetch(`/panel/api/tickets/${ticketId}/unassign`, {
       method: 'POST',
     }),
 };
@@ -290,15 +290,46 @@ export const AssignmentAPI = {
 // Auth helpers (mirror useAuth operations if needed externally)
 export const AuthAPI = {
   login: (email: string, password: string) =>
-    apiFetch('/api/auth/login', {
+    apiFetch('/panel/api/auth/login', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ email, password }),
     }),
   register: (email: string, password: string, full_name?: string) =>
-    apiFetch('/api/auth/register', {
+    apiFetch('/panel/api/auth/register', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ email, password, full_name }),
     }),
+  unassign: (ticketId: string) =>
+    apiFetch(`/panel/api/tickets/${ticketId}/unassign`, {
+      method: 'POST',
+    }),
+};
+
+// Tariff data helpers
+export interface TarifDataRecord {
+  id: number;
+  jenis_izin: string;
+  title: string;
+  color: string;
+  title_jenis: string;
+  penyelenggara: string;
+  pic: string;
+  email: string;
+  status_email: string;
+  id_user: string;
+  app_name: string;
+  id_jenis_izin: string;
+  id_izin: string;
+  id_jenis_report: string;
+  jenis_periode: string;
+  jenis: string;
+  tanggal: string | null;
+  filename: string | null;
+  status: string;
+}
+
+export const TarifAPI = {
+  getAll: () => apiFetch('/panel/api/tarif/tarif-data') as Promise<{ data: TarifDataRecord[] }>,
 };

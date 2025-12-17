@@ -73,7 +73,7 @@ export function ServiceCountCards() {
     let mounted = true;
     (async () => {
       try {
-        const res = (await apiFetch('/api/stats/service-counts')) as ServiceCountsResponse;
+        const res = (await apiFetch('/panel/api/stats/service-counts')) as ServiceCountsResponse;
         if (mounted) setCounts(res.counts || []);
       } catch (e) {
         console.error('Failed to fetch service counts', e);

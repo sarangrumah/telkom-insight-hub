@@ -99,7 +99,7 @@ const EnhancedLandingPage = () => {
 
     (async () => {
       try {
-        const data = await apiFetch('/api/public/stats/dashboard') as {
+        const data = await apiFetch('/panel/api/public/stats/dashboard') as {
           total_licenses?: number;
           active_operators?: number;
           total_applications?: number;
@@ -143,7 +143,7 @@ const EnhancedLandingPage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const resp = await apiFetch('/api/public/stats/service-counts') as {
+        const resp = await apiFetch('/panel/api/public/stats/service-counts') as {
           counts?: { code?: string; name?: string; count?: number }[];
         };
         const list = resp?.counts || [];

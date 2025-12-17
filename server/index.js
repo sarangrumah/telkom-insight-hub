@@ -25,6 +25,7 @@ import { attachWebSocket } from './ws.js';
 import { listTicketMessages, createTicketMessage, markMessagesRead } from './messages.js';
 import skloRoutes from './routes/sklo.js';
 import telekomDataRoutes from './routes/telekom-data.js';
+import tariffRoutes from './routes/tarif.js';
 
 dotenv.config();
 
@@ -41,14 +42,15 @@ app.use(cors({
 }));
 
 // Register telekom data routes
-app.use('/api', skloRoutes);
-app.use('/api', telekomDataRoutes);
+app.use('/panel/api', skloRoutes);
+app.use('/panel/api', telekomDataRoutes);
+app.use('/panel/api', tariffRoutes);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
 
 // User profile (untuk kompatibilitas frontend apiClient.getProfile())
-app.get('/api/user/profile', requireAuth, getProfile);
+app.get('/panel/api/user/profile', requireAuth, getProfile);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -82,13 +84,13 @@ const emailCheckLimiter = rateLimit({
 });
 
 // Auth
-app.post('/api/auth/register', register);
-app.post('/api/auth/login', loginLimiter, login);
+app.post('/panel/api/auth/register', register);
+app.post('/panel/api/auth/login', loginLimiter, login);
 // Refresh and logout for session handling
-app.post('/api/auth/refresh', refresh);
-app.post('/api/auth/logout', logout);
+app.post('/panel/api/auth/refresh', refresh);
+app.post('/panel/api/auth/logout', logout);
 // Cek ketersediaan email (pre-registration)
-app.get('/api/auth/check-email', emailCheckLimiter, async (req, res) => {
+app.get('/panel/api/auth/check-email', emailCheckLimiter, async (req, res) => {
   try {
     const { email } = req.query;
     if (!email || typeof email !== 'string') {
@@ -165,7 +167,7 @@ const uploadWithImages = multer({
 });
 
 // Enhanced registration with document support (after multer middleware is defined)
-app.post('/api/auth/register-with-details', uploadWithImages.fields([
+app.post('/panel/api/auth/register-with-details', uploadWithImages.fields([
   { name: 'profile_picture', maxCount: 1 },
   { name: 'nib_document', maxCount: 1 },
   { name: 'npwp_document', maxCount: 1 },
@@ -181,7 +183,7 @@ app.post('/api/auth/register-with-details', uploadWithImages.fields([
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Upload endpoint (returns absolute file URL)
-app.post('/api/uploads', requireAuth, (req, res) => {
+app.post('/panel/api/uploads', requireAuth, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
@@ -206,16 +208,16 @@ app.post('/api/uploads', requireAuth, (req, res) => {
 });
 
 // Tickets
-app.get('/api/tickets', requireAuth, listTickets);
-app.post('/api/tickets', requireAuth, createTicket);
-app.patch('/api/tickets/:id', requireAuth, updateTicket);
+app.get('/panel/api/tickets', requireAuth, listTickets);
+app.post('/panel/api/tickets', requireAuth, createTicket);
+app.patch('/panel/api/tickets/:id', requireAuth, updateTicket);
 // Ticket messages
-app.get('/api/tickets/:id/messages', requireAuth, listTicketMessages);
-app.post('/api/tickets/:id/messages', requireAuth, createTicketMessage);
-app.post('/api/tickets/:id/messages/read', requireAuth, markMessagesRead);
+app.get('/panel/api/tickets/:id/messages', requireAuth, listTicketMessages);
+app.post('/panel/api/tickets/:id/messages', requireAuth, createTicketMessage);
+app.post('/panel/api/tickets/:id/messages/read', requireAuth, markMessagesRead);
 
 // Ticket assignments
-app.get('/api/tickets/:id/assignments', requireAuth, async (req, res) => {
+app.get('/panel/api/tickets/:id/assignments', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await query(
@@ -254,7 +256,7 @@ app.get('/api/tickets/:id/assignments', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tickets/:id/assign', requireAuth, async (req, res) => {
+app.post('/panel/api/tickets/:id/assign', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { assigned_to, notes } = req.body;
@@ -294,7 +296,7 @@ app.post('/api/tickets/:id/assign', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/tickets/:id/unassign', requireAuth, async (req, res) => {
+app.post('/panel/api/tickets/:id/unassign', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -322,7 +324,7 @@ app.post('/api/tickets/:id/unassign', requireAuth, async (req, res) => {
 });
 
 // Admin users endpoint
-app.get('/api/admin/users/admins', requireAuth, requirePermission('user_management','read'), async (req, res) => {
+app.get('/panel/api/admin/users/admins', requireAuth, requirePermission('user_management','read'), async (req, res) => {
   try {
     // Check if user is admin
     const { rows: roleRows } = await query(
@@ -353,7 +355,7 @@ app.get('/api/admin/users/admins', requireAuth, requirePermission('user_manageme
 
 
 // Telekom data list dengan pagination & filtering
-app.get('/api/telekom-data', requireAuth, requirePermission(['dashboard','data_management'],'read'), async (req, res) => {
+app.get('/panel/api/telekom-data', requireAuth, requirePermission(['dashboard','data_management'],'read'), async (req, res) => {
   try {
     const {
       page = '1',
@@ -494,7 +496,7 @@ app.get('/api/telekom-data', requireAuth, requirePermission(['dashboard','data_m
 });
 
 // Services (simple lookup lists)
-app.get('/api/services', requireAuth, async (_req, res) => {
+app.get('/panel/api/services', requireAuth, async (_req, res) => {
   try {
     const { rows } = await query(
       'SELECT id, name, code, description FROM public.services ORDER BY name ASC'
@@ -508,7 +510,7 @@ app.get('/api/services', requireAuth, async (_req, res) => {
 
 // Aggregated counts by service (jenis penyelenggara)
 // Returns fixed order for UI consistency
-app.get('/api/stats/service-counts', requireAuth, async (_req, res) => {
+app.get('/panel/api/stats/service-counts', requireAuth, async (_req, res) => {
   try {
     const sql = `
       SELECT s.code, s.name, COALESCE(COUNT(td.id), 0)::int AS count
@@ -566,7 +568,7 @@ app.get('/api/stats/service-counts', requireAuth, async (_req, res) => {
 
 
 // Public aggregated counts by service (jenis penyelenggara) - no auth
-app.get('/api/public/stats/service-counts', async (_req, res) => {
+app.get('/panel/api/public/stats/service-counts', async (_req, res) => {
   try {
     const sql = `
       SELECT s.code, s.name, COALESCE(COUNT(td.id), 0)::int AS count
@@ -620,7 +622,7 @@ app.get('/api/public/stats/service-counts', async (_req, res) => {
 });
 
 // Public dashboard stats - no auth
-app.get('/api/public/stats/dashboard', async (_req, res) => {
+app.get('/panel/api/public/stats/dashboard', async (_req, res) => {
   try {
     const sql = `
       SELECT
@@ -650,7 +652,7 @@ app.get('/api/public/stats/dashboard', async (_req, res) => {
   }
 });
 
-app.get('/api/sub-services', requireAuth, async (_req, res) => {
+app.get('/panel/api/sub-services', requireAuth, async (_req, res) => {
   try {
     const sql = `SELECT ss.id, ss.service_id, ss.name, ss.code, ss.description,
                         s.id as s_id, s.name as s_name, s.code as s_code, s.description as s_description
@@ -735,7 +737,7 @@ async function fetchTelekomDataRecord(id) {
 }
 
 // Location data (provinces & kabupaten) replacing prior Supabase direct fetches
-app.get('/api/provinces', async (_req, res) => {
+app.get('/panel/api/provinces', async (_req, res) => {
   try {
     const { rows } = await query(
       'SELECT id, code, name, latitude, longitude FROM public.provinces ORDER BY name ASC'
@@ -749,8 +751,8 @@ app.get('/api/provinces', async (_req, res) => {
 
 // ---------------- FAQ PUBLIC ENDPOINTS ----------------
 
-// GET /api/faqs (public): list only active FAQs, optional search and category filter
-app.get('/api/faqs', async (req, res) => {
+// GET /panel/api/faqs (public): list only active FAQs, optional search and category filter
+app.get('/panel/api/faqs', async (req, res) => {
   try {
     const { search, category_id } = req.query;
 
@@ -784,8 +786,8 @@ app.get('/api/faqs', async (req, res) => {
   }
 });
 
-// GET /api/faq-categories (public)
-app.get('/api/faq-categories', async (_req, res) => {
+// GET /panel/api/faq-categories (public)
+app.get('/panel/api/faq-categories', async (_req, res) => {
   try {
     const { rows } = await query(
       'SELECT id, name, description, created_at FROM public.faq_categories ORDER BY name ASC'
@@ -797,7 +799,7 @@ app.get('/api/faq-categories', async (_req, res) => {
   }
 });
 // Public search endpoint untuk telekom_data (tanpa auth)
-app.get('/api/public/telekom-data/search', async (req, res) => {
+app.get('/panel/api/public/telekom-data/search', async (req, res) => {
   try {
     const { q, limit = '20', offset = '0' } = req.query;
 
@@ -843,7 +845,7 @@ app.get('/api/public/telekom-data/search', async (req, res) => {
   }
 });
 // Public detail endpoint untuk telekom_data (tanpa auth)
-app.get('/api/public/telekom-data/:id', async (req, res) => {
+app.get('/panel/api/public/telekom-data/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id || typeof id !== 'string') {
@@ -864,7 +866,7 @@ app.get('/api/public/telekom-data/:id', async (req, res) => {
   }
 });
 
-app.get('/api/kabupaten', async (_req, res) => {
+app.get('/panel/api/kabupaten', async (_req, res) => {
   try {
     const { rows } = await query(`
       SELECT k.id, k.province_id, k.code, k.name, k.type, k.latitude, k.longitude,
@@ -898,7 +900,7 @@ app.get('/api/kabupaten', async (_req, res) => {
 });
 
 // Get kecamatan by kabupaten_id
-app.get('/api/kecamatan', async (req, res) => {
+app.get('/panel/api/kecamatan', async (req, res) => {
   try {
     const { kabupaten_id } = req.query;
 
@@ -941,7 +943,7 @@ app.get('/api/kecamatan', async (req, res) => {
 });
 
 // Get kelurahan by kecamatan_id
-app.get('/api/kelurahan', async (req, res) => {
+app.get('/panel/api/kelurahan', async (req, res) => {
   try {
     const { kecamatan_id } = req.query;
 
@@ -1074,8 +1076,8 @@ function requirePermission(moduleCodes, action) {
 
 // ---------------- FAQ ADMIN ENDPOINTS ----------------
 
-// GET /api/admin/faqs (admin): list all FAQs
-app.get('/api/admin/faqs', requireAuth, requireAdmin, async (_req, res) => {
+// GET /panel/api/admin/faqs (admin): list all FAQs
+app.get('/panel/api/admin/faqs', requireAuth, requireAdmin, async (_req, res) => {
   try {
     const { rows } = await query(
       `SELECT id, question, answer, category_id, is_active, file_url, created_at, updated_at
@@ -1089,8 +1091,8 @@ app.get('/api/admin/faqs', requireAuth, requireAdmin, async (_req, res) => {
   }
 });
 
-// POST /api/faqs (admin): create FAQ
-app.post('/api/faqs', requireAuth, requireAdmin, async (req, res) => {
+// POST /panel/api/faqs (admin): create FAQ
+app.post('/panel/api/faqs', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { question, answer, category_id, is_active = true, file_url = null } = req.body || {};
     if (!question?.trim() || !answer?.trim()) {
@@ -1122,8 +1124,8 @@ app.post('/api/faqs', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/faqs/:id (admin): update FAQ
-app.patch('/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
+// PATCH /panel/api/faqs/:id (admin): update FAQ
+app.patch('/panel/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const allowed = ['question', 'answer', 'category_id', 'is_active', 'file_url'];
@@ -1170,8 +1172,8 @@ app.patch('/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/faqs/:id (admin): delete FAQ
-app.delete('/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
+// DELETE /panel/api/faqs/:id (admin): delete FAQ
+app.delete('/panel/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const del = await query('DELETE FROM public.faqs WHERE id = $1', [id]);
@@ -1185,8 +1187,8 @@ app.delete('/api/faqs/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/faq-categories (admin): create category
-app.post('/api/faq-categories', requireAuth, requireAdmin, async (req, res) => {
+// POST /panel/api/faq-categories (admin): create category
+app.post('/panel/api/faq-categories', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, description } = req.body || {};
     if (!name?.trim()) {
@@ -1209,8 +1211,8 @@ app.post('/api/faq-categories', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH /api/faq-categories/:id (admin): update category
-app.patch('/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res) => {
+// PATCH /panel/api/faq-categories/:id (admin): update category
+app.patch('/panel/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const allowed = ['name', 'description'];
@@ -1250,8 +1252,8 @@ app.patch('/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res)
   }
 });
 
-// DELETE /api/faq-categories/:id (admin): delete category with relation check
-app.delete('/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res) => {
+// DELETE /panel/api/faq-categories/:id (admin): delete category with relation check
+app.delete('/panel/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: cntRows } = await query(
@@ -1276,7 +1278,7 @@ app.delete('/api/faq-categories/:id', requireAuth, requireAdmin, async (req, res
 });
 
 // Create telekom data
-app.post('/api/telekom-data', requireAuth, requirePermission('data_management','create'), async (req, res) => {
+app.post('/panel/api/telekom-data', requireAuth, requirePermission('data_management','create'), async (req, res) => {
   try {
     const {
       company_name,
@@ -1332,7 +1334,7 @@ app.post('/api/telekom-data', requireAuth, requirePermission('data_management','
 });
 
 // Update telekom data (owner or admin)
-app.patch('/api/telekom-data/:id', requireAuth, requirePermission('data_management','update'), async (req, res) => {
+app.patch('/panel/api/telekom-data/:id', requireAuth, requirePermission('data_management','update'), async (req, res) => {
   try {
     const { id } = req.params;
     // Fetch existing for authorization
@@ -1396,7 +1398,7 @@ app.patch('/api/telekom-data/:id', requireAuth, requirePermission('data_manageme
 });
 
 // Delete telekom data (owner or admin)
-app.delete('/api/telekom-data/:id', requireAuth, requirePermission('data_management','delete'), async (req, res) => {
+app.delete('/panel/api/telekom-data/:id', requireAuth, requirePermission('data_management','delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: existingRows } = await query(
@@ -1424,15 +1426,15 @@ app.delete('/api/telekom-data/:id', requireAuth, requirePermission('data_managem
 });
 
 // User
-app.get('/api/user/profile', requireAuth, getProfile);
+app.get('/panel/api/user/profile', requireAuth, getProfile);
 
 // DevSecOps Monitoring
-app.get('/api/devsecops/security-metrics', requireAuth, getSecurityMetrics);
-app.get('/api/devsecops/api-metrics', requireAuth, getAPIMetrics);
-app.post('/api/devsecops/log-activity', requireAuth, logActivity);
-app.post('/api/devsecops/log-api-call', requireAuth, logAPICall);
-app.get('/api/devsecops/audit-logs', requireAuth, getAuditLogs);
-app.post('/api/devsecops/audit-logs', requireAuth, createAuditLog);
+app.get('/panel/api/devsecops/security-metrics', requireAuth, getSecurityMetrics);
+app.get('/panel/api/devsecops/api-metrics', requireAuth, getAPIMetrics);
+app.post('/panel/api/devsecops/log-activity', requireAuth, logActivity);
+app.post('/panel/api/devsecops/log-api-call', requireAuth, logAPICall);
+app.get('/panel/api/devsecops/audit-logs', requireAuth, getAuditLogs);
+app.post('/panel/api/devsecops/audit-logs', requireAuth, createAuditLog);
 
 // ---- API Integration Testing (migrated from Supabase Edge Function) ----
 // POST /api/integrations/test
@@ -1441,7 +1443,7 @@ app.post('/api/devsecops/audit-logs', requireAuth, createAuditLog);
 //  B) { endpoint, method, parameters, apiName?, timeout? }
 // Security: only allow absolute http(s) URLs to allowed hostnames (env: API_TEST_ALLOWED_HOSTS)
 // Logging: writes to public.api_integration_logs and public.activity_logs
-app.post('/api/integrations/test', requireAuth, async (req, res) => {
+app.post('/panel/api/integrations/test', requireAuth, async (req, res) => {
   try {
     const raw = req.body || {};
     const data = (raw && typeof raw.data === 'object') ? raw.data : raw;
@@ -1648,7 +1650,7 @@ app.post('/api/integrations/test', requireAuth, async (req, res) => {
 });
 // Roles & Permissions
 // List roles for a user
-app.get('/api/roles', requireAuth, async (req, res) => {
+app.get('/panel/api/roles', requireAuth, async (req, res) => {
   try {
     const { rows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -1662,7 +1664,7 @@ app.get('/api/roles', requireAuth, async (req, res) => {
 });
 
 // List all users with their roles (admin only)
-app.get('/api/admin/users', requireAuth, requirePermission('user_management','read'), async (req, res) => {
+app.get('/panel/api/admin/users', requireAuth, requirePermission('user_management','read'), async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -1693,7 +1695,7 @@ app.get('/api/admin/users', requireAuth, requirePermission('user_management','re
 });
 
 // Pending validations count (admin only)
-app.get('/api/admin/users/pending-count', requireAuth, async (req, res) => {
+app.get('/panel/api/admin/users/pending-count', requireAuth, async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -1720,7 +1722,7 @@ app.get('/api/admin/users/pending-count', requireAuth, async (req, res) => {
   }
 });
 // Assign role to user (admin) — enforce SINGLE role (replace existing)
-app.post('/api/admin/users/:userId/roles', requireAuth, requirePermission('user_management','update'), async (req, res) => {
+app.post('/panel/api/admin/users/:userId/roles', requireAuth, requirePermission('user_management','update'), async (req, res) => {
   try {
     const { role } = req.body;
     const { userId } = req.params;
@@ -1760,7 +1762,7 @@ app.post('/api/admin/users/:userId/roles', requireAuth, requirePermission('user_
 
 // Remove role from user (admin) — ensure at least 'guest' remains
 app.delete(
-  '/api/admin/users/:userId/roles/:role',
+  '/panel/api/admin/users/:userId/roles/:role',
   requireAuth, requirePermission('user_management','update'),
   async (req, res) => {
     try {
@@ -1811,7 +1813,7 @@ app.delete(
 );
 
 // Module & field permissions listing
-app.get('/api/admin/permissions', requireAuth, requirePermission('user_management','read'), async (req, res) => {
+app.get('/panel/api/admin/permissions', requireAuth, requirePermission('user_management','read'), async (req, res) => {
   try {
     const { role } = req.query; // optional filter by role
     const { rows: roleRows } = await query(
@@ -1840,7 +1842,7 @@ app.get('/api/admin/permissions', requireAuth, requirePermission('user_managemen
 });
 
 // Upsert permissions (bulk)
-app.post('/api/admin/permissions/bulk', requireAuth, requirePermission('user_management','update'), async (req, res) => {
+app.post('/panel/api/admin/permissions/bulk', requireAuth, requirePermission('user_management','update'), async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -2010,7 +2012,7 @@ app.post('/api/admin/permissions/bulk', requireAuth, requirePermission('user_man
 });
 
 // Current user effective permissions (for client consumption)
-app.get('/api/permissions/effective', requireAuth, async (req, res) => {
+app.get('/panel/api/permissions/effective', requireAuth, async (req, res) => {
   try {
     const sql = `SELECT p.role, p.module_id, p.field_id, p.can_create, p.can_read, p.can_update, p.can_delete, p.field_access,
                         m.code as module_code, m.name as module_name, f.code as field_code, f.name as field_name
@@ -2028,7 +2030,7 @@ app.get('/api/permissions/effective', requireAuth, async (req, res) => {
 
 // ---- Additional Admin Metadata & User Management Endpoints ----
 // List active modules
-app.get('/api/admin/metadata/modules', requireAuth, async (req, res) => {
+app.get('/panel/api/admin/metadata/modules', requireAuth, async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -2052,7 +2054,7 @@ app.get('/api/admin/metadata/modules', requireAuth, async (req, res) => {
 });
 
 // List active fields
-app.get('/api/admin/metadata/fields', requireAuth, requirePermission('user_management','read'), async (req, res) => {
+app.get('/panel/api/admin/metadata/fields', requireAuth, requirePermission('user_management','read'), async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -2076,7 +2078,7 @@ app.get('/api/admin/metadata/fields', requireAuth, requirePermission('user_manag
 });
 
 // Update user profile
-app.patch('/api/admin/users/:userId/profile', requireAuth, requirePermission('user_management','update'), async (req, res) => {
+app.patch('/panel/api/admin/users/:userId/profile', requireAuth, requirePermission('user_management','update'), async (req, res) => {
   try {
     const { userId } = req.params;
     const { full_name, company_name, phone } = req.body;
@@ -2104,7 +2106,7 @@ app.patch('/api/admin/users/:userId/profile', requireAuth, requirePermission('us
 
 // Toggle validation status
 app.patch(
-  '/api/admin/users/:userId/validation',
+  '/panel/api/admin/users/:userId/validation',
   requireAuth, requirePermission('user_management','update'),
   async (req, res) => {
     try {
@@ -2134,7 +2136,7 @@ app.patch(
 );
 
 // Delete user (hard delete)
-app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
+app.delete('/panel/api/admin/users/:userId', requireAuth, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -2238,7 +2240,7 @@ app.delete('/api/admin/users/:userId', requireAuth, async (req, res) => {
 });
 
 // Support ticket stats endpoint
-app.get('/api/tickets/stats', requireAuth, async (req, res) => {
+app.get('/panel/api/tickets/stats', requireAuth, async (req, res) => {
   try {
     const { rows: roleRows } = await query(
       'SELECT role FROM public.user_roles WHERE user_id = $1',
@@ -2319,7 +2321,7 @@ app.get('/api/tickets/stats', requireAuth, async (req, res) => {
 });
 
 // System status endpoint
-app.get('/api/system/status', requireAuth, async (_req, res) => {
+app.get('/panel/api/system/status', requireAuth, async (_req, res) => {
   try {
     let dbStatus = 'ok';
     let latencyMs = null;

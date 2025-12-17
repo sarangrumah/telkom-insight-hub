@@ -41,7 +41,7 @@ export function useMonitoring() {
 
       // Send to backend monitoring service
       if (token()) {
-        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export function useMonitoring() {
 
       // Send to backend analytics service
       if (token()) {
-        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ export function useMonitoring() {
 
       // Send to backend analytics service
       if (token()) {
-        await fetch(`${backendUrl}/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

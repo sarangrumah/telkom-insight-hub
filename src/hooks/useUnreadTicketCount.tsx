@@ -26,7 +26,7 @@ export function useUnreadTicketCount() {
     try {
       if (!user) return;
 
-      const res = await apiFetch('/api/tickets/stats');
+      const res = await apiFetch('/panel/api/tickets/stats');
       const next = res?.counts || {};
       setCounts({
         userTickets: Number(next.userTickets || 0),

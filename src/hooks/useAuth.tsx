@@ -71,7 +71,7 @@ function useProvideAuth() {
 
   const refreshAccessToken = async (): Promise<string | null> => {
     try {
-      const resp = await fetch(`${backendUrl}/api/auth/refresh`, {
+      const resp = await fetch(`${backendUrl}/panel/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -160,7 +160,7 @@ function useProvideAuth() {
 
     // Ambil profil menggunakan token (mungkin hasil refresh)
     try {
-      const resp = await fetch(`${backendUrl}/api/user/profile`, {
+      const resp = await fetch(`${backendUrl}/panel/api/user/profile`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (resp.ok) {
@@ -207,7 +207,7 @@ function useProvideAuth() {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const resp = await fetch(`${backendUrl}/api/auth/login`, {
+      const resp = await fetch(`${backendUrl}/panel/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -236,7 +236,7 @@ function useProvideAuth() {
       // Jika full_name belum tersedia dalam response login (versi lama backend), lakukan fetch profile segera
       if (!data.user.full_name) {
         try {
-          const profileResp = await fetch(`${backendUrl}/api/user/profile`, {
+          const profileResp = await fetch(`${backendUrl}/panel/api/user/profile`, {
             headers: { Authorization: `Bearer ${data.token}` },
           });
           if (profileResp.ok) {
@@ -283,7 +283,7 @@ function useProvideAuth() {
   ) => {
     setLoading(true);
     try {
-      const resp = await fetch(`${backendUrl}/api/auth/register`, {
+      const resp = await fetch(`${backendUrl}/panel/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -342,7 +342,7 @@ function useProvideAuth() {
 
   const logout = () => {
     // Revoke server-side session/refresh (best-effort)
-    fetch(`${backendUrl}/api/auth/logout`, {
+    fetch(`${backendUrl}/panel/api/auth/logout`, {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});

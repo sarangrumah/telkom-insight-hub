@@ -38,7 +38,7 @@ const TelekomDataDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await apiFetch(`/api/public/telekom-data/${id}`);
+        const res = await apiFetch(`/panel/api/public/telekom-data/${id}`);
         setData(res as TelekomDataDetailRow);
       } catch (err) {
         console.error("Error fetching detail:", err);

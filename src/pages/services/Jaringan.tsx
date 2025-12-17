@@ -88,7 +88,7 @@ export default function JaringanPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/jaringan?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/panel/api/jaringan?page=${page}&pageSize=${pageSize}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

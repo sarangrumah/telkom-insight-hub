@@ -106,7 +106,7 @@ export default function JasaPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/jasa?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/panel/api/jasa?page=${page}&pageSize=${pageSize}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

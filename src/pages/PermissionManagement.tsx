@@ -120,10 +120,10 @@ const PermissionManagement: React.FC = () => {
       setLoading(true);
 
       const [modulesResp, fieldsResp] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/metadata/modules`, {
+        fetch(`${API_BASE}/panel/api/admin/metadata/modules`, {
           headers: authHeader(),
         }),
-        fetch(`${API_BASE}/api/admin/metadata/fields`, {
+        fetch(`${API_BASE}/panel/api/admin/metadata/fields`, {
           headers: authHeader(),
         }),
       ]);
@@ -150,7 +150,7 @@ const PermissionManagement: React.FC = () => {
 
     try {
       const resp = await fetch(
-        `${API_BASE}/api/admin/permissions?role=${selectedRole}`,
+        `${API_BASE}/panel/api/admin/permissions?role=${selectedRole}`,
         { headers: authHeader() }
       );
       if (!resp.ok) throw new Error('Failed to load permissions');
@@ -186,7 +186,7 @@ const PermissionManagement: React.FC = () => {
 
     try {
       const resp = await fetch(
-        `${API_BASE}/api/admin/permissions?role=${selectedRole}`,
+        `${API_BASE}/panel/api/admin/permissions?role=${selectedRole}`,
         { headers: authHeader() }
       );
       if (!resp.ok) throw new Error('Failed to load field permissions');
@@ -296,7 +296,7 @@ const PermissionManagement: React.FC = () => {
           can_delete: false,
         };
       });
-      const resp = await fetch(`${API_BASE}/api/admin/permissions/bulk`, {
+      const resp = await fetch(`${API_BASE}/panel/api/admin/permissions/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({

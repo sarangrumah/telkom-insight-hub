@@ -17,9 +17,9 @@ const adminVerificationRoutes = require('./routes/adminVerification');
 const certificateSubmissionRoutes = require('./routes/certificateSubmission');
 
 // Use routes
-app.use('/api/auth', registrationRoutes);
-app.use('/api/admin', adminVerificationRoutes);
-app.use('/api/certificates', certificateSubmissionRoutes);
+app.use('/panel/api/auth', registrationRoutes);
+app.use('/panel/api/admin', adminVerificationRoutes);
+app.use('/panel/api/certificates', certificateSubmissionRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -87,7 +87,7 @@ export default function SKLOPage() {
       setLoading(true);
       setError(null);
       
-      const data: SKLOApiResponse = await apiFetch(`/api/sklo?page=${page}&pageSize=${pageSize}`);
+      const data: SKLOApiResponse = await apiFetch(`/panel/api/sklo?page=${page}&pageSize=${pageSize}`);
       
       setSkloData(data.data);
       setTotal(data.total);

@@ -106,7 +106,7 @@ const RegistrationForm: React.FC = () => {
         }
       });
 
-      const response = await fetch('/api/auth/register-with-documents', {
+      const response = await fetch('/panel/api/auth/register-with-documents', {
         method: 'POST',
         body: formDataToSend,
         headers: {

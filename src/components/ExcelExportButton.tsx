@@ -188,7 +188,7 @@ export const ExcelExportButton: React.FC<ExcelExportButtonProps> = ({
           }
         }
 
-        const resp = await apiFetch(`/api/telekom-data?${params.toString()}`) as {
+        const resp = await apiFetch(`/panel/api/telekom-data?${params.toString()}`) as {
           data: TelekomDataExportRow[];
           total: number;
           page: number;

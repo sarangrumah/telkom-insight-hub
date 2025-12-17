@@ -95,7 +95,7 @@ export default function PenomoranPage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/tarif?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/panel/api/tarif?page=${page}&pageSize=${pageSize}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

@@ -13,11 +13,17 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     proxy: {
-      '/api': {
+      '/panel/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
       },
+      '/panel/uploads': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // Keep the original /uploads proxy for direct file access
       '/uploads': {
         target: 'http://localhost:4000',
         changeOrigin: true,

@@ -91,7 +91,7 @@ export function FileUpload({
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE}/api/uploads`);
+        xhr.open('POST', `${API_BASE}/panel/api/uploads`);
         if (token) {
           xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }

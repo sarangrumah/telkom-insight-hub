@@ -51,7 +51,7 @@ const BasicEnhancedRegistration: React.FC = () => {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/auth/register-with-details', {
+      const response = await fetch('/panel/api/auth/register-with-details', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getTarifRows, type TarifRow, type PelaporanStatus } from '@/lib/tarifData';
+import { mapRawToRow, type TarifRow, type PelaporanStatus } from '@/lib/tarifData';
+import { TarifAPI } from '@/lib/apiClient';
 import {
   Card,
   CardContent,
@@ -32,7 +33,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
 
-/* Data sekarang di-load dari JSON melalui getTarifRows di src/lib/tarifData.ts */
+/* Data sekarang di-load dari API melalui TarifAPI.getAll di src/lib/apiClient.ts */
 
 function EmailCell({ email, status }: { email: string; status: string }) {
   const s = (status || '').toLowerCase();
@@ -76,7 +77,9 @@ export default function TarifPage() {
     let active = true;
     (async () => {
       try {
-        const data = await getTarifRows();
+        const response = await TarifAPI.getAll();
+        const rawData = response.data || [];
+        const data = mapRawToRow(rawData);
         if (active) {
           setRows(data);
           setLoading(false);
@@ -100,7 +103,9 @@ export default function TarifPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const data = await getTarifRows();
+      const response = await TarifAPI.getAll();
+      const rawData = response.data || [];
+      const data = mapRawToRow(rawData);
       setRows(data);
     } catch (err) {
       console.error('Gagal refresh data tarif:', err);
@@ -147,7 +152,7 @@ export default function TarifPage() {
         <CardHeader>
           <CardTitle>Data Pelaporan Tarif</CardTitle>
           <CardDescription>
-            Data diambil dari sumber JSON dan mendukung pagination
+            Data diambil dari sumber API dan mendukung pagination
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

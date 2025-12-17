@@ -113,7 +113,7 @@ export default function EnhancedDashboard({
 
   const fetchSystemStatus = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/system/status');
+      const res = await apiFetch('/panel/api/system/status');
       setSystemStatus(res as SystemStatus);
     } catch (e) {
       console.error('Failed to load system status', e);
@@ -130,7 +130,7 @@ export default function EnhancedDashboard({
         setPendingValidations(null);
         return;
       }
-      const res = await apiFetch('/api/admin/users/pending-count') as { pending?: number };
+      const res = await apiFetch('/panel/api/admin/users/pending-count') as { pending?: number };
       setPendingValidations(typeof res?.pending === 'number' ? res.pending : 0);
     } catch (e) {
       // Silently ignore for non-admin or errors
@@ -173,7 +173,7 @@ export default function EnhancedDashboard({
         if (dateTo) params.set('date_to', dateTo);
 
         const resp = (await apiFetch(
-          `/api/telekom-data?${params.toString()}`
+          `/panel/api/telekom-data?${params.toString()}`
         )) as { data: TelkomDataRow[]; page: number; pageSize: number; total: number };
 
         const chunk = resp?.data || [];
