@@ -67,7 +67,7 @@ function useProvideAuth() {
   const [authActionError, setAuthActionError] = useState<string | null>(null);
 
   const backendUrl =
-    (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+    (import.meta.env.VITE_API_BASE_URL as string) || '';
   // Fix double /panel issue if VITE_API_BASE_URL includes /panel
   const sanitizedBackendUrl = backendUrl.endsWith('/panel')
     ? backendUrl.slice(0, -6)

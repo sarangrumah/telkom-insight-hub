@@ -35,7 +35,7 @@ interface APIIntegrationLog {
 
 export const useAPIMonitoring = () => {
   const { token } = useAuth();
-  const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+  const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || '';
   const backendUrl = rawBackendUrl.endsWith('/panel') ? rawBackendUrl.slice(0, -6) : rawBackendUrl;
   
   const [metrics, setMetrics] = useState<APIMetrics>({

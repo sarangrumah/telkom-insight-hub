@@ -20,7 +20,7 @@ interface PerformanceMetrics {
 
 export function useMonitoring() {
   const { token } = useAuth();
-  const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+  const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || '';
   const backendUrl = rawBackendUrl.endsWith('/panel') ? rawBackendUrl.slice(0, -6) : rawBackendUrl;
 
   const logError = useCallback(async (error: Error, component?: string) => {

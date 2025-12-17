@@ -50,9 +50,17 @@ class WSClient {
       return;
     }
 
-    const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:4000';
+    const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
     const apiBase = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
-    const wsUrl = apiBase.replace(/^http/, 'ws') + '/ws';
+    
+    let wsUrl = '';
+    if (apiBase) {
+      wsUrl = apiBase.replace(/^http/, 'ws') + '/ws';
+    } else {
+      // Construct absolute WS URL from current location
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    }
     const token = localStorage.getItem('app.jwt.token') || '';
 
     const connect = () => {
