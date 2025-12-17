@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
+import { apiFetch } from '@/lib/apiClient';
 
 export interface VerificationStatus {
   success: boolean;
@@ -15,17 +16,7 @@ export const useVerificationStatus = () => {
   return useQuery<VerificationStatus, Error>({
     queryKey: ['verification-status'],
     queryFn: async () => {
-      const response = await fetch('/api/auth/verification-status', {
-        headers: {
-          'Authorization': `Bearer ${token()}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch verification status');
-      }
-      
-      return response.json();
+      return apiFetch('/panel/api/auth/verification-status') as Promise<VerificationStatus>;
     },
     enabled: !!token(), // Only run query if token exists
     retry: 1,

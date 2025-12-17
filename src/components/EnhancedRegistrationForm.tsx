@@ -269,7 +269,7 @@ const EnhancedRegistrationForm: React.FC = () => {
         
         // Fetch provinces - use relative path to allow Vite proxy to handle the request
         // Ensure no credentials or auth headers are sent
-        const provincesResponse = await fetch('/api/provinces', {
+        const provincesResponse = await fetch('/panel/api/provinces', {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -300,7 +300,7 @@ const EnhancedRegistrationForm: React.FC = () => {
         
         // Fetch kabupaten - use relative path to allow Vite proxy to handle the request
         // Ensure no credentials or auth headers are sent
-        const kabupatenResponse = await fetch('/api/kabupaten', {
+        const kabupatenResponse = await fetch('/panel/api/kabupaten', {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -795,7 +795,7 @@ const EnhancedRegistrationForm: React.FC = () => {
         }
       });
 
-      const response = await fetch('/api/auth/register-with-details', {
+      const response = await fetch('/panel/api/auth/register-with-details', {
         method: 'POST',
         body: formDataToSend,
         // Note: The Authorization header is likely unnecessary for registration endpoint

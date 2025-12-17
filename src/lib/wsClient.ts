@@ -55,11 +55,11 @@ class WSClient {
     
     let wsUrl = '';
     if (apiBase) {
-      wsUrl = apiBase.replace(/^http/, 'ws') + '/ws';
+      wsUrl = apiBase.replace(/^http/, 'ws') + '/panel/ws';
     } else {
       // Construct absolute WS URL from current location
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.host}/ws`;
+      wsUrl = `${protocol}//${window.location.host}/panel/ws`;
     }
     const token = localStorage.getItem('app.jwt.token') || '';
 

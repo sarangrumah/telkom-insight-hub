@@ -52,7 +52,7 @@ export const usePermissions = (moduleCode?: string) => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       // gunakan apiFetch agar header Authorization konsisten (token key: app.jwt.token)
-      const json = await apiFetch('/api/permissions/effective');
+      const json = await apiFetch('/panel/api/permissions/effective');
       let perms: ApiPermission[] = json.permissions || [];
       if (moduleCode) {
         perms = perms.filter(p => p.module_code === moduleCode);

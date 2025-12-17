@@ -47,41 +47,41 @@ function toQuery(params?: Record<string, string | number | undefined>) {
 export const FAQApi = {
   // Public
   async listPublic(params?: { search?: string; category_id?: string }) : Promise<Faq[]> {
-    const res = await apiFetch(`/api/faqs${toQuery(params)}`);
+    const res = await apiFetch(`/panel/api/faqs${toQuery(params)}`);
     return res.faqs ?? [];
   },
   async listCategoriesPublic(): Promise<FaqCategory[]> {
-    const res = await apiFetch('/api/faq-categories');
+    const res = await apiFetch('/panel/api/faq-categories');
     return res.categories ?? [];
   },
 
   // Admin
   async adminList(): Promise<Faq[]> {
-    const res = await apiFetch('/api/admin/faqs');
+    const res = await apiFetch('/panel/api/admin/faqs');
     return res.faqs ?? [];
   },
   async create(data: FaqCreatePayload): Promise<Faq> {
-    const res = await apiFetch('/api/faqs', { method: 'POST', body: JSON.stringify(data) });
+    const res = await apiFetch('/panel/api/faqs', { method: 'POST', body: JSON.stringify(data) });
     return res.data as Faq;
   },
   async update(id: string, data: FaqUpdatePayload): Promise<Faq> {
-    const res = await apiFetch(`/api/faqs/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    const res = await apiFetch(`/panel/api/faqs/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
     return res.data as Faq;
   },
   async remove(id: string): Promise<void> {
-    await apiFetch(`/api/faqs/${id}`, { method: 'DELETE' });
+    await apiFetch(`/panel/api/faqs/${id}`, { method: 'DELETE' });
   },
   categories: {
     async create(data: CategoryCreatePayload): Promise<FaqCategory> {
-      const res = await apiFetch('/api/faq-categories', { method: 'POST', body: JSON.stringify(data) });
+      const res = await apiFetch('/panel/api/faq-categories', { method: 'POST', body: JSON.stringify(data) });
       return res.data as FaqCategory;
     },
     async update(id: string, data: CategoryUpdatePayload): Promise<FaqCategory> {
-      const res = await apiFetch(`/api/faq-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+      const res = await apiFetch(`/panel/api/faq-categories/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
       return res.data as FaqCategory;
     },
     async remove(id: string): Promise<void> {
-      await apiFetch(`/api/faq-categories/${id}`, { method: 'DELETE' });
+      await apiFetch(`/panel/api/faq-categories/${id}`, { method: 'DELETE' });
     },
   },
 };

@@ -52,7 +52,7 @@ export function useTelekomDataList(params: TelekomListParams = {}, enabled = tru
         }
       });
       const q = qs.toString();
-      const url = q ? `/api/telekom-data?${q}` : '/api/telekom-data';
+      const url = q ? `/panel/api/telekom-data?${q}` : '/panel/api/telekom-data';
       const data = await apiFetch(url);
       return data as ListResponse;
     },
@@ -77,7 +77,7 @@ export function useCreateTelekomData() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (payload: CreatePayload) => {
-      const data = await apiFetch('/api/telekom-data', {
+      const data = await apiFetch('/panel/api/telekom-data', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -94,7 +94,7 @@ export function useUpdateTelekomData() {
   return useMutation({
     mutationFn: async (payload: UpdatePayload) => {
       const { id, ...rest } = payload;
-      const data = await apiFetch(`/api/telekom-data/${id}`, {
+      const data = await apiFetch(`/panel/api/telekom-data/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(rest),
       });
@@ -110,7 +110,7 @@ export function useDeleteTelekomData() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const data = await apiFetch(`/api/telekom-data/${id}`, {
+      const data = await apiFetch(`/panel/api/telekom-data/${id}`, {
         method: 'DELETE',
       });
       return data;

@@ -96,8 +96,8 @@ export const useLocationData = () => {
         setLoading(true);
         setError(null);
         // Hit backend endpoints (must be implemented on server)
-        const provincesResp = await apiFetch('/api/provinces') as ProvincesResponse;
-        const kabupatenResp = await apiFetch('/api/kabupaten') as KabupatenResponse;
+        const provincesResp = await apiFetch('/panel/api/provinces') as ProvincesResponse;
+        const kabupatenResp = await apiFetch('/panel/api/kabupaten') as KabupatenResponse;
 
         setProvinces(provincesResp.provinces || []);
         setAllKabupaten(
@@ -135,7 +135,7 @@ export const useLocationData = () => {
   // Fetch kecamatan by kabupaten_id
   const fetchKecamatanByKabupaten = async (kabupatenId: string): Promise<Kecamatan[]> => {
     try {
-      const response = await apiFetch(`/api/kecamatan?kabupaten_id=${kabupatenId}`) as KecamatanResponse;
+      const response = await apiFetch(`/panel/api/kecamatan?kabupaten_id=${kabupatenId}`) as KecamatanResponse;
       return (response.kecamatan || []).map(k => ({
         id: k.id,
         name: k.name,
@@ -152,7 +152,7 @@ export const useLocationData = () => {
   // Fetch kelurahan by kecamatan_id
   const fetchKelurahanByKecamatan = async (kecamatanId: string): Promise<Kelurahan[]> => {
     try {
-      const response = await apiFetch(`/api/kelurahan?kecamatan_id=${kecamatanId}`) as KelurahanResponse;
+      const response = await apiFetch(`/panel/api/kelurahan?kecamatan_id=${kecamatanId}`) as KelurahanResponse;
       return (response.kelurahan || []).map(k => ({
         id: k.id,
         name: k.name,
@@ -184,8 +184,8 @@ export const useLocationData = () => {
         try {
           setLoading(true);
           setError(null);
-          const provincesResp = await apiFetch('/api/provinces') as ProvincesResponse;
-          const kabupatenResp = await apiFetch('/api/kabupaten') as KabupatenResponse;
+          const provincesResp = await apiFetch('/panel/api/provinces') as ProvincesResponse;
+          const kabupatenResp = await apiFetch('/panel/api/kabupaten') as KabupatenResponse;
           setProvinces(provincesResp.provinces || []);
           setAllKabupaten(
             (kabupatenResp.kabupaten || []).map(k => ({

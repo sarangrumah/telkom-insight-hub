@@ -26,7 +26,7 @@ async function fetchUserRoles(userId) {
 }
 
 export function attachWebSocket(server) {
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({ server, path: '/panel/ws' });
 
   wss.on('connection', async (ws, req) => {
     try {

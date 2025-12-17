@@ -25,7 +25,7 @@ let subServicesCache: SubService[] | null = null;
 export async function fetchServices(): Promise<Service[]> {
   if (servicesCache) return servicesCache;
   try {
-    const resp = (await apiFetch('/api/services')) as { services?: Service[] };
+    const resp = (await apiFetch('/panel/api/services')) as { services?: Service[] };
     servicesCache = resp.services || [];
     return servicesCache;
   } catch (e) {
@@ -38,7 +38,7 @@ export async function fetchServices(): Promise<Service[]> {
 export async function fetchSubServices(): Promise<SubService[]> {
   if (subServicesCache) return subServicesCache;
   try {
-    const resp = (await apiFetch('/api/sub-services')) as {
+    const resp = (await apiFetch('/panel/api/sub-services')) as {
       sub_services?: SubService[];
     };
     subServicesCache = resp.sub_services || [];

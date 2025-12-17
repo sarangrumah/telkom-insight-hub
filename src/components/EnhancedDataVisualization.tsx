@@ -179,7 +179,7 @@ const EnhancedDataVisualization = () => {
       const all: TelekomData[] = [];
 
       while (all.length < total) {
-        const resp = await apiFetch(`/api/telekom-data?page=${page}&pageSize=${pageSize}`);
+        const resp = await apiFetch(`/panel/api/telekom-data?page=${page}&pageSize=${pageSize}`);
         const { data: chunk, total: t } = resp as {
           data: TelekomData[];
           page: number;

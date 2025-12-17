@@ -50,7 +50,7 @@ export const useThirdPartyAPI = () => {
           timeout,    // ms
         };
 
-        const result = await apiFetch('/api/integrations/test', {
+        const result = await apiFetch('/panel/api/integrations/test', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
