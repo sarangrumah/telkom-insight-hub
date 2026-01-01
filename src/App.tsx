@@ -36,6 +36,8 @@ import Telsus from './pages/services/Telsus';
 import SKLO from './pages/services/SKLO';
 import ISR from './pages/services/ISR';
 import LKO from './pages/services/LKO';
+import BPSConfiguration from './pages/BPSConfiguration';
+import BPSDataVisualization from './pages/BPSDataVisualization';
 import AppLayout from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './hooks/AuthProvider';
@@ -196,6 +198,22 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedLayout>
             <LKO />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/bps-configuration"
+        element={
+          <ProtectedLayout>
+            <BPSConfiguration />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/bps-data"
+        element={
+          <ProtectedLayout>
+            <BPSDataVisualization />
           </ProtectedLayout>
         }
       />

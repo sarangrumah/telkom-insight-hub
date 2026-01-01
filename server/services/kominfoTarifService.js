@@ -1,0 +1,281 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+const API_BASE_URL = process.env.KOMINFO_TARIF_API_BASE_URL || 'https://tariftel.komdigi.go.id/api/v1/api';
+const API_KEY = process.env.KOMINFO_TARIF_API_KEY;
+const DEFAULT_TAHUN = parseInt(process.env.KOMINFO_TARIF_DEFAULT_TAHUN || new Date().getFullYear().toString());
+const DEFAULT_PERIODE = process.env.KOMINFO_TARIF_DEFAULT_PERIODE || 'bulanan';
+
+/**
+ * @typedef {Object} ApiParams
+ * @property {number} [tahun]
+ * @property {string} [periode]
+ * @property {number} [limit]
+ * @property {number} [from]
+ * @property {string} [status]
+ * @property {string} [jenis]
+ */
+
+/**
+ * @typedef {Object} ApiResponse
+ * @property {Array} data
+ * @property {number} total
+ * @property {boolean} hasMore
+ * @property {number} currentPage
+ */
+
+/**
+ * Kominfo Tarif API Service
+ * Handles fetching data from Kominfo Tarif API with pagination and parameter loops
+ */
+export class KominfoTarifService {
+  constructor() {
+    if (!API_KEY) {
+      throw new Error('KOMINFO_TARIF_API_KEY environment variable is required');
+    }
+  }
+
+  /**
+   * Build API URL with parameters
+   * @param {ApiParams} params 
+   */
+  buildApiUrl(params = {}) {
+    const url = new URL(`${API_BASE_URL}/dataAll/`);
+    
+    // Add required parameters
+    url.searchParams.append('Tariftel-API-KEY', API_KEY);
+    url.searchParams.append('tahun', (params.tahun || DEFAULT_TAHUN).toString());
+    url.searchParams.append('periode', params.periode || DEFAULT_PERIODE);
+    
+    // Add optional parameters
+    if (params.limit) url.searchParams.append('limit', params.limit.toString());
+    if (params.from) url.searchParams.append('from', params.from.toString());
+    if (params.status) url.searchParams.append('status', params.status);
+    if (params.jenis) url.searchParams.append('jenis', params.jenis);
+    
+    return url.toString();
+  }
+
+  /**
+   * Fetch data from API with retry logic
+   * @param {ApiParams} params 
+   * @param {number} maxRetries 
+   * @returns {Promise<ApiResponse>}
+   */
+  async fetchApiData(params = {}, maxRetries = 3) {
+    const url = this.buildApiUrl(params);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Fetching data from Kominfo API (attempt ${attempt}/${maxRetries}):`, url);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Telkom-Insight-Hub/1.0'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        // Check if the response has the expected structure
+        if (!data || !Array.isArray(data.data)) {
+          console.warn('Unexpected API response structure:', data);
+          return { data: [], total: 0, hasMore: false, currentPage: params.from || 1 };
+        }
+
+        return {
+          data: data.data,
+          total: data.total || data.data.length,
+          hasMore: data.hasMore || false,
+          currentPage: params.from || 1
+        };
+
+      } catch (error) {
+        console.error(`API fetch attempt ${attempt} failed:`, error instanceof Error ? error.message : 'Unknown error');
+        
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to fetch data after ${maxRetries} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
+    }
+  }
+
+  /**
+   * Fetch all data for specific parameter combinations with pagination
+   * @param {ApiParams} params 
+   * @returns {Promise<Array>}
+   */
+  async fetchAllData(params = {}) {
+    const statusOptions = ['sudah', 'belum'];
+    const jenisOptions = ['jasa', 'jaringan'];
+    const allData = [];
+    
+    console.log('Starting comprehensive data fetch...');
+    
+    for (const status of statusOptions) {
+      for (const jenis of jenisOptions) {
+        console.log(`Fetching data for status: ${status}, jenis: ${jenis}`);
+        
+        const batchData = await this.fetchPaginatedData({
+          ...params,
+          status,
+          jenis
+        });
+        
+        allData.push(...batchData);
+        console.log(`Fetched ${batchData.length} records for ${status}/${jenis}`);
+      }
+    }
+    
+    console.log(`Total data fetched: ${allData.length} records`);
+    return allData;
+  }
+
+  /**
+   * Fetch paginated data for a specific parameter combination
+   * @param {ApiParams} params 
+   * @returns {Promise<Array>}
+   */
+  async fetchPaginatedData(params = {}) {
+    const allData = [];
+    let from = 1;
+    const limit = 100; // Fetch in larger batches for efficiency
+    
+    while (true) {
+      try {
+        const result = await this.fetchApiData({
+          ...params,
+          from,
+          limit
+        });
+        
+        if (!result.data || result.data.length === 0) {
+          break;
+        }
+        
+        allData.push(...result.data);
+        
+        // Check if we've fetched all data
+        if (result.data.length < limit) {
+          break;
+        }
+        
+        from += limit;
+        
+        // Add small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+      } catch (error) {
+        console.error(`Error fetching page starting from ${from}:`, error instanceof Error ? error.message : 'Unknown error');
+        break;
+      }
+    }
+    
+    return allData;
+  }
+
+  /**
+   * Transform API data to database format
+   * @param {Array} apiData 
+   * @param {ApiParams} apiParams 
+   * @returns {Array}
+   */
+  transformApiData(apiData, apiParams = {}) {
+    return apiData.map(item => {
+      // Create a unique identifier based on available fields
+      const uid = this.generateUid(item, apiParams);
+      
+      return {
+        uid,
+        jenis_izin: item.jenis_izin || item.Jenis_Izin || '',
+        title: item.title || item.Title || '',
+        color: item.color || item.Color || '',
+        title_jenis: item.title_jenis || item.Title_Jenis || '',
+        penyelenggara: item.penyelenggara || item.Penyelenggara || '',
+        pic: item.pic || item.PIC || '',
+        email: item.email || item.Email || '',
+        status_email: item.status_email || item.Status_Email || '',
+        id_user: item.id_user || item.ID_User || '',
+        app_name: item.app_name || item.App_Name || '',
+        id_jenis_izin: item.id_jenis_izin || item.ID_Jenis_Izin || '',
+        id_izin: item.id_izin || item.ID_Izin || '',
+        id_jenis_report: item.id_jenis_report || item.ID_Jenis_Report || '',
+        jenis_periode: item.jenis_periode || item.Jenis_Periode || '',
+        jenis: item.jenis || item.Jenis || '',
+        tanggal: item.tanggal || item.Tanggal || '',
+        filename: item.filename || item.Filename || '',
+        status: item.status || item.Status || 'Belum',
+        tahun: parseInt(item.tahun || item.Tahun) || DEFAULT_TAHUN,
+        periode: item.periode || item.Periode || DEFAULT_PERIODE,
+        api_status: apiParams.status || '',
+        api_jenis: apiParams.jenis || '',
+        last_synced_at: new Date(),
+        sync_status: 'synced',
+        sync_error: null
+      };
+    });
+  }
+
+  /**
+   * Generate unique identifier for a record
+   * @param {Object} item 
+   * @param {ApiParams} apiParams 
+   * @returns {string}
+   */
+  generateUid(item, apiParams = {}) {
+    // Try to use existing unique identifiers
+    if (item.uid) return item.uid;
+    if (item.ID) return `id_${item.ID}`;
+    if (item.id) return `id_${item.id}`;
+    
+    // Fallback: create UID from available fields
+    const fields = [
+      item.jenis_izin || item.Jenis_Izin || '',
+      item.app_name || item.App_Name || '',
+      item.penyelenggara || item.Penyelenggara || '',
+      item.email || item.Email || '',
+      apiParams.status || '',
+      apiParams.jenis || '',
+      item.tahun || item.Tahun || '',
+      item.periode || item.Periode || ''
+    ];
+    
+    return fields.join('_').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+  }
+
+  /**
+   * Test API connectivity
+   * @returns {Promise<Object>}
+   */
+  async testConnection() {
+    try {
+      const result = await this.fetchApiData({
+        limit: 1,
+        from: 1
+      });
+      
+      return {
+        success: true,
+        message: 'API connection successful',
+        sampleData: result.data
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `API connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: error
+      };
+    }
+  }
+}
+
+export default KominfoTarifService;

@@ -31,8 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { RotateCcw, RefreshCw, Database, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import { RotateCcw, RefreshCw, Database, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -119,12 +118,6 @@ export default function TarifPage() {
     updatedRecords: number;
     errorRecords: number;
   } | null>(null);
-  
-  // New state for year selection and filtering
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | PelaporanStatus>('all');
-  const [jenisFilter, setJenisFilter] = useState<'all' | 'voice' | 'sms' | 'data' | 'paket'>('all');
 
   useEffect(() => {
     let active = true;
@@ -147,48 +140,11 @@ export default function TarifPage() {
     };
   }, []);
 
-  // Filtered rows based on search and filter criteria
-  const filteredRows = useMemo(() => {
-    let filtered = rows;
-    
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(row =>
-        row.penyelenggara.toLowerCase().includes(term) ||
-        row.pic.toLowerCase().includes(term) ||
-        row.email.toLowerCase().includes(term) ||
-        row.jenis.toLowerCase().includes(term) ||
-        row.sub.toLowerCase().includes(term) ||
-        (row.tanggal && row.tanggal.toLowerCase().includes(term))
-      );
-    }
-    
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(row => row.status === statusFilter);
-    }
-    
-    // Apply jenis filter
-    if (jenisFilter !== 'all') {
-      filtered = filtered.filter(row =>
-        row.jenis.toLowerCase().includes(jenisFilter)
-      );
-    }
-    
-    return filtered;
-  }, [rows, searchTerm, statusFilter, jenisFilter]);
-  
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, statusFilter, jenisFilter]);
-  
-  const total = filteredRows.length;
+  const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = (page - 1) * pageSize;
   const end = Math.min(start + pageSize, total);
-  const current = useMemo(() => filteredRows.slice(start, end), [filteredRows, start, end]);
+  const current = useMemo(() => rows.slice(start, end), [rows, start, end]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -213,7 +169,7 @@ export default function TarifPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tahun: selectedYear,
+          tahun: new Date().getFullYear(),
           periode: 'bulanan'
         }),
       });
@@ -270,21 +226,6 @@ export default function TarifPage() {
         </div>
         <div className="flex gap-2 items-center">
           <SyncStatusBadge status={syncStatus} />
-          <Select
-            value={String(selectedYear)}
-            onValueChange={(v) => setSelectedYear(parseInt(v, 10))}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2025">2025</SelectItem>
-              <SelectItem value="2024">2024</SelectItem>
-              <SelectItem value="2023">2023</SelectItem>
-              <SelectItem value="2022">2022</SelectItem>
-              <SelectItem value="2021">2021</SelectItem>
-            </SelectContent>
-          </Select>
           <Button
             variant="outline"
             onClick={handleRefresh}
@@ -333,7 +274,6 @@ export default function TarifPage() {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{syncStats.errorRecords}</div>
-                <div className="text-sm text-2xl font-bold text-red-600">{syncStats.errorRecords}</div>
                 <div className="text-sm text-muted-foreground">Errors</div>
               </div>
             </div>
@@ -349,60 +289,6 @@ export default function TarifPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Search and Filter Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-[200px]"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={(value: 'all' | PelaporanStatus) => setStatusFilter(value)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Status Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Sudah Melaporkan">Sudah Melaporkan</SelectItem>
-                  <SelectItem value="Belum Melaporkan">Belum Melaporkan</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={jenisFilter} onValueChange={(value: 'all' | 'voice' | 'sms' | 'data' | 'paket') => setJenisFilter(value)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Jenis Filter" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="voice">Voice</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="data">Data</SelectItem>
-                  <SelectItem value="paket">Paket</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                  setJenisFilter('all');
-                  setPage(1);
-                }}
-                title="Clear filters"
-              >
-                <Filter className="h-4 w-4 mr-1" />
-                Clear
-              </Button>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredRows.length} of {rows.length} records
-            </div>
-          </div>
-
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -446,7 +332,7 @@ export default function TarifPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-sm text-muted-foreground">
-              Menampilkan {filteredRows.length === 0 ? 0 : start + 1}–{end} dari {filteredRows.length} data
+              Menampilkan {total === 0 ? 0 : start + 1}–{end} dari {total} data
             </div>
 
             <div className="flex items-center gap-3">

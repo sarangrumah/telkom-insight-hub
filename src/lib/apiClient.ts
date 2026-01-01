@@ -1,6 +1,5 @@
-import { API_BASE_URL } from '@/config';
-
-const baseUrl = API_BASE_URL;
+// Use relative paths for proxy support - the Vite proxy will handle /panel/api requests
+const baseUrl = '';
 
 const TOKEN_KEY = 'app.jwt.token';
 

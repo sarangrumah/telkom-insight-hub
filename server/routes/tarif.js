@@ -57,7 +57,7 @@ router.get('/tarif-data', async (req, res) => {
     const { tahun, periode, limit, jenis } = validateAndSanitizeParams(req);
     
     // Build the query dynamically based on provided parameters
-    let sqlQuery = 'SELECT * FROM tariff_data WHERE 1=1';
+    let sqlQuery = 'SELECT * FROM kominfo_tarif_data WHERE 1=1';
     const queryParams = [];
     let paramIndex = 1;
     
@@ -114,7 +114,7 @@ router.get('/tarif-data/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const sqlQuery = 'SELECT * FROM tariff_data WHERE id = $1';
+    const sqlQuery = 'SELECT * FROM kominfo_tarif_data WHERE id = $1';
     const { rows } = await query(sqlQuery, [id]);
     const result = rows.length > 0 ? rows[0] : null;
     
@@ -167,10 +167,10 @@ router.post('/tarif-data', async (req, res) => {
     
     // Insert or update tariff data
     const insertQuery = `
-      INSERT INTO tariff_data (
-        jenis_izin, title, color, title_jenis, penyelenggara, pic, email, 
-        status_email, id_user, app_name, id_jenis_izin, id_izin, 
-        id_jenis_report, jenis_periode, jenis, tanggal, filename, 
+      INSERT INTO kominfo_tarif_data (
+        jenis_izin, title, color, title_jenis, penyelenggara, pic, email,
+        status_email, id_user, app_name, id_jenis_izin, id_izin,
+        id_jenis_report, jenis_periode, jenis, tanggal, filename,
         status, tahun, periode
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       ON CONFLICT(id) DO UPDATE SET
@@ -252,10 +252,10 @@ router.post('/tarif-data/bulk', async (req, res) => {
     await query('BEGIN');
     
     const insertQuery = `
-      INSERT INTO tariff_data (
-        jenis_izin, title, color, title_jenis, penyelenggara, pic, email, 
-        status_email, id_user, app_name, id_jenis_izin, id_izin, 
-        id_jenis_report, jenis_periode, jenis, tanggal, filename, 
+      INSERT INTO kominfo_tarif_data (
+        jenis_izin, title, color, title_jenis, penyelenggara, pic, email,
+        status_email, id_user, app_name, id_jenis_izin, id_izin,
+        id_jenis_report, jenis_periode, jenis, tanggal, filename,
         status, tahun, periode
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       ON CONFLICT(id) DO UPDATE SET

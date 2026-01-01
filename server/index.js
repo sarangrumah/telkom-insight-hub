@@ -26,6 +26,8 @@ import { listTicketMessages, createTicketMessage, markMessagesRead } from './mes
 import skloRoutes from './routes/sklo.js';
 import telekomDataRoutes from './routes/telekom-data.js';
 import tariffRoutes from './routes/tarif.js';
+import kominfoSyncRoutes from './routes/kominfo-sync.js';
+import bpsRoutes from './routes/bps.js';
 
 dotenv.config();
 
@@ -42,12 +44,15 @@ app.use(cors({
 }));
 
 // Register telekom data routes
-app.use('/panel/api', skloRoutes);
-app.use('/panel/api', telekomDataRoutes);
-app.use('/panel/api', tariffRoutes);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
+
+app.use('/panel/api', skloRoutes);
+app.use('/panel/api', telekomDataRoutes);
+app.use('/panel/api', tariffRoutes);
+app.use('/panel/api', kominfoSyncRoutes); // Kominfo sync routes
+app.use('/panel/api/bps', bpsRoutes); // BPS routes
 
 // User profile (untuk kompatibilitas frontend apiClient.getProfile())
 app.get('/panel/api/user/profile', requireAuth, getProfile);

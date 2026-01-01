@@ -331,6 +331,28 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
                             <span>ISR</span>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            onClick={() => navigate('/bps-configuration')}
+                            isActive={isActive('/bps-configuration')}
+                            className="hover-scale transition-all duration-200"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            <span>BPS Configuration</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            onClick={() => navigate('/bps-data')}
+                            isActive={isActive('/bps-data')}
+                            className="hover-scale transition-all duration-200"
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                            <span>BPS Data</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
                       </SidebarMenu>
                     </SidebarGroupContent>
                   </CollapsibleContent>
@@ -424,6 +446,28 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
                         tooltip="ISR"
                       >
                         <RadioTower className="h-4 w-4" />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => navigate('/bps-configuration')}
+                        isActive={isActive('/bps-configuration')}
+                        className="hover-scale transition-all duration-200"
+                        tooltip="BPS Configuration"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => navigate('/bps-data')}
+                        isActive={isActive('/bps-data')}
+                        className="hover-scale transition-all duration-200"
+                        tooltip="BPS Data"
+                      >
+                        <BarChart3 className="h-4 w-4" />
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>

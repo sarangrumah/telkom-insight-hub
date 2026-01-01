@@ -1,7 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 
@@ -12,14 +14,16 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Import routes
-const registrationRoutes = require('./routes/registration');
-const adminVerificationRoutes = require('./routes/adminVerification');
-const certificateSubmissionRoutes = require('./routes/certificateSubmission');
+import registrationRoutes from './routes/registration.js';
+import adminVerificationRoutes from './routes/adminVerification.js';
+import certificateSubmissionRoutes from './routes/certificateSubmission.js';
+import bpsRoutes from './routes/bps.js';
 
 // Use routes
 app.use('/panel/api/auth', registrationRoutes);
 app.use('/panel/api/admin', adminVerificationRoutes);
 app.use('/panel/api/certificates', certificateSubmissionRoutes);
+app.use('/panel/api/bps', bpsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -37,4 +41,4 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-module.exports = app;
+export default app;

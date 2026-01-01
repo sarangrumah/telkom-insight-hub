@@ -1,0 +1,27 @@
+[Unit]
+Description=Telkom Insight Hub Backend Server
+After=network.target
+
+[Service]
+Type=simple
+User=nodejs
+Group=nodejs
+WorkingDirectory=/path/to/your/project
+Environment=NODE_ENV=production
+Environment=PORT=4000
+ExecStart=/usr/bin/node server/index.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=telkom-insight-hub
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/your/project
+
+[Install]
+WantedBy=multi-user.target
