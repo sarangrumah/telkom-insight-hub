@@ -38,6 +38,9 @@ import ISR from './pages/services/ISR';
 import LKO from './pages/services/LKO';
 import BPSConfiguration from './pages/BPSConfiguration';
 import BPSDataVisualization from './pages/BPSDataVisualization';
+import IntegrationsDashboardPage from './pages/IntegrationsDashboard';
+import TelecomPotentialPage from './pages/TelecomPotential';
+import BPSSurveyManagementPage from './pages/BPSSurveyManagement';
 import AppLayout from './components/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './hooks/AuthProvider';
@@ -214,6 +217,30 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedLayout>
             <BPSDataVisualization />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/bps-surveys"
+        element={
+          <ProtectedLayout>
+            <BPSSurveyManagementPage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/integrations"
+        element={
+          <ProtectedLayout>
+            <IntegrationsDashboardPage />
+          </ProtectedLayout>
+        }
+      />
+      <Route
+        path="/telecom-potential"
+        element={
+          <ProtectedLayout>
+            <TelecomPotentialPage />
           </ProtectedLayout>
         }
       />

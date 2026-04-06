@@ -1,0 +1,38 @@
+node_modules
+dist
+dist-ssr
+.git
+.github
+.vscode
+.idea
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Build artifacts
+*.tsbuildinfo
+
+# Storage (user uploads, not needed in image)
+storage/uploads/
+
+# Database backups
+*.sql
+*.sql.gz
+
+# Editor files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Husky hooks not needed in container
+.husky

@@ -7,7 +7,7 @@ import crypto from 'crypto';
 // Define JWT constants
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
 
-const TOKEN_EXPIRES_IN = process.env.ACCESS_EXPIRES_IN || '15m';
+const TOKEN_EXPIRES_IN = process.env.ACCESS_EXPIRES_IN || '1h';
 const REFRESH_EXPIRES_DAYS = parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10);
 
 function generateAccessToken(userId, email) {
@@ -366,6 +366,158 @@ export async function registerWithDetails(req, res) {
   }
 }
 
+// =============================================================================
+// Cross-login: Authenticate using e-telekomunikasi credentials
+// Panel backend verifies credentials via internal API, then creates/links
+// a local Panel account and issues Panel JWT tokens.
+// =============================================================================
+export async function loginViaEtelekomunikasi(req, res) {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    // Lazy import to avoid circular deps
+    const { verifyCredentials } = await import('./services/external/etelekom-client.js');
+    const result = await verifyCredentials(email, password);
+
+    if (!result.ok || !result.data?.valid) {
+      const msg = result.data?.message || 'Kredensial e-Telekomunikasi tidak valid';
+      return res.status(result.status === 429 ? 429 : 401).json({ error: msg });
+    }
+
+    const eUser = result.data.user;
+    const eUserId = eUser.id;
+
+    // Check if this e-telekomunikasi user already has a linked Panel account
+    const { rows: existingRows } = await query(
+      'SELECT id, email FROM auth.users WHERE external_id = $1 AND external_source = $2 LIMIT 1',
+      [eUserId, 'etelekomunikasi']
+    );
+
+    let panelUserId;
+
+    if (existingRows.length > 0) {
+      // Returning user — update profile from e-telekomunikasi data
+      panelUserId = existingRows[0].id;
+
+      // Sync profile data
+      if (eUser.pelakuUsaha) {
+        await query(
+          `UPDATE public.profiles SET
+            full_name = $2,
+            company_name = $3,
+            updated_at = now()
+          WHERE user_id = $1`,
+          [panelUserId, eUser.nama || eUser.email, eUser.pelakuUsaha.namaPelakuUsaha]
+        );
+      }
+    } else {
+      // First-time cross-login — create linked Panel account
+      panelUserId = uuidv4();
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hash = await bcrypt.hash(randomPassword, 10);
+
+      await query('BEGIN');
+      try {
+        // Create auth user with external link
+        await query(
+          `INSERT INTO auth.users (id, email, encrypted_password, created_at, updated_at, raw_user_meta_data, external_id, external_source)
+           VALUES ($1, $2, $3, now(), now(), $4::jsonb, $5, $6)`,
+          [
+            panelUserId,
+            email,
+            hash,
+            JSON.stringify({
+              full_name: eUser.nama,
+              source: 'etelekomunikasi',
+              etelekom_role: eUser.role,
+            }),
+            eUserId,
+            'etelekomunikasi',
+          ]
+        );
+
+        // Create profile
+        const companyName = eUser.pelakuUsaha?.namaPelakuUsaha || null;
+        await query(
+          `INSERT INTO public.profiles (user_id, full_name, company_name, is_validated, created_at, updated_at)
+           VALUES ($1, $2, $3, true, now(), now())
+           ON CONFLICT (user_id) DO UPDATE SET
+             full_name = EXCLUDED.full_name,
+             company_name = EXCLUDED.company_name,
+             is_validated = true,
+             updated_at = now()`,
+          [panelUserId, eUser.nama || email, companyName]
+        );
+
+        // Assign pelaku_usaha role
+        await query(
+          `INSERT INTO public.user_roles (id, user_id, role, created_at)
+           VALUES ($1, $2, 'pelaku_usaha', now())
+           ON CONFLICT DO NOTHING`,
+          [uuidv4(), panelUserId]
+        );
+
+        // Create company record if pelakuUsaha data available
+        if (eUser.pelakuUsaha) {
+          const pu = eUser.pelakuUsaha;
+          await query(
+            `INSERT INTO public.companies
+              (company_name, email, phone, nib_number, npwp_number, status)
+             VALUES ($1, $2, $3, $4, $5, 'verified')
+             ON CONFLICT DO NOTHING`,
+            [
+              pu.namaPelakuUsaha,
+              pu.emailPerusahaan || email,
+              pu.noTeleponPerusahaan || null,
+              pu.nib || null,
+              pu.npwp || null,
+            ]
+          );
+        }
+
+        await query('COMMIT');
+      } catch (txErr) {
+        await query('ROLLBACK');
+        throw txErr;
+      }
+    }
+
+    // Issue Panel tokens
+    const accessToken = generateAccessToken(panelUserId, email);
+
+    const roleRes = await query(
+      'SELECT role FROM public.user_roles WHERE user_id = $1',
+      [panelUserId]
+    );
+    const roles = roleRes.rows.map(r => r.role);
+
+    // Create session + refresh token
+    const { sessionId, refreshToken } = await createSessionAndRefreshToken(req, panelUserId);
+    setRefreshCookies(res, sessionId, refreshToken);
+
+    return res.json({
+      token: accessToken,
+      user: {
+        id: panelUserId,
+        email,
+        full_name: eUser.nama || email,
+        roles,
+        is_validated: true,
+        source: 'etelekomunikasi',
+        etelekom_user_id: eUserId,
+        pelaku_usaha: eUser.pelakuUsaha || null,
+        penanggung_jawab: eUser.penanggungJawab || null,
+      },
+    });
+  } catch (e) {
+    console.error('e-Telekomunikasi cross-login error:', e.message);
+    return res.status(500).json({ error: 'Cross-login failed' });
+  }
+}
+
 export async function login(req, res) {
   try {
     console.log('Login attempt for:', req.body.email);
@@ -409,7 +561,9 @@ export async function login(req, res) {
     // DO NOT block login if not validated; limited access enforced by permissions/role
 
     console.log('Password verified, generating token...');
+    // Generate access token with new expiration time
     const accessToken = generateAccessToken(user.id, email);
+    console.log('Generated new access token for user:', user.id, 'expires in:', TOKEN_EXPIRES_IN);
 
     // Basic roles
     console.log('Fetching user roles...');
@@ -469,9 +623,21 @@ export function authMiddleware(req, _res, next) {
     try {
       const payload = jwt.verify(token, JWT_SECRET);
       req.user = payload;
+      console.log('Auth middleware: Token verified successfully for user:', payload.sub);
     } catch (e) {
+      console.log('Auth middleware: Token verification failed:', e.message);
+      // Log more detailed error information for debugging
+      if (e.name === 'TokenExpiredError') {
+        console.log('Auth middleware: Token expired at:', e.expiredAt);
+      } else if (e.name === 'JsonWebTokenError') {
+        console.log('Auth middleware: Invalid token format');
+      } else if (e.name === 'NotBeforeError') {
+        console.log('Auth middleware: Token not active yet');
+      }
       // ignore invalid token
     }
+  } else {
+    console.log('Auth middleware: No authorization header found');
   }
   next();
 }

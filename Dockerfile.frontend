@@ -1,0 +1,41 @@
+# ── Panel Frontend Build Dockerfile ─────────────────────────────────────────────
+# Builds the Vite/React SPA and copies dist/ to a shared volume for Nginx.
+# Used as a build-only service (profile: build) in docker-compose.
+# ────────────────────────────────────────────────────────────────────────────────
+
+# Stage 1: Install all dependencies (including devDependencies for build)
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --ignore-scripts 2>/dev/null || npm install --ignore-scripts
+
+# Stage 2: Build
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY tsconfig*.json ./
+COPY vite.config.ts ./
+COPY tailwind.config.ts ./
+COPY postcss.config.* ./
+COPY index.html ./
+COPY src/ ./src/
+COPY public/ ./public/
+
+# Build Vite SPA (output to dist/)
+# VITE_API_BASE_URL is set at build time for production
+ARG VITE_API_BASE_URL=""
+ARG VITE_MAPBOX_PUBLIC_TOKEN=""
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_MAPBOX_PUBLIC_TOKEN=$VITE_MAPBOX_PUBLIC_TOKEN
+
+RUN npm run build
+
+# Stage 3: Copy to output volume
+FROM alpine:3.20 AS output
+COPY --from=builder /app/dist /output
+
+# This container's purpose is to populate the panel-static volume.
+# It runs once and exits.
+CMD ["cp", "-r", "/output/.", "/dist/"]

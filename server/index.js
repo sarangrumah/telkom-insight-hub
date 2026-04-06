@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
-import { authMiddleware, register, registerWithDetails, login, requireAuth, refresh, logout } from './auth.js';
+import { authMiddleware, register, registerWithDetails, login, loginViaEtelekomunikasi, requireAuth, refresh, logout } from './auth.js';
 import { listTickets, updateTicket, createTicket } from './tickets.js';
 import { getProfile } from './user.js';
 import {
@@ -28,10 +29,34 @@ import telekomDataRoutes from './routes/telekom-data.js';
 import tariffRoutes from './routes/tarif.js';
 import kominfoSyncRoutes from './routes/kominfo-sync.js';
 import bpsRoutes from './routes/bps.js';
+import integrationsRoutes from './routes/integrations.js';
+import telecomPotentialRoutes from './routes/telecom-potential.js';
 
 dotenv.config();
 
 const app = express();
+
+// ── Security Headers (aligned with e-telekomunikasi Nginx headers) ────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "https://api.mapbox.com"],
+      connectSrc: ["'self'", "https://api.mapbox.com", "https://webapi.bps.go.id", "wss:"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+}));
 
 const allowedOrigins = (process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173', 'http://localhost:8080', 'https://dev-etelekomunikasi.komdigi.go.id'];
 app.use(cors({
@@ -53,6 +78,8 @@ app.use('/panel/api', telekomDataRoutes);
 app.use('/panel/api', tariffRoutes);
 app.use('/panel/api', kominfoSyncRoutes); // Kominfo sync routes
 app.use('/panel/api/bps', bpsRoutes); // BPS routes
+app.use('/panel/api', integrationsRoutes); // Integration sync dashboard routes
+app.use('/panel/api', telecomPotentialRoutes); // Telecom potential scoring routes
 
 // User profile (untuk kompatibilitas frontend apiClient.getProfile())
 app.get('/panel/api/user/profile', requireAuth, getProfile);
@@ -91,6 +118,7 @@ const emailCheckLimiter = rateLimit({
 // Auth
 app.post('/panel/api/auth/register', register);
 app.post('/panel/api/auth/login', loginLimiter, login);
+app.post('/panel/api/auth/login-etelekomunikasi', loginLimiter, loginViaEtelekomunikasi);
 // Refresh and logout for session handling
 app.post('/panel/api/auth/refresh', refresh);
 app.post('/panel/api/auth/logout', logout);

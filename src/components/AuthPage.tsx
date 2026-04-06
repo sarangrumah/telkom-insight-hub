@@ -14,7 +14,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Globe } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { useEmailAvailability } from '@/hooks/useEmailAvailability';
 import EnhancedRegistrationForm from '@/components/EnhancedRegistrationForm';
 
@@ -26,7 +27,7 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); // will sync with authActionError
   const { toast } = useToast();
-  const { login, register, user, authActionError, clearAuthActionError } =
+  const { login, register, user, authActionError, clearAuthActionError, refreshProfile } =
     useAuth();
   const navigate = useNavigate();
   // If already logged in, prevent accessing auth page
@@ -40,6 +41,13 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
     email: '',
     password: '',
   });
+
+  const [etelkomForm, setEtelkomForm] = useState({
+    email: '',
+    password: '',
+  });
+
+  const [etelkomLoading, setEtelkomLoading] = useState(false);
 
   const [signupForm, setSignupForm] = useState({
     email: '',
@@ -131,6 +139,52 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
     }
   };
 
+  const handleEtelkomLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEtelkomLoading(true);
+    setError(null);
+    try {
+      const resp = await fetch('/panel/api/auth/login-etelekomunikasi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: etelkomForm.email,
+          password: etelkomForm.password,
+        }),
+      });
+
+      if (!resp.ok) {
+        let message = 'Login e-Telekomunikasi gagal';
+        try {
+          const errJson = await resp.json();
+          if (errJson?.error) message = errJson.error;
+        } catch { /* ignore */ }
+        throw new Error(message);
+      }
+
+      const data = await resp.json();
+      localStorage.setItem('app.jwt.token', data.token);
+      // Reload auth context so useAuth.user is set and redirect triggers
+      await refreshProfile();
+      toast({
+        title: 'Login berhasil',
+        description: `Selamat datang, ${data.user.full_name || data.user.email}`,
+      });
+      onAuthSuccess();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Login gagal';
+      setError(message);
+      toast({
+        title: 'Login gagal',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setEtelkomLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -145,13 +199,14 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
             <TabsList
-              className="grid w-full grid-cols-2"
+              className="grid w-full grid-cols-3"
               onClick={() => {
                 setError(null);
                 clearAuthActionError();
               }}
             >
               <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="etelkom">e-Telkom</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
@@ -193,6 +248,50 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
                   )}
                   Login
                 </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="etelkom" className="space-y-4">
+              <div className="text-center text-sm text-muted-foreground mb-2">
+                <Globe className="inline-block h-4 w-4 mr-1" />
+                Login menggunakan akun e-Telekomunikasi yang sudah terdaftar
+              </div>
+              <Separator />
+              <form onSubmit={handleEtelkomLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="etelkom-email">Email e-Telekomunikasi</Label>
+                  <Input
+                    id="etelkom-email"
+                    type="email"
+                    placeholder="email@perusahaan.co.id"
+                    value={etelkomForm.email}
+                    onChange={e =>
+                      setEtelkomForm({ ...etelkomForm, email: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="etelkom-password">Password</Label>
+                  <Input
+                    id="etelkom-password"
+                    type="password"
+                    value={etelkomForm.password}
+                    onChange={e =>
+                      setEtelkomForm({ ...etelkomForm, password: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={etelkomLoading}>
+                  {etelkomLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Login dengan e-Telekomunikasi
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Gunakan akun yang terdaftar di e-telekomunikasi.komdigi.go.id
+                </p>
               </form>
             </TabsContent>
 

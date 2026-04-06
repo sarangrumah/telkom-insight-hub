@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS bps_monitored_areas (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Foreign key constraints
--- =======
     CONSTRAINT uk_bps_monitored_areas UNIQUE (area_type, area_id)
 );
 
@@ -85,8 +84,6 @@ CREATE TABLE IF NOT EXISTS bps_statistical_data (
     data_hash VARCHAR(64), -- For change detection
     
     -- Foreign key constraints
--- =======
-    
     -- Constraints
     CONSTRAINT uk_bps_data UNIQUE (area_type, area_id, variable_id, year, COALESCE(period_value, 'annual'))
 );
@@ -148,7 +145,7 @@ CREATE TABLE IF NOT EXISTS bps_api_requests (
     
     -- Metadata
     requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    sync_history_id INTEGER REFERENCES bps_sync_history(id)
+    sync_history_id INTEGER
 );
 
 -- =============================================================================
@@ -223,7 +220,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- =======
 CREATE TRIGGER update_bps_data_hash BEFORE INSERT OR UPDATE ON bps_statistical_data
     FOR EACH ROW EXECUTE FUNCTION update_data_hash();
 

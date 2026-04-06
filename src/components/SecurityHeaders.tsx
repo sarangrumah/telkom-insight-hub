@@ -17,11 +17,11 @@ export function SecurityHeaders() {
           style-src 'self' 'unsafe-inline' https://api.mapbox.com;
           img-src 'self' data: https: blob: https://api.mapbox.com;
           font-src 'self' data: https://api.mapbox.com;
-          connect-src 'self' http://localhost:4000 ws://localhost:4000 wss://localhost:4000 https://dev-etelekomunikasi.komdigi.go.id https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://a.tiles.mapbox.com https://b.tiles.mapbox.com;
+          connect-src 'self' http://localhost:4000 http://localhost:8080 ws://localhost:4000 ws://localhost:8080 wss://localhost:4000 wss://localhost:8080 https://dev-etelekomunikasi.komdigi.go.id https://*.mapbox.com https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com;
           media-src 'self';
           object-src 'none';
           child-src 'self';
-          worker-src 'self' blob:;
+          worker-src 'self' blob: https://api.mapbox.com;
           form-action 'self';
           base-uri 'self';
         `

@@ -33,6 +33,8 @@ import {
   AlertCircle,
   Save,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface BPSConfig {
@@ -88,9 +90,30 @@ export default function BPSConfiguration() {
   const [configForm, setConfigForm] = useState({
     config_name: 'default_bps_config',
     api_key: '',
-    base_url: 'https://webapi.bps.go.id/v1/api/view',
+    base_url: 'https://webapi.bps.go.id/v1/api',
     rate_limit_per_hour: 1000,
   });
+
+  const [actualApiKey, setActualApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  // Function to mask API key for display
+  const maskApiKey = (apiKey: string) => {
+    if (!apiKey) return '';
+    return '•'.repeat(apiKey.length);
+  };
+
+  // Function to handle API key input changes
+  const handleApiKeyChange = (value: string) => {
+    // If the value is masked (contains •), don't update the actual API key
+    if (value.includes('•')) {
+      setConfigForm(prev => ({ ...prev, api_key: value }));
+    } else {
+      // User is typing a new API key
+      setActualApiKey(value);
+      setConfigForm(prev => ({ ...prev, api_key: value }));
+    }
+  };
 
   const [newArea, setNewArea] = useState({
     area_code: '',
@@ -120,10 +143,11 @@ export default function BPSConfiguration() {
         setConfig(configResponse.data);
         setConfigForm({
           config_name: configResponse.data.config_name,
-          api_key: '', // Don't show existing API key
+          api_key: maskApiKey(configResponse.data.api_key), // Show masked API key
           base_url: configResponse.data.base_url,
           rate_limit_per_hour: configResponse.data.rate_limit_per_hour,
         });
+        setActualApiKey(configResponse.data.api_key); // Store actual API key
       }
 
       // Load areas
@@ -168,7 +192,7 @@ export default function BPSConfiguration() {
         method: 'POST',
         body: JSON.stringify({
           config_name: configForm.config_name,
-          api_key: configForm.api_key,
+          api_key: actualApiKey || configForm.api_key, // Use actual API key if available, otherwise use form value
           base_url: configForm.base_url,
           rate_limit_per_hour: configForm.rate_limit_per_hour
         }),
@@ -263,6 +287,12 @@ export default function BPSConfiguration() {
     }
 
     try {
+      // Check if user is authenticated
+      const token = localStorage.getItem('app.jwt.token');
+      if (!token) {
+        throw new Error('Authentication required. Please login first.');
+      }
+
       const response = await apiFetch('/panel/api/bps/areas', {
         method: 'POST',
         body: JSON.stringify(newArea),
@@ -293,11 +323,133 @@ export default function BPSConfiguration() {
       console.error('Failed to add area:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add area',
+        description: error instanceof Error ? error.message : 'Failed to add area',
         variant: 'destructive',
       });
     }
   }, [newArea, toast, loadConfiguration]);
+
+  // Fetch areas from BPS API
+  const fetchAreasFromAPI = useCallback(async () => {
+    try {
+      setIsTestingConnection(true);
+      setTestResult(null);
+
+      // Check if user is authenticated
+      const token = localStorage.getItem('app.jwt.token');
+      if (!token) {
+        throw new Error('Authentication required. Please login first.');
+      }
+
+      console.log('Attempting to fetch areas with token:', token.substring(0, 20) + '...');
+
+      // First get the configuration to get the API key
+      const configResponse = await apiFetch('/panel/api/bps/config');
+      if (!configResponse.success || !configResponse.data?.api_key) {
+        throw new Error('BPS API key not configured');
+      }
+
+      const apiKey = configResponse.data.api_key;
+      
+      const response = await apiFetch('/panel/api/bps/areas/test', {
+        method: 'GET',
+      });
+
+      console.log('Fetch areas response:', response);
+
+      setTestResult(response);
+
+      if (response.success) {
+        toast({
+          title: 'Areas Fetched Successfully',
+          description: `Found ${response.data.totalAreas} areas from BPS API`,
+        });
+      } else {
+        toast({
+          title: 'Area Fetch Failed',
+          description: response.error || 'Failed to fetch areas from BPS API',
+          variant: 'destructive',
+        });
+      }
+
+    } catch (error) {
+      console.error('Failed to fetch areas:', error);
+      const errorResult = {
+        success: false,
+        message: error instanceof Error ? error.message : 'Area fetch failed',
+      };
+      setTestResult(errorResult);
+      toast({
+        title: 'Area Fetch Failed',
+        description: errorResult.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  }, [toast]);
+
+  // Sync areas from BPS API to database
+ const syncAreasFromAPI = useCallback(async () => {
+    if (!configForm.api_key) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please configure API key first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setIsTestingConnection(true);
+      setTestResult(null);
+
+      // Check if user is authenticated
+      const token = localStorage.getItem('app.jwt.token');
+      if (!token) {
+        throw new Error('Authentication required. Please login first.');
+      }
+
+      console.log('Attempting to sync areas with token:', token.substring(0, 20) + '...');
+      
+      const response = await apiFetch('/panel/api/bps/areas/sync', {
+        method: 'POST',
+      });
+
+      console.log('Sync areas response:', response);
+
+      setTestResult(response);
+
+      if (response.success) {
+        toast({
+          title: 'Areas Synced Successfully',
+          description: `Synced ${response.data.syncedCount} areas to database`,
+        });
+        await loadConfiguration(); // Reload areas
+      } else {
+        toast({
+          title: 'Area Sync Failed',
+          description: response.error || 'Failed to sync areas from BPS API',
+          variant: 'destructive',
+        });
+      }
+
+    } catch (error) {
+      console.error('Failed to sync areas:', error);
+      const errorResult = {
+        success: false,
+        message: error instanceof Error ? error.message : 'Area sync failed',
+      };
+      setTestResult(errorResult);
+      toast({
+        title: 'Area Sync Failed',
+        description: errorResult.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  }, [toast, loadConfiguration, configForm.api_key]);
 
   // Add new variable
   const addVariable = useCallback(async () => {
@@ -311,6 +463,12 @@ export default function BPSConfiguration() {
     }
 
     try {
+      // Check if user is authenticated
+      const token = localStorage.getItem('app.jwt.token');
+      if (!token) {
+        throw new Error('Authentication required. Please login first.');
+      }
+
       const response = await apiFetch('/panel/api/bps/variables', {
         method: 'POST',
         body: JSON.stringify(newVariable),
@@ -342,7 +500,7 @@ export default function BPSConfiguration() {
       console.error('Failed to add variable:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add variable',
+        description: error instanceof Error ? error.message : 'Failed to add variable',
         variant: 'destructive',
       });
     }
@@ -417,13 +575,26 @@ export default function BPSConfiguration() {
 
                 <div className="space-y-2">
                   <Label htmlFor="api-key">BPS API Key *</Label>
-                  <Input
-                    id="api-key"
-                    type="password"
-                    value={configForm.api_key}
-                    onChange={(e) => setConfigForm(prev => ({ ...prev, api_key: e.target.value }))}
-                    placeholder="Enter your BPS API key"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="api-key"
+                      type={showApiKey ? "text" : "password"}
+                      value={configForm.api_key}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      placeholder="Enter your BPS API key"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showApiKey ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -498,6 +669,26 @@ export default function BPSConfiguration() {
 
         {/* Areas Management Tab */}
         <TabsContent value="areas" className="space-y-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Button
+              onClick={fetchAreasFromAPI}
+              disabled={isTestingConnection || !configForm.api_key}
+              variant="outline"
+            >
+              <MapPin className={`h-4 w-4 mr-2 ${isTestingConnection ? 'animate-spin' : ''}`} />
+              Fetch Areas from API
+            </Button>
+
+            <Button
+              onClick={syncAreasFromAPI}
+              disabled={isTestingConnection || !configForm.api_key}
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isTestingConnection ? 'animate-spin' : ''}`} />
+              Sync Areas from API
+            </Button>
+          </div>
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Add New Area */}
             <Card>

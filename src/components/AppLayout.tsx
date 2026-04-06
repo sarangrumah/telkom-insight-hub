@@ -22,6 +22,11 @@ import {
   FileText,
   FileStack,
   RadioTower,
+  Plug,
+  Signal,
+  ClipboardList,
+  LifeBuoy,
+  type LucideIcon,
 } from 'lucide-react';
 import { useUnreadTicketCount } from '@/hooks/useUnreadTicketCount';
 import { useRealtimeTickets } from '@/hooks/useRealtimeTickets';
@@ -67,33 +72,40 @@ interface AppSidebarProps {
   };
 }
 
+interface MenuItem {
+  label: string;
+  path: string;
+  icon: LucideIcon;
+  badge?: number;
+  badgePulse?: boolean;
+}
+
+interface MenuGroup {
+  label: string;
+  collapsible?: boolean;
+  items: MenuItem[];
+}
+
 function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { state } = useSidebar();
-  const [adminSectionOpen, setAdminSectionOpen] = useState(true);
-  const [servicesSectionOpen, setServicesSectionOpen] = useState(true);
-  // Pull effective permissions (all modules) once; sidebar is lightweight
   const {
-    permissions,
-    loading: permLoading,
     canAccessModule,
-    canRead,
   } = usePermissions();
 
   const isActive = (path: string) => location.pathname === path;
   const isAdminUser =
     userRole === 'super_admin' || userRole === 'internal_admin';
   const isDataProcessor = userRole === 'pengolah_data';
+  const isPelakuUsaha = userRole === 'pelaku_usaha';
   const isCollapsed = state === 'collapsed';
 
-  // Helper permission checks (fallback ke role lama jika permission belum loaded)
+  // Permission checks
   const allowDataManagement =
     canAccessModule('data_management') || isAdminUser || isDataProcessor;
   const allowDataVisualization =
-    canAccessModule('data_visualization') || isAdminUser || isDataProcessor;
-  const allowSupport = canAccessModule('support') || true; // support accessible to all logged users
-  const allowFAQ = canAccessModule('faq') || true;
+    canAccessModule('data_visualization') || isAdminUser || isDataProcessor || isPelakuUsaha;
   const allowUserManagement =
     isAdminUser && (canAccessModule('user_management') || true);
   const allowPermissionManagement =
@@ -104,8 +116,202 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
   const allowTicketManagement =
     (isAdminUser || isDataProcessor) &&
     (canAccessModule('ticket_management') || true);
-  // Services group only for specific roles
-  const allowServices = isAdminUser || isDataProcessor;
+  const allowServices = isAdminUser || isDataProcessor || isPelakuUsaha;
+  const allowBPSConfig = isAdminUser || isDataProcessor;
+  const allowBPSData = isAdminUser || isDataProcessor || isPelakuUsaha;
+  const allowAnalisis = isAdminUser || isDataProcessor;
+
+  // --- Build menu groups based on role ---
+  const menuGroups: MenuGroup[] = [];
+
+  // 1. Utama
+  const utamaItems: MenuItem[] = [
+    { label: 'Beranda', path: '/dashboard', icon: Home },
+  ];
+  if (allowDataManagement) {
+    utamaItems.push({ label: 'Data Management', path: '/data-management', icon: Database });
+  }
+  if (allowDataVisualization) {
+    utamaItems.push({ label: 'Data Visualization', path: '/data-visualization', icon: BarChart3 });
+  }
+  menuGroups.push({ label: 'Utama', items: utamaItems });
+
+  // 2. Layanan
+  if (allowServices) {
+    menuGroups.push({
+      label: 'Layanan',
+      collapsible: true,
+      items: [
+        { label: 'Jasa', path: '/services/jasa', icon: KeyRound },
+        { label: 'Jaringan', path: '/services/jaringan', icon: Wifi },
+        { label: 'Penomoran', path: '/services/penomoran', icon: Menu },
+        { label: 'Tarif', path: '/services/tarif', icon: BadgeDollarSign },
+        { label: 'Telsus', path: '/services/telsus', icon: Radio },
+        { label: 'SKLO', path: '/services/sklo', icon: FileText },
+        { label: 'LKO', path: '/services/lko', icon: FileStack },
+        { label: 'ISR', path: '/services/isr', icon: RadioTower },
+      ],
+    });
+  }
+
+  // 3. Data & Statistik
+  if (allowBPSConfig || allowBPSData) {
+    const dataItems: MenuItem[] = [];
+    if (allowBPSConfig) {
+      dataItems.push({ label: 'BPS Configuration', path: '/bps-configuration', icon: Settings });
+    }
+    if (allowBPSData) {
+      dataItems.push({ label: 'BPS Data', path: '/bps-data', icon: BarChart3 });
+    }
+    if (allowBPSConfig) {
+      dataItems.push({ label: 'BPS Survey', path: '/bps-surveys', icon: ClipboardList });
+    }
+    if (dataItems.length > 0) {
+      menuGroups.push({
+        label: 'Data & Statistik',
+        collapsible: true,
+        items: dataItems,
+      });
+    }
+  }
+
+  // 4. Analisis (admin & pengolah_data only)
+  if (allowAnalisis) {
+    menuGroups.push({
+      label: 'Analisis',
+      collapsible: true,
+      items: [
+        { label: 'Integrations', path: '/integrations', icon: Plug },
+        { label: 'Telecom Potential', path: '/telecom-potential', icon: Signal },
+      ],
+    });
+  }
+
+  // 5. Administrasi (admin & pengolah_data only)
+  const adminItems: MenuItem[] = [];
+  if (allowUserManagement) {
+    adminItems.push({ label: 'User Management', path: '/user-management', icon: Users });
+  }
+  if (allowPermissionManagement) {
+    adminItems.push({ label: 'Permission Management', path: '/permission-management', icon: Settings });
+  }
+  if (allowAdminFAQ) {
+    adminItems.push({ label: 'FAQ Management', path: '/admin/faq', icon: HelpCircle });
+  }
+  if (allowTicketManagement) {
+    adminItems.push({
+      label: 'Ticket Management',
+      path: '/admin/tickets',
+      icon: MessageSquare,
+      badge: counts.adminTickets > 0 ? counts.adminTickets : undefined,
+      badgePulse: true,
+    });
+  }
+  if (adminItems.length > 0) {
+    menuGroups.push({
+      label: 'Administrasi',
+      collapsible: true,
+      items: adminItems,
+    });
+  }
+
+  // 6. Bantuan
+  menuGroups.push({
+    label: 'Bantuan',
+    items: [
+      { label: 'FAQ', path: '/faq', icon: HelpCircle },
+      {
+        label: 'Support',
+        path: '/support',
+        icon: LifeBuoy,
+        badge: counts.userTickets > 0 ? counts.userTickets : undefined,
+        badgePulse: true,
+      },
+    ],
+  });
+
+  // --- Collapsible state for each group ---
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    menuGroups.forEach((g) => {
+      if (g.collapsible) init[g.label] = true;
+    });
+    return init;
+  });
+
+  const toggleSection = (label: string) =>
+    setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }));
+
+  // --- Render helpers ---
+  const renderMenuItem = (item: MenuItem) => {
+    const Icon = item.icon;
+    return (
+      <SidebarMenuItem key={item.path}>
+        <SidebarMenuButton
+          onClick={() => navigate(item.path)}
+          isActive={isActive(item.path)}
+          className="hover-scale transition-all duration-200"
+          tooltip={isCollapsed ? item.label : undefined}
+        >
+          <Icon className="h-4 w-4" />
+          {!isCollapsed && (
+            <>
+              <span>{item.label}</span>
+              {item.badge != null && (
+                <Badge
+                  variant="destructive"
+                  className={`ml-auto text-xs ${item.badgePulse ? 'animate-pulse-glow' : ''}`}
+                >
+                  {item.badge}
+                </Badge>
+              )}
+            </>
+          )}
+          {isCollapsed && item.badge != null && (
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+          )}
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
+  const renderGroup = (group: MenuGroup, idx: number) => {
+    const isFirst = idx === 0;
+
+    if (group.collapsible && !isCollapsed) {
+      return (
+        <SidebarGroup key={group.label}>
+          <Collapsible
+            open={openSections[group.label] ?? true}
+            onOpenChange={() => toggleSection(group.label)}
+          >
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="group flex w-full items-center justify-between hover:bg-sidebar-accent/50 rounded-md p-2 transition-colors">
+                {group.label}
+                <ChevronDown className="h-4 w-4 transition-transform duration-500 group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>{group.items.map(renderMenuItem)}</SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+      );
+    }
+
+    // Non-collapsible or collapsed sidebar
+    return (
+      <SidebarGroup key={group.label}>
+        {!isFirst && isCollapsed && <SidebarSeparator />}
+        {!isCollapsed && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
+        <SidebarGroupContent>
+          <SidebarMenu>{group.items.map(renderMenuItem)}</SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  };
 
   return (
     <Sidebar className="border-r border-sidebar-border/60" collapsible="icon">
@@ -135,495 +341,7 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Main Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/dashboard')}
-                  isActive={isActive('/dashboard')}
-                  className="hover-scale transition-all duration-200"
-                  tooltip={isCollapsed ? 'Beranda' : undefined}
-                >
-                  <Home className="h-4 w-4" />
-                  {!isCollapsed && <span>Beranda</span>}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {allowDataManagement && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/data-management')}
-                    isActive={isActive('/data-management')}
-                    className="hover-scale transition-all duration-200"
-                    tooltip={isCollapsed ? 'Data Management' : undefined}
-                  >
-                    <Database className="h-4 w-4" />
-                    {!isCollapsed && <span>Data Management</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {allowDataVisualization && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/data-visualization')}
-                    isActive={isActive('/data-visualization')}
-                    className="hover-scale transition-all duration-200"
-                    tooltip={isCollapsed ? 'Data Visualization' : undefined}
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                    {!isCollapsed && <span>Data Visualization</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {allowFAQ && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/faq')}
-                    isActive={isActive('/faq')}
-                    className="hover-scale transition-all duration-200"
-                    tooltip={isCollapsed ? 'FAQ' : undefined}
-                  >
-                    <HelpCircle className="h-4 w-4" />
-                    {!isCollapsed && <span>FAQ</span>}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {allowSupport && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/support')}
-                    isActive={isActive('/support')}
-                    className="hover-scale transition-all duration-200"
-                    tooltip={isCollapsed ? 'Support' : undefined}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    {!isCollapsed && (
-                      <>
-                        <span>Support</span>
-                        {counts.userTickets > 0 && (
-                          <Badge
-                            variant="destructive"
-                            className="ml-auto text-xs animate-pulse-glow"
-                          >
-                            {counts.userTickets}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                    {isCollapsed && counts.userTickets > 0 && (
-                      <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Services group */}
-        {allowServices && (
-          <>
-            {isCollapsed && <SidebarSeparator />}
-            <SidebarGroup>
-              {!isCollapsed ? (
-                <Collapsible
-                  open={servicesSectionOpen}
-                  onOpenChange={setServicesSectionOpen}
-                >
-                  <SidebarGroupLabel asChild>
-                    <CollapsibleTrigger className="group flex w-full items-center justify-between hover:bg-sidebar-accent/50 rounded-md p-2 transition-colors">
-                      Services
-                      <ChevronDown className="h-4 w-4 transition-transform duration-500 group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                  </SidebarGroupLabel>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/jasa')}
-                            isActive={isActive('/services/jasa')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <KeyRound className="h-4 w-4" />
-                            <span>Jasa</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/jaringan')}
-                            isActive={isActive('/services/jaringan')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <Wifi className="h-4 w-4" />
-                            <span>Jaringan</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/penomoran')}
-                            isActive={isActive('/services/penomoran')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <Menu className="h-4 w-4" />
-                            <span>Penomoran</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/tarif')}
-                            isActive={isActive('/services/tarif')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <BadgeDollarSign className="h-4 w-4" />
-                            <span>Tarif</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/telsus')}
-                            isActive={isActive('/services/telsus')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <Radio className="h-4 w-4" />
-                            <span>Telsus</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/sklo')}
-                            isActive={isActive('/services/sklo')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span>SKLO</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/lko')}
-                            isActive={isActive('/services/lko')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <FileStack className="h-4 w-4" />
-                            <span>LKO</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/services/isr')}
-                            isActive={isActive('/services/isr')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <RadioTower className="h-4 w-4" />
-                            <span>ISR</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/bps-configuration')}
-                            isActive={isActive('/bps-configuration')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                            <span>BPS Configuration</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/bps-data')}
-                            isActive={isActive('/bps-data')}
-                            className="hover-scale transition-all duration-200"
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                            <span>BPS Data</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : (
-                // Collapsed state - show services items directly with tooltips
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/jasa')}
-                        isActive={isActive('/services/jasa')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Jasa"
-                      >
-                        <KeyRound className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/jaringan')}
-                        isActive={isActive('/services/jaringan')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Jaringan"
-                      >
-                        <Wifi className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/penomoran')}
-                        isActive={isActive('/services/penomoran')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Penomoran"
-                      >
-                        <Menu className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/tarif')}
-                        isActive={isActive('/services/tarif')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Tarif"
-                      >
-                        <BadgeDollarSign className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/telsus')}
-                        isActive={isActive('/services/telsus')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Telsus"
-                      >
-                        <Radio className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/sklo')}
-                        isActive={isActive('/services/sklo')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="SKLO"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/lko')}
-                        isActive={isActive('/services/lko')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="LKO"
-                      >
-                        <FileStack className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/services/isr')}
-                        isActive={isActive('/services/isr')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="ISR"
-                      >
-                        <RadioTower className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/bps-configuration')}
-                        isActive={isActive('/bps-configuration')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="BPS Configuration"
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/bps-data')}
-                        isActive={isActive('/bps-data')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="BPS Data"
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              )}
-            </SidebarGroup>
-          </>
-        )}
-
-        {(isAdminUser || isDataProcessor) && (
-          <>
-            {isCollapsed && <SidebarSeparator />}
-            <SidebarGroup>
-              {!isCollapsed ? (
-                <Collapsible
-                  open={adminSectionOpen}
-                  onOpenChange={setAdminSectionOpen}
-                >
-                  <SidebarGroupLabel asChild>
-                    <CollapsibleTrigger className="group flex w-full items-center justify-between hover:bg-sidebar-accent/50 rounded-md p-2 transition-colors">
-                      Administration
-                      <ChevronDown className="h-4 w-4 transition-transform duration-500 group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                  </SidebarGroupLabel>
-                  <CollapsibleContent>
-                    <SidebarGroupContent>
-                      <SidebarMenu>
-                        {allowUserManagement && (
-                          <>
-                            <SidebarMenuItem>
-                              <SidebarMenuButton
-                                onClick={() => navigate('/user-management')}
-                                isActive={isActive('/user-management')}
-                                className="hover-scale transition-all duration-200"
-                              >
-                                <Users className="h-4 w-4" />
-                                <span>User Management</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-
-                            {allowPermissionManagement && (
-                              <SidebarMenuItem>
-                                <SidebarMenuButton
-                                  onClick={() =>
-                                    navigate('/permission-management')
-                                  }
-                                  isActive={isActive('/permission-management')}
-                                  className="hover-scale transition-all duration-200"
-                                >
-                                  <Settings className="h-4 w-4" />
-                                  <span>Permission Management</span>
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                            )}
-                          </>
-                        )}
-
-                        {allowAdminFAQ && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              onClick={() => navigate('/admin/faq')}
-                              isActive={isActive('/admin/faq')}
-                              className="hover-scale transition-all duration-200"
-                            >
-                              <HelpCircle className="h-4 w-4" />
-                              <span>FAQ Management</span>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-
-                        {allowTicketManagement && (
-                          <SidebarMenuItem>
-                            <SidebarMenuButton
-                              onClick={() => navigate('/admin/tickets')}
-                              isActive={isActive('/admin/tickets')}
-                              className="hover-scale transition-all duration-200"
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                              <>
-                                <span>Ticket Management</span>
-                                {counts.adminTickets > 0 && (
-                                  <Badge
-                                    variant="destructive"
-                                    className="ml-auto text-xs animate-pulse-glow"
-                                  >
-                                    {counts.adminTickets}
-                                  </Badge>
-                                )}
-                              </>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )}
-                      </SidebarMenu>
-                    </SidebarGroupContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : (
-                // Collapsed state - show admin menu items directly with tooltips
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {isAdminUser && (
-                      <>
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/user-management')}
-                            isActive={isActive('/user-management')}
-                            className="hover-scale transition-all duration-200"
-                            tooltip="User Management"
-                          >
-                            <Users className="h-4 w-4" />
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            onClick={() => navigate('/permission-management')}
-                            isActive={isActive('/permission-management')}
-                            className="hover-scale transition-all duration-200"
-                            tooltip="Permission Management"
-                          >
-                            <Settings className="h-4 w-4" />
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </>
-                    )}
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/admin/faq')}
-                        isActive={isActive('/admin/faq')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="FAQ Management"
-                      >
-                        <HelpCircle className="h-4 w-4" />
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => navigate('/admin/tickets')}
-                        isActive={isActive('/admin/tickets')}
-                        className="hover-scale transition-all duration-200"
-                        tooltip="Ticket Management"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        {counts.adminTickets > 0 && (
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              )}
-            </SidebarGroup>
-          </>
-        )}
+        {menuGroups.map((group, idx) => renderGroup(group, idx))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/60 p-4">

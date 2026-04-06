@@ -33,6 +33,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { Input } from '@/components/ui/input';
 import {
   TrendingUp,
   RefreshCw,
@@ -45,6 +46,9 @@ import {
   CheckCircle,
   Clock,
   Database,
+  Search,
+  Plus,
+  X,
 } from 'lucide-react';
 
 interface BPSArea {
@@ -112,11 +116,20 @@ export default function BPSDataVisualization() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingAreas, setIsSyncingAreas] = useState(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [detailLevel, setDetailLevel] = useState<'province' | 'kabupaten'>('province');
+  const [showVarSearch, setShowVarSearch] = useState(false);
+  const [varSearchKeyword, setVarSearchKeyword] = useState('');
+  const [varSearchResults, setVarSearchResults] = useState<{ var_id: string; title: string; unit: string; subject: string }[]>([]);
+  const [isSearchingVars, setIsSearchingVars] = useState(false);
+  const [availableYears, setAvailableYears] = useState<{ value: string; label: string }[]>([]);
+  const [availablePeriods, setAvailablePeriods] = useState<{ value: string; label: string }[]>([]);
+  const [yearFrom, setYearFrom] = useState<string>('');
+  const [yearTo, setYearTo] = useState<string>('');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+  const [periodType, setPeriodType] = useState<string>('annual');
   const { toast } = useToast();
-
-  // Available years (2020-2024)
-  const availableYears = ['2020', '2021', '2022', '2023', '2024'];
 
   // Load initial data
   const loadInitialData = useCallback(async () => {
@@ -151,7 +164,7 @@ export default function BPSDataVisualization() {
         setSelectedVariable(variablesResponse.data[0].variable_id);
       }
       
-      setSelectedYears(['2022', '2023', '2024']);
+      // Years will be set by loadPeriods after variable is selected
 
     } catch (error) {
       console.error('Failed to load initial data:', error);
@@ -178,13 +191,21 @@ export default function BPSDataVisualization() {
         areas: selectedAreas.join(','),
         variables: selectedVariable,
         years: selectedYears.join(','),
-        format: 'pivot'
+        format: 'pivot',
+        ...(detailLevel === 'kabupaten' ? { detail: 'kabupaten' } : {}),
+        ...(selectedPeriod ? { period: selectedPeriod } : {}),
       });
 
       const response = await apiFetch(`/panel/api/bps/data?${params.toString()}`) as BPSDataResponse;
 
       if (response.success) {
         setData(response.data);
+        if (response.data.length === 0) {
+          toast({
+            title: 'No Data',
+            description: 'This variable has no data for the selected province/years. Try a different variable or province.',
+          });
+        }
       } else {
         toast({
           title: 'Error',
@@ -203,7 +224,7 @@ export default function BPSDataVisualization() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [selectedAreas, selectedVariable, selectedYears, toast]);
+  }, [selectedAreas, selectedVariable, selectedYears, detailLevel, selectedPeriod, toast]);
 
   // Trigger synchronization
   const triggerSync = useCallback(async () => {
@@ -273,6 +294,134 @@ export default function BPSDataVisualization() {
     }
   }, []);
 
+  // Sync areas (provinces/districts) from BPS API
+  const syncAreasFromAPI = useCallback(async () => {
+    try {
+      setIsSyncingAreas(true);
+
+      const response = await apiFetch('/panel/api/bps/areas/sync', {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        toast({
+          title: 'Areas Synced',
+          description: `Synced ${response.data?.syncedCount ?? ''} areas from BPS API`,
+        });
+        await loadInitialData();
+      } else {
+        toast({
+          title: 'Area Sync Failed',
+          description: response.error || 'Failed to sync areas from BPS API',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to sync areas:', error);
+      toast({
+        title: 'Area Sync Failed',
+        description: error instanceof Error ? error.message : 'Failed to sync areas',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncingAreas(false);
+    }
+  }, [toast, loadInitialData]);
+
+  // Build selectedYears from yearFrom/yearTo
+  useEffect(() => {
+    if (!yearFrom || !yearTo) return;
+    const from = parseInt(yearFrom);
+    const to = parseInt(yearTo);
+    const years: string[] = [];
+    for (let y = Math.min(from, to); y <= Math.max(from, to); y++) {
+      years.push(y.toString());
+    }
+    setSelectedYears(years);
+  }, [yearFrom, yearTo]);
+
+  // Load available periods when variable or area changes
+  const loadPeriods = useCallback(async () => {
+    if (!selectedAreas.length || !selectedVariable) return;
+    try {
+      const response = await apiFetch(
+        `/panel/api/bps/periods?domain=${selectedAreas[0]}&var=${selectedVariable}`
+      );
+      if (response.success && response.data) {
+        const { years, periods, periodType: pt, latestYear } = response.data;
+        const yearOpts = years.length > 0 ? years : [
+          { value: '2023', label: '2023' },
+          { value: '2022', label: '2022' },
+          { value: '2021', label: '2021' },
+        ];
+        setAvailableYears(yearOpts);
+        setAvailablePeriods(periods);
+        setPeriodType(pt || 'annual');
+
+        // Auto-select year range if not set
+        if (!yearFrom && yearOpts.length > 0) {
+          setYearTo(yearOpts[0].value); // latest
+          setYearFrom(yearOpts[Math.min(2, yearOpts.length - 1)].value); // 3 years back
+        }
+        // Auto-select first period if available
+        if (periods.length > 0 && !selectedPeriod) {
+          // Prefer "Tahunan" if available, else last period
+          const tahunan = periods.find((p: { label: string }) => p.label.toLowerCase().includes('tahunan'));
+          setSelectedPeriod(tahunan ? tahunan.value : periods[periods.length - 1].value);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load periods:', error);
+    }
+  }, [selectedAreas, selectedVariable]);
+
+  useEffect(() => {
+    loadPeriods();
+  }, [loadPeriods]);
+
+  // Search BPS variable catalog
+  const searchBPSVariables = useCallback(async () => {
+    if (!varSearchKeyword.trim()) return;
+    try {
+      setIsSearchingVars(true);
+      const domain = selectedAreas[0] || '0000';
+      const response = await apiFetch(
+        `/panel/api/bps/variables/search?domain=${domain}&keyword=${encodeURIComponent(varSearchKeyword)}`
+      );
+      if (response.success) {
+        setVarSearchResults(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to search variables:', error);
+    } finally {
+      setIsSearchingVars(false);
+    }
+  }, [varSearchKeyword, selectedAreas]);
+
+  // Add variable from search results
+  const addVariableFromSearch = useCallback(async (varItem: { var_id: string; title: string; unit: string; subject: string }) => {
+    try {
+      const response = await apiFetch('/panel/api/bps/variables', {
+        method: 'POST',
+        body: JSON.stringify({
+          variable_id: varItem.var_id,
+          variable_name: varItem.title,
+          unit: varItem.unit,
+          category: varItem.subject,
+        }),
+      });
+      if (response.success) {
+        toast({ title: 'Variable Added', description: `${varItem.title} added successfully` });
+        await loadInitialData();
+        setSelectedVariable(varItem.var_id);
+      } else {
+        toast({ title: 'Error', description: response.error || 'Failed to add variable', variant: 'destructive' });
+      }
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to add variable', variant: 'destructive' });
+    }
+  }, [toast, loadInitialData]);
+
   useEffect(() => {
     loadInitialData();
   }, [loadInitialData]);
@@ -282,19 +431,15 @@ export default function BPSDataVisualization() {
   }, [loadChartData]);
 
   const handleAreaChange = (areaCode: string) => {
-    setSelectedAreas([areaCode]);
+    if (areaCode) {
+      setSelectedAreas([areaCode]);
+    }
   };
 
   const handleVariableChange = (variableId: string) => {
-    setSelectedVariable(variableId);
-  };
-
-  const handleYearToggle = (year: string) => {
-    setSelectedYears(prev => 
-      prev.includes(year) 
-        ? prev.filter(y => y !== year)
-        : [...prev, year].sort()
-    );
+    if (variableId) {
+      setSelectedVariable(variableId);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -321,21 +466,21 @@ export default function BPSDataVisualization() {
     );
   }
 
-  const provinces = areas.filter(a => a.area_type === 'province');
-  const districts = areas.filter(a => a.area_type === 'district');
+  const provinces = areas.filter(a => a.area_type === 'province').sort((a, b) => a.area_code.localeCompare(b.area_code));
+  const districts = areas.filter(a => a.area_type === 'district').sort((a, b) => a.area_code.localeCompare(b.area_code));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-4 md:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">BPS Statistical Data</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Indonesian statistical data visualization and management
           </p>
         </div>
-        
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -346,6 +491,16 @@ export default function BPSDataVisualization() {
             Refresh
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={syncAreasFromAPI}
+            disabled={isSyncingAreas}
+          >
+            <MapPin className={`h-4 w-4 mr-2 ${isSyncingAreas ? 'animate-pulse' : ''}`} />
+            {isSyncingAreas ? 'Syncing Areas...' : 'Sync Areas'}
+          </Button>
+          <Button
+            size="sm"
             onClick={triggerSync}
             disabled={isSyncing || !selectedAreas.length || !selectedVariable}
           >
@@ -366,123 +521,242 @@ export default function BPSDataVisualization() {
             Configure areas, variables, and time periods for visualization
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5">
             {/* Area Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Province</label>
-              <Select value={selectedAreas[0] || ''} onValueChange={handleAreaChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select province" />
-                </SelectTrigger>
-                <SelectContent>
-                  {provinces.map(province => (
-                    <SelectItem key={province.area_code} value={province.area_code}>
-                      {province.area_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                Province
+              </label>
+              {provinces.length > 0 ? (
+                <Select
+                  value={selectedAreas[0] || undefined}
+                  onValueChange={handleAreaChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {provinces.map(province => (
+                      <SelectItem key={province.area_code} value={province.area_code}>
+                        {province.area_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex h-10 w-full items-center rounded-md border border-dashed border-muted-foreground/25 bg-muted/20 px-3 text-sm text-muted-foreground">
+                  Use "Sync Areas" above
+                </div>
+              )}
             </div>
 
             {/* Variable Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Statistical Variable</label>
-              <Select value={selectedVariable} onValueChange={handleVariableChange}>
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+                  Statistical Variable
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => setShowVarSearch(!showVarSearch)}
+                >
+                  {showVarSearch ? 'Close' : '+ Browse BPS'}
+                </button>
+              </label>
+              <Select
+                value={selectedVariable || undefined}
+                onValueChange={handleVariableChange}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select variable" />
                 </SelectTrigger>
                 <SelectContent>
                   {variables.map(variable => (
                     <SelectItem key={variable.variable_id} value={variable.variable_id}>
-                      <div className="flex flex-col">
-                        <span>{variable.variable_name}</span>
-                        {variable.unit && (
-                          <span className="text-xs text-muted-foreground">
-                            Unit: {variable.unit}
-                          </span>
-                        )}
-                      </div>
+                      {variable.variable_name}
+                      {variable.unit ? ` (${variable.unit})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Detail Level */}
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                Detail Level
+              </label>
+              <Select value={detailLevel} onValueChange={(value: 'province' | 'kabupaten') => setDetailLevel(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="province">Provinsi (Agregat)</SelectItem>
+                  <SelectItem value="kabupaten">Kabupaten/Kota</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Chart Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Chart Type</label>
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                Chart Type
+              </label>
               <Select value={chartType} onValueChange={(value: 'line' | 'bar') => setChartType(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="line">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Line Chart
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="bar">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Bar Chart
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="line">Line Chart</SelectItem>
+                  <SelectItem value="bar">Bar Chart</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Year & Period Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Year From */}
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                Year From
+              </label>
+              <Select value={yearFrom || undefined} onValueChange={setYearFrom}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Start year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(y => (
+                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Quick Actions */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Quick Actions</label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedYears(['2022', '2023', '2024'])}
-                >
-                  Recent 3Y
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedYears(['2020', '2021', '2022', '2023', '2024'])}
-                >
-                  All Years
-                </Button>
-              </div>
+            {/* Year To */}
+            <div className="space-y-2.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                Year To
+              </label>
+              <Select value={yearTo || undefined} onValueChange={setYearTo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="End year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableYears.map(y => (
+                    <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            {/* Period (if available) */}
+            {availablePeriods.length > 0 && (
+              <div className="space-y-2.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  Period
+                  <Badge variant="outline" className="text-xs ml-1">
+                    {periodType === 'monthly' ? 'Bulanan' : periodType === 'quarterly' ? 'Triwulan' : periodType === 'semester' ? 'Semester' : 'Tahunan'}
+                  </Badge>
+                </label>
+                <Select value={selectedPeriod || undefined} onValueChange={setSelectedPeriod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePeriods.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
-          {/* Year Selection */}
-          <div className="space-y-2 mt-4">
-            <label className="text-sm font-medium">Years</label>
-            <div className="flex flex-wrap gap-2">
-              {availableYears.map(year => (
-                <Button
-                  key={year}
-                  variant={selectedYears.includes(year) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleYearToggle(year)}
-                >
-                  {year}
+          {/* BPS Variable Search */}
+          {showVarSearch && (
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Browse BPS Statistics Catalog</h4>
+                <button type="button" onClick={() => setShowVarSearch(false)}>
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Search... e.g. penduduk, ekspor, kemiskinan"
+                  value={varSearchKeyword}
+                  onChange={(e) => setVarSearchKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && searchBPSVariables()}
+                  className="flex-1"
+                />
+                <Button size="sm" onClick={searchBPSVariables} disabled={isSearchingVars}>
+                  <Search className={`h-4 w-4 mr-1 ${isSearchingVars ? 'animate-spin' : ''}`} />
+                  Search
                 </Button>
-              ))}
+              </div>
+              {varSearchResults.length > 0 && (
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {varSearchResults.map(item => {
+                    const isAdded = variables.some(v => v.variable_id === item.var_id);
+                    return (
+                      <div key={item.var_id} className="flex items-start justify-between gap-3 p-3 border rounded-md bg-background">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="shrink-0 text-xs">{item.var_id}</Badge>
+                            <span className="text-sm font-medium truncate">{item.title}</span>
+                          </div>
+                          <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                            {item.unit && <span>Unit: {item.unit}</span>}
+                            {item.subject && <span>Subject: {item.subject}</span>}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={isAdded ? "secondary" : "default"}
+                          disabled={isAdded}
+                          className="shrink-0"
+                          onClick={() => addVariableFromSearch(item)}
+                        >
+                          {isAdded ? (
+                            <><CheckCircle className="h-3.5 w-3.5 mr-1" /> Added</>
+                          ) : (
+                            <><Plus className="h-3.5 w-3.5 mr-1" /> Add</>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {varSearchResults.length === 0 && varSearchKeyword && !isSearchingVars && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No results. Try a different keyword.
+                </p>
+              )}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Main Content */}
-      <Tabs defaultValue="chart" className="space-y-4">
+      <Tabs defaultValue="chart" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="chart">Chart Visualization</TabsTrigger>
           <TabsTrigger value="districts">District Data</TabsTrigger>
           <TabsTrigger value="history">Sync History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chart" className="space-y-4">
+        <TabsContent value="chart" className="space-y-6">
           {data.length > 0 ? (
             <Card>
               <CardHeader>
@@ -491,7 +765,8 @@ export default function BPSDataVisualization() {
                   Statistical Trend Analysis
                 </CardTitle>
                 <CardDescription>
-                  Time-series data visualization with district comparisons
+                  {provinces.find(p => p.area_code === selectedAreas[0])?.area_name || 'Selected area'} &mdash;{' '}
+                  {variables.find(v => v.variable_id === selectedVariable)?.variable_name || 'Selected variable'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -541,22 +816,24 @@ export default function BPSDataVisualization() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="flex items-center justify-center p-8">
-                <div className="text-center space-y-4">
+              <CardContent className="flex items-center justify-center py-16">
+                <div className="text-center space-y-3">
                   <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground opacity-50" />
-                  <div>
-                    <h3 className="text-lg font-medium">No Data Available</h3>
-                    <p className="text-muted-foreground">
-                      Configure the settings above and sync data to view charts
-                    </p>
-                  </div>
+                  <h3 className="text-lg font-medium">No Data Available</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    {provinces.length === 0
+                      ? 'Click "Sync Areas" above to load provinces from BPS.'
+                      : variables.length === 0
+                        ? 'No variables configured. Go to BPS Configuration to add variables.'
+                        : 'Select a province, variable, and years above, then click "Sync Data" to fetch data.'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="districts" className="space-y-4">
+        <TabsContent value="districts" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -564,39 +841,54 @@ export default function BPSDataVisualization() {
                 District Comparison
               </CardTitle>
               <CardDescription>
-                Current year data comparison across districts
+                {selectedAreas.length > 0
+                  ? `Districts in ${provinces.find(p => p.area_code === selectedAreas[0])?.area_name || 'selected province'}`
+                  : 'Select a province to view its districts'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {selectedAreas.length > 0 && (
+              {selectedAreas.length > 0 ? (
                 <div className="space-y-4">
-                  <h4 className="font-medium">
-                    Districts in {provinces.find(p => p.area_code === selectedAreas[0])?.area_name}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {districts
-                      .filter(d => d.parent_area_code === selectedAreas[0])
-                      .map(district => (
-                        <Card key={district.area_code} className="p-4">
-                          <div className="space-y-2">
-                            <h5 className="font-medium">{district.area_name}</h5>
-                            <p className="text-sm text-muted-foreground">
-                              Code: {district.area_code}
-                            </p>
-                            <Badge variant="outline" className="text-xs">
-                              Priority: {district.priority_level}
+                  {districts.filter(d => d.parent_area_code === selectedAreas[0]).length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {districts
+                        .filter(d => d.parent_area_code === selectedAreas[0])
+                        .map(district => (
+                          <div key={district.area_code} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div>
+                              <h5 className="font-medium text-sm">{district.area_name}</h5>
+                              <p className="text-xs text-muted-foreground">
+                                Code: {district.area_code}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs shrink-0">
+                              P{district.priority_level}
                             </Badge>
                           </div>
-                        </Card>
-                      ))}
-                  </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <MapPin className="h-10 w-10 mx-auto text-muted-foreground opacity-50" />
+                      <p className="text-sm text-muted-foreground mt-2">
+                        No districts found for this province. Sync areas to populate district data.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MapPin className="h-10 w-10 mx-auto text-muted-foreground opacity-50" />
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Select a province first to view its districts.
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="history" className="space-y-4">
+        <TabsContent value="history" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -611,7 +903,7 @@ export default function BPSDataVisualization() {
               <div className="space-y-4">
                 {syncHistory.length > 0 ? (
                   syncHistory.map(sync => (
-                    <div key={sync.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={sync.id} className="flex items-center justify-between p-5 border rounded-lg">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">

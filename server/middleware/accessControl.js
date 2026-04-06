@@ -1,72 +1,62 @@
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+import { query } from '../db.js';
 
 /**
  * Middleware to check if user's company is verified
  */
 const requireVerifiedCompany = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    // Check if user is authenticated via JWT in auth middleware
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError) throw authError;
+    const userId = req.user.sub; // JWT subject is the user ID
 
     // Check if user is an admin (they bypass verification requirements)
-    const { data: userRoles, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .in('role', ['super_admin', 'internal_admin', 'pengolah_data'])
-      .single();
+    const adminRoleResult = await query(
+      `SELECT role FROM public.user_roles
+       WHERE user_id = $1 AND role = ANY($2)`,
+      [userId, ['super_admin', 'internal_admin', 'pengolah_data']]
+    );
 
-    if (roleError && roleError.code !== 'PGRST116') { // PGRST116 means no rows returned
-      throw roleError;
-    }
-
-    if (userRoles) {
-      req.user = user;
+    if (adminRoleResult.rows.length > 0) {
       req.isAdmin = true;
-      req.userRole = userRoles.role;
+      req.userRole = adminRoleResult.rows[0].role;
       return next();
     }
 
     // Check company verification status for non-admin users
-    const { data: userCompany, error: companyError } = await supabase
-      .from('user_profiles')
-      .select('company_id')
-      .eq('user_id', user.id)
-      .single();
+    const userCompanyResult = await query(
+      `SELECT company_id FROM public.user_profiles WHERE user_id = $1 LIMIT 1`,
+      [userId]
+    );
 
-    if (companyError || !userCompany) {
-      return res.status(403).json({ 
+    if (userCompanyResult.rows.length === 0) {
+      return res.status(403).json({
         error: 'User does not belong to any company',
         access_level: 'none',
         message: 'You must be associated with a company to access this resource'
       });
     }
 
-    const { data: company, error: companyStatusError } = await supabase
-      .from('companies')
-      .select('status, verification_notes, correction_notes')
-      .eq('id', userCompany.company_id)
-      .single();
+    const companyId = userCompanyResult.rows[0].company_id;
 
-    if (companyStatusError) throw companyStatusError;
+    const companyResult = await query(
+      `SELECT status, verification_notes, correction_notes FROM public.companies WHERE id = $1 LIMIT 1`,
+      [companyId]
+    );
 
-    if (!company) {
-      return res.status(403).json({ 
+    if (companyResult.rows.length === 0) {
+      return res.status(403).json({
         error: 'Company not found',
         access_level: 'none',
         message: 'Associated company not found'
       });
     }
 
-    req.user = user;
-    req.companyId = userCompany.company_id;
+    const company = companyResult.rows[0];
+
+    req.companyId = companyId;
     req.companyStatus = company.status;
     req.isAdmin = false;
     req.userRole = 'pelaku_usaha'; // Default role for non-admin users
@@ -78,12 +68,12 @@ const requireVerifiedCompany = async (req, res, next) => {
       can_submit_certificates: company.status === 'verified',
       can_view_company_data: ['verified', 'pending_verification', 'needs_correction'].includes(company.status),
       can_manage_company: ['verified', 'pending_verification', 'needs_correction'].includes(company.status),
-      access_level: 
+      access_level:
         company.status === 'verified' ? 'full' :
         company.status === 'pending_verification' ? 'limited' :
         company.status === 'needs_correction' ? 'limited' : 'none',
       verification_status: company.status,
-      restriction_reason: 
+      restriction_reason:
         company.status === 'pending_verification' ? 'Company under review, limited access granted' :
         company.status === 'needs_correction' ? 'Company needs correction, please update information' :
         company.status === 'rejected' ? 'Company registration rejected' : null
@@ -102,30 +92,23 @@ const requireVerifiedCompany = async (req, res, next) => {
 const checkAccessLevel = (requiredLevel) => {
   return async (req, res, next) => {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
+      // Check if user is authenticated via JWT in auth middleware
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError) throw authError;
+      const userId = req.user.sub; // JWT subject is the user ID
 
       // Check if user is an admin (they have full access)
-      const { data: userRoles, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .in('role', ['super_admin', 'internal_admin', 'pengolah_data'])
-        .single();
+      const adminRoleResult = await query(
+        `SELECT role FROM public.user_roles
+         WHERE user_id = $1 AND role = ANY($2)`,
+        [userId, ['super_admin', 'internal_admin', 'pengolah_data']]
+      );
 
-      if (roleError && roleError.code !== 'PGRST116') {
-        throw roleError;
-      }
-
-      if (userRoles) {
-        req.user = user;
+      if (adminRoleResult.rows.length > 0) {
         req.isAdmin = true;
-        req.userRole = userRoles.role;
+        req.userRole = adminRoleResult.rows[0].role;
         req.accessPermissions = {
           can_access_dashboard: true,
           can_submit_data: true,
@@ -139,35 +122,35 @@ const checkAccessLevel = (requiredLevel) => {
       }
 
       // Get user's company verification status
-      const { data: userCompany, error: companyError } = await supabase
-        .from('user_profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
+      const userCompanyResult = await query(
+        `SELECT company_id FROM public.user_profiles WHERE user_id = $1 LIMIT 1`,
+        [userId]
+      );
 
-      if (companyError || !userCompany) {
-        return res.status(403).json({ 
+      if (userCompanyResult.rows.length === 0) {
+        return res.status(403).json({
           error: 'User does not belong to any company',
           access_level: 'none',
           message: 'You must be associated with a company to access this resource'
         });
       }
 
-      const { data: company, error: companyStatusError } = await supabase
-        .from('companies')
-        .select('status')
-        .eq('id', userCompany.company_id)
-        .single();
+      const companyId = userCompanyResult.rows[0].company_id;
 
-      if (companyStatusError) throw companyStatusError;
+      const companyResult = await query(
+        `SELECT status FROM public.companies WHERE id = $1 LIMIT 1`,
+        [companyId]
+      );
 
-      if (!company) {
-        return res.status(403).json({ 
+      if (companyResult.rows.length === 0) {
+        return res.status(403).json({
           error: 'Company not found',
           access_level: 'none',
           message: 'Associated company not found'
         });
       }
+
+      const company = companyResult.rows[0];
 
       // Determine access based on required level and company status
       let hasAccess = false;
@@ -200,24 +183,23 @@ const checkAccessLevel = (requiredLevel) => {
       }
 
       if (!hasAccess) {
-        return res.status(403).json({ 
+        return res.status(403).json({
           error: 'Insufficient access level',
           required_level: requiredLevel,
           current_status: company.status,
-          access_level: 
+          access_level:
             company.status === 'verified' ? 'full' :
             company.status === 'pending_verification' ? 'limited' :
             company.status === 'needs_correction' ? 'limited' : 'none',
           message: errorMessage,
-          restriction_reason: 
+          restriction_reason:
             company.status === 'pending_verification' ? 'Company under review' :
             company.status === 'needs_correction' ? 'Company needs correction' :
             company.status === 'rejected' ? 'Company registration rejected' : 'Company not verified'
         });
       }
 
-      req.user = user;
-      req.companyId = userCompany.company_id;
+      req.companyId = companyId;
       req.companyStatus = company.status;
       req.isAdmin = false;
       req.userRole = 'pelaku_usaha';
@@ -228,7 +210,7 @@ const checkAccessLevel = (requiredLevel) => {
         can_submit_certificates: company.status === 'verified',
         can_view_company_data: ['verified', 'pending_verification', 'needs_correction'].includes(company.status),
         can_manage_company: ['verified', 'pending_verification', 'needs_correction'].includes(company.status),
-        access_level: 
+        access_level:
           company.status === 'verified' ? 'full' :
           company.status === 'pending_verification' ? 'limited' :
           company.status === 'needs_correction' ? 'limited' : 'none',
@@ -247,49 +229,49 @@ const checkAccessLevel = (requiredLevel) => {
  */
 const requireCompanyAccess = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
+    // Check if user is authenticated via JWT in auth middleware
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError) throw authError;
-
+    const userId = req.user.sub; // JWT subject is the user ID
     const companyId = req.params.companyId || req.body.companyId;
 
     // Check if user has access to the company
-    const { data: userCompanies, error: accessError } = await supabase
-      .from('user_profiles')
-      .select('company_id, is_company_admin')
-      .eq('user_id', user.id)
-      .eq('company_id', companyId)
-      .single();
+    const userCompaniesResult = await query(
+      `SELECT company_id, is_company_admin FROM public.user_profiles
+       WHERE user_id = $1 AND company_id = $2 LIMIT 1`,
+      [userId, companyId]
+    );
 
-    if (accessError || !userCompanies) {
+    if (userCompaniesResult.rows.length === 0) {
       return res.status(403).json({ error: 'Unauthorized access to company' });
     }
 
     // Check company verification status
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('status')
-      .eq('id', companyId)
-      .single();
+    const companyResult = await query(
+      `SELECT status FROM public.companies WHERE id = $1 LIMIT 1`,
+      [companyId]
+    );
 
-    if (companyError) throw companyError;
+    if (companyResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Company not found' });
+    }
+
+    const company = companyResult.rows[0];
+
+    // Check if user is an admin
+    const adminRoleResult = await query(
+      `SELECT role FROM public.user_roles
+       WHERE user_id = $1 AND role = ANY($2)`,
+      [userId, ['super_admin', 'internal_admin', 'pengolah_data']]
+    );
 
     // Set access level based on company status and user role
     let accessLevel = 'none';
     let canAccess = false;
 
-    // Check if user is an admin
-    const { data: adminRoles, error: adminError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .in('role', ['super_admin', 'internal_admin', 'pengolah_data']);
-
-    if (adminRoles && adminRoles.length > 0) {
+    if (adminRoleResult.rows.length > 0) {
       accessLevel = 'admin';
       canAccess = true;
     } else if (company.status === 'verified') {
@@ -314,12 +296,11 @@ const requireCompanyAccess = async (req, res, next) => {
       });
     }
 
-    req.user = user;
     req.companyId = companyId;
     req.companyStatus = company.status;
-    req.isCompanyAdmin = userCompanies.is_company_admin;
+    req.isCompanyAdmin = userCompaniesResult.rows[0].is_company_admin;
     req.accessLevel = accessLevel;
-    req.isAdmin = adminRoles && adminRoles.length > 0;
+    req.isAdmin = adminRoleResult.rows.length > 0;
     
     next();
   } catch (error) {
@@ -333,32 +314,28 @@ const requireCompanyAccess = async (req, res, next) => {
 const requireRole = (roles) => {
   return async (req, res, next) => {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      if (!token) {
-        return res.status(401).json({ error: 'No token provided' });
+      // Check if user is authenticated via JWT in auth middleware
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError) throw authError;
+      const userId = req.user.sub; // JWT subject is the user ID
 
       // Check if user has required role
-      const { data, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .in('role', roles)
-        .single();
+      const roleResult = await query(
+        `SELECT role FROM public.user_roles WHERE user_id = $1 AND role = ANY($2) LIMIT 1`,
+        [userId, roles]
+      );
 
-      if (roleError || !data) {
-        return res.status(403).json({ 
+      if (roleResult.rows.length === 0) {
+        return res.status(403).json({
           error: 'Insufficient permissions',
           required_roles: roles,
           message: 'You do not have the required role to access this resource'
         });
       }
 
-      req.user = user;
-      req.userRole = data.role;
+      req.userRole = roleResult.rows[0].role;
       next();
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -366,7 +343,7 @@ const requireRole = (roles) => {
   };
 };
 
-module.exports = {
+export {
   requireVerifiedCompany,
   checkAccessLevel,
   requireCompanyAccess,

@@ -2,6 +2,8 @@ import express from 'express';
 import BPSDataService from '../services/bpsDataService.js';
 import BPSAPIFetcherService from '../services/bpsAPIFetcherService.js';
 import BPSDataNormalizerService from '../services/bpsDataNormalizerService.js';
+import { requireVerifiedCompany } from '../middleware/accessControl.js';
+import { query } from '../db.js';
 
 const router = express.Router();
 
@@ -97,9 +99,23 @@ router.post('/config', async (req, res) => {
       });
     }
 
+    // If api_key is the masked placeholder, keep the existing key from database
+    let finalApiKey = api_key;
+    if (api_key === '***CONFIGURED***' || api_key.includes('•')) {
+      const existing = await bpsDataService.getConfig();
+      if (existing.success && existing.data?.api_key && existing.data.api_key !== '***CONFIGURED***') {
+        finalApiKey = existing.data.api_key;
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid API key'
+        });
+      }
+    }
+
     const result = await bpsDataService.updateConfig({
       config_name,
-      api_key,
+      api_key: finalApiKey,
       base_url: base_url || 'https://webapi.bps.go.id/v1/api/view',
       rate_limit_per_hour: rate_limit_per_hour || 1000
     });
@@ -219,6 +235,125 @@ router.post('/areas', async (req, res) => {
   }
 });
 
+
+/**
+ * Fetch areas from BPS API and sync to database
+ * POST /panel/api/bps/areas/sync
+ * Any authenticated user can sync areas (public BPS data)
+ */
+router.post('/areas/sync', async (req, res) => {
+  // Check if user is authenticated
+  if (!req.user) {
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  }
+
+  try {
+    // Get configuration
+    const config = await bpsDataService.getConfig();
+    if (!config.success || !config.data?.api_key) {
+      return res.status(400).json({
+        success: false,
+        error: 'BPS API key not configured'
+      });
+    }
+
+    console.log('Starting BPS area sync process...');
+    
+    // Fetch and sync areas
+    const syncResult = await bpsAPIFetcher.fetchAndSyncAreas(config.data.api_key);
+
+    if (syncResult.success) {
+      res.json({
+        success: true,
+        message: 'BPS areas synced successfully',
+        data: syncResult.data
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: syncResult.error,
+        details: syncResult.details
+      });
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+ }
+});
+
+/**
+ * Test BPS areas endpoint
+ * GET /panel/api/bps/areas/test
+ */
+router.get('/areas/test', requireVerifiedCompany, async (req, res) => {
+  console.log('BPS areas/test endpoint called');
+  console.log('Authorization header:', req.headers.authorization);
+  console.log('User from middleware:', req.user);
+  
+  // Check if user is authenticated
+  if (!req.user) {
+    console.log('BPS areas/test: Authentication failed - no user');
+    return res.status(401).json({ success: false, error: 'Authentication required' });
+  }
+  console.log('BPS areas/test: Authentication successful for user:', req.user.sub);
+  
+  // Check if user has permission to manage BPS data
+  if (!req.accessLevel?.can_manage_company && !req.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      error: 'Insufficient permissions to test BPS areas',
+      message: 'You do not have permission to perform this action'
+    });
+  }
+  
+  try {
+    // Get configuration
+    const config = await bpsDataService.getConfig();
+    if (!config.success || !config.data?.api_key) {
+      return res.status(400).json({
+        success: false,
+        error: 'BPS API key not configured'
+      });
+    }
+
+    console.log('Testing BPS areas endpoint...');
+    
+    // Fetch areas without syncing
+    const fetchResult = await bpsAPIFetcher.fetchAreas(config.data.api_key);
+
+    if (fetchResult.success) {
+      // Process the data to show what would be synced
+      const areas = bpsAPIFetcher.processAreaData(fetchResult.data);
+      
+      res.json({
+        success: true,
+        message: 'BPS areas endpoint test successful',
+        data: {
+          totalAreas: areas.length,
+          areas: areas.slice(0, 10), // Show first 10 areas
+          sampleResponse: fetchResult.data
+        },
+        meta: fetchResult.meta
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: fetchResult.error,
+        details: fetchResult.details
+      });
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 /**
  * Get BPS variables
  * GET /panel/api/bps/variables
@@ -252,6 +387,137 @@ router.get('/variables', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+/**
+ * Get available periods for a variable in a domain
+ * GET /panel/api/bps/periods?domain=3300&var=985
+ * Returns available years and sub-periods (monthly/quarterly/semester)
+ */
+router.get('/periods', async (req, res) => {
+  try {
+    const { domain = '0000', var: varId } = req.query;
+    if (!varId) return res.status(400).json({ success: false, error: 'var parameter is required' });
+
+    const config = await bpsDataService.getConfig();
+    if (!config.success || !config.data?.api_key) {
+      return res.status(400).json({ success: false, error: 'BPS API key not configured' });
+    }
+
+    const axios = (await import('axios')).default;
+    const baseUrl = 'https://webapi.bps.go.id/v1/api';
+
+    // Fetch data for a recent year to discover available periods and year range
+    // Try years from newest to oldest to find one with data
+    let periodInfo = null;
+    for (const thVal of [124, 123, 122, 121, 120]) {
+      const url = `${baseUrl}/list/model/data/lang/ind/domain/${domain}/var/${varId}/th/${thVal}/key/${config.data.api_key}`;
+      try {
+        const response = await axios.get(url, {
+          timeout: 15000,
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept': 'application/json' }
+        });
+        const d = response.data;
+        const dc = d.datacontent;
+        const hasData = dc && typeof dc === 'object' && !Array.isArray(dc) && Object.keys(dc).length > 0;
+        if (d.status === 'OK' && hasData) {
+          periodInfo = {
+            tahun: d.tahun || [],
+            turtahun: (d.turtahun || []).filter(t => t.val !== 0 || t.label !== 'Tahun'),
+            latestYear: thVal + 1900,
+          };
+          break;
+        }
+      } catch { /* skip */ }
+    }
+
+    if (!periodInfo) {
+      return res.json({ success: true, data: { years: [], periods: [], latestYear: 2023 } });
+    }
+
+    // Build year range (latest - 10 to latest)
+    const latestYear = periodInfo.latestYear;
+    const years = [];
+    for (let y = latestYear; y >= latestYear - 10; y--) {
+      years.push({ value: y.toString(), label: y.toString() });
+    }
+
+    // Determine period type
+    const turtahun = periodInfo.turtahun;
+    let periodType = 'annual';
+    const periods = [];
+
+    if (turtahun.length > 1) {
+      // Has sub-periods
+      const labels = turtahun.map(t => t.label.toLowerCase());
+      if (labels.some(l => l.includes('januari') || l.includes('februari'))) {
+        periodType = turtahun.length >= 10 ? 'monthly' : 'semester';
+      } else if (labels.some(l => l.includes('tri wulan') || l.includes('triwulan'))) {
+        periodType = 'quarterly';
+      }
+
+      for (const t of turtahun) {
+        periods.push({ value: t.val.toString(), label: t.label });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        years,
+        periods,
+        periodType,
+        latestYear,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Search BPS variable catalog
+ * GET /panel/api/bps/variables/search?domain=3300&keyword=penduduk
+ */
+router.get('/variables/search', async (req, res) => {
+  try {
+    const { domain = '0000', keyword = '', page = '1' } = req.query;
+
+    const config = await bpsDataService.getConfig();
+    if (!config.success || !config.data?.api_key) {
+      return res.status(400).json({ success: false, error: 'BPS API key not configured' });
+    }
+
+    const axios = (await import('axios')).default;
+    const baseUrl = 'https://webapi.bps.go.id/v1/api';
+    let url = `${baseUrl}/list/model/var/domain/${domain}/key/${config.data.api_key}/page/${page}/perpage/20`;
+    if (keyword) url += `/keyword/${encodeURIComponent(keyword)}`;
+
+    const response = await axios.get(url, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
+      }
+    });
+
+    const d = response.data;
+    if (d.status === 'OK' && Array.isArray(d.data) && d.data.length === 2) {
+      const paging = d.data[0];
+      const items = d.data[1].map(v => ({
+        var_id: v.var_id?.toString(),
+        title: v.title,
+        unit: v.unit || '',
+        subject: v.sub_name || '',
+        graph_type: v.graph_name || '',
+      }));
+      res.json({ success: true, data: items, paging });
+    } else {
+      res.json({ success: true, data: [], paging: { total: 0 } });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -308,6 +574,84 @@ router.post('/variables', async (req, res) => {
   }
 });
 
+/**
+ * Delete BPS variable
+ * DELETE /panel/api/bps/variables/:id
+ */
+router.delete('/variables/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await bpsDataService.deleteVariable(id);
+
+    if (result.success && result.data) {
+      res.status(200).json({
+        success: true,
+        message: 'BPS variable deleted successfully',
+        data: result.data
+      });
+    } else if (result.success && !result.data) {
+      res.status(404).json({
+        success: false,
+        error: 'Variable not found'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Update BPS variable status
+ * PATCH /panel/api/bps/variables/:id
+ */
+router.patch('/variables/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (is_active === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'is_active is required'
+      });
+    }
+
+    const result = await bpsDataService.updateVariableStatus(id, is_active);
+
+    if (result.success && result.data) {
+      res.status(200).json({
+        success: true,
+        message: 'BPS variable updated successfully',
+        data: result.data
+      });
+    } else if (result.success && !result.data) {
+      res.status(404).json({
+        success: false,
+        error: 'Variable not found'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // =============================================================================
 // STATISTICAL DATA ENDPOINTS
 // =============================================================================
@@ -329,51 +673,201 @@ router.get('/data', async (req, res) => {
       variables,
       years,
       format = 'pivot',
-      areaType
+      detail,  // 'kabupaten' to get per-district breakdown
+      period,  // turtahun value (e.g. '102' for Tahunan, '90' for Januari)
     } = req.query;
 
-    // Parse comma-separated parameters
-    const filters = {
-      outputFormat: format
-    };
+    const areaCodes = areas ? areas.split(',').map(a => a.trim()) : [];
+    const variableIds = variables ? variables.split(',').map(v => v.trim()) : [];
+    const yearList = years ? years.split(',').map(y => parseInt(y.trim())).filter(y => !isNaN(y)) : [];
 
-    if (areas) filters.areaCodes = areas.split(',').map(a => a.trim());
-    if (variables) filters.variableIds = variables.split(',').map(v => v.trim());
-    if (years) filters.years = years.split(',').map(y => parseInt(y.trim())).filter(y => !isNaN(y));
-    if (areaType) filters.areaType = areaType;
-
-    // Validate required parameters
-    if (!filters.areaCodes || filters.areaCodes.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one area code is required (areas parameter)'
-      });
+    if (areaCodes.length === 0) {
+      return res.status(400).json({ success: false, error: 'areas parameter is required' });
+    }
+    if (variableIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'variables parameter is required' });
     }
 
-    if (!filters.variableIds || filters.variableIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one variable ID is required (variables parameter)'
-      });
+    // Get BPS API key from config
+    const config = await bpsDataService.getConfig();
+    if (!config.success || !config.data?.api_key) {
+      return res.status(400).json({ success: false, error: 'BPS API key not configured' });
+    }
+    const apiKey = config.data.api_key;
+
+    // BPS API year mapping: periodId = year - 1900 (e.g. 2023 -> 123)
+    const periodIds = yearList.map(y => y - 1900);
+
+    // Fetch area names for display
+    const areaNames = {};
+    for (const code of areaCodes) {
+      const areaResult = await query(
+        'SELECT area_name FROM bps_monitored_areas WHERE area_code = $1 LIMIT 1',
+        [code]
+      );
+      areaNames[code] = areaResult.rows[0]?.area_name || code;
     }
 
-    const result = await bpsDataService.getStatisticalData(filters);
+    // Fetch data from BPS API for each area
+    // BPS allows max 2 years per request, so batch if needed
+    const axios = (await import('axios')).default;
+    const baseUrl = 'https://webapi.bps.go.id/v1/api';
+    const allData = [];
 
-    if (result.success) {
-      res.json({
+    // Split periodIds into chunks of 2
+    const periodChunks = [];
+    for (let i = 0; i < periodIds.length; i += 2) {
+      periodChunks.push(periodIds.slice(i, i + 2));
+    }
+
+    for (const areaCode of areaCodes) {
+      for (const varId of variableIds) {
+        for (const chunk of periodChunks) {
+          const thParam = chunk.join(';');
+          const url = `${baseUrl}/list/model/data/lang/ind/domain/${areaCode}/var/${varId}/th/${thParam}/key/${apiKey}`;
+
+          try {
+            const response = await axios.get(url, {
+              timeout: 30000,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+              }
+            });
+
+            const d = response.data;
+            if (d.status === 'OK' && d.datacontent && typeof d.datacontent === 'object' && !Array.isArray(d.datacontent)) {
+              const tahun = d.tahun || [];
+              const vervar = d.vervar || [];
+              const turvar = d.turvar || [];
+              const turtahun = d.turtahun || [];
+              const datacontent = d.datacontent;
+
+              // BPS datacontent key = vervar_val + var_id + turvar_val + tahun_val + turtahun_val
+              // Build a lookup: find which key belongs to which (vervar, tahun) pair
+              const turvarPart = turvar.length > 0 ? turvar[0].val.toString() : '';
+              // Use requested period, or default to first turtahun
+              const turtahunPart = period || (turtahun.length > 0 ? turtahun[0].val.toString() : '');
+
+              const findValue = (vvVal, thVal) => {
+                // Full pattern: vervar + varId + turvar + tahun + turtahun
+                const key1 = `${vvVal}${varId}${turvarPart}${thVal}${turtahunPart}`;
+                if (datacontent[key1] !== undefined) return datacontent[key1];
+
+                // Without turvar: vervar + varId + tahun + turtahun
+                const key2 = `${vvVal}${varId}${thVal}${turtahunPart}`;
+                if (datacontent[key2] !== undefined) return datacontent[key2];
+
+                // Simple: vervar + tahun
+                const key3 = `${vvVal}${thVal}`;
+                if (datacontent[key3] !== undefined) return datacontent[key3];
+
+                // vervar + tahun + turtahun
+                const key4 = `${vvVal}${thVal}${turtahunPart}`;
+                if (datacontent[key4] !== undefined) return datacontent[key4];
+
+                return undefined;
+              };
+
+              if (detail === 'kabupaten' && vervar.length > 0) {
+                // Per-district breakdown
+                for (const th of tahun) {
+                  const year = th.label || (th.val + 1900).toString();
+                  for (const vv of vervar) {
+                    const val = findValue(vv.val, th.val);
+                    if (val !== undefined && val !== null && val !== '-' && !isNaN(parseFloat(val))) {
+                      const label = (vv.label || '').replace(/^\d+\s+/, '');
+                      allData.push({
+                        area_code: areaCode,
+                        area_name: label || vv.label,
+                        variable_id: varId,
+                        year,
+                        value: Math.round(parseFloat(val) * 100) / 100,
+                      });
+                    }
+                  }
+                }
+              } else {
+                // Province-level: find the province-level entry or aggregate
+                for (const th of tahun) {
+                  const year = th.label || (th.val + 1900).toString();
+
+                  // First try to find a province-level entry (vervar matching the areaCode)
+                  const provEntry = vervar.find(vv => vv.val.toString() === areaCode);
+                  if (provEntry) {
+                    const val = findValue(provEntry.val, th.val);
+                    if (val !== undefined && val !== null && val !== '-' && !isNaN(parseFloat(val))) {
+                      allData.push({
+                        area_code: areaCode,
+                        area_name: areaNames[areaCode],
+                        variable_id: varId,
+                        year,
+                        value: Math.round(parseFloat(val) * 100) / 100,
+                      });
+                      continue;
+                    }
+                  }
+
+                  // Otherwise aggregate all vervar entries
+                  let total = 0;
+                  let count = 0;
+                  for (const vv of vervar) {
+                    const val = findValue(vv.val, th.val);
+                    if (val !== undefined && val !== null && val !== '-' && !isNaN(parseFloat(val))) {
+                      total += parseFloat(val);
+                      count++;
+                    }
+                  }
+                  if (count > 0) {
+                    allData.push({
+                      area_code: areaCode,
+                      area_name: areaNames[areaCode],
+                      variable_id: varId,
+                      year,
+                      value: Math.round(total * 100) / 100,
+                    });
+                  }
+                }
+              }
+            }
+          } catch (fetchErr) {
+            console.error(`BPS data fetch error for ${areaCode}/${varId}:`, fetchErr.message);
+          }
+
+          // Small delay between requests
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+    }
+
+    // Format as pivot for charts: [{ year, "AreaName1": val, "AreaName2": val }]
+    if (format === 'pivot') {
+      const pivotMap = {};
+      for (const row of allData) {
+        if (!pivotMap[row.year]) {
+          pivotMap[row.year] = { year: row.year };
+        }
+        pivotMap[row.year][row.area_name] = row.value;
+      }
+      const pivotData = Object.values(pivotMap).sort((a, b) => a.year.localeCompare(b.year));
+
+      return res.json({
         success: true,
-        data: result.data,
-        count: result.count,
-        meta: result.meta,
-        format: format
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: result.error
+        data: pivotData,
+        count: pivotData.length,
+        format: 'pivot'
       });
     }
+
+    // Default: return raw records
+    res.json({
+      success: true,
+      data: allData,
+      count: allData.length,
+      format: 'records'
+    });
   } catch (error) {
+    console.error('BPS data endpoint error:', error);
     res.status(500).json({
       success: false,
       error: error.message

@@ -25,11 +25,17 @@ export class BPSAPIFetcherService {
   async testConnection() {
     try {
       // Use a simple endpoint for testing (domain=0 usually returns metadata)
-      const testUrl = `${this.baseURL}/domain/0/model/dynamictable/lang/ind/key/test`;
+      // Use the base API URL without '/view' for consistency with the fetchAreas endpoint
+      const baseUrl = 'https://webapi.bps.go.id/v1/api';
+      const testUrl = `${baseUrl}/domain/0/model/dynamictable/lang/ind/key/test`;
       
       const response = await axios.get(testUrl, {
-        timeout: 10000,
-        validateStatus: (status) => status < 500 // Accept 4xx as valid responses for testing
+        timeout: 5000,
+        validateStatus: (status) => status < 500, // Accept 4xx as valid responses for testing
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 TelkomInsightHub/1.0',
+          'Accept': 'application/json'
+        }
       });
 
       return {
@@ -43,6 +49,80 @@ export class BPSAPIFetcherService {
         success: false,
         message: `BPS API connection failed: ${error.message}`,
         error: error.response?.data || error.message
+      };
+    }
+  }
+
+  /**
+   * Fetch areas (provinces + districts) from BPS API
+   * BPS Web API v1 endpoint: /domain/type/all/key/{apiKey}
+   * @param {string} apiKey - BPS API key
+   * @returns {Promise<Object>}
+   */
+  async fetchAreas(apiKey) {
+    const baseUrl = 'https://webapi.bps.go.id/v1/api';
+    const url = `${baseUrl}/domain/type/all/key/${apiKey}`;
+
+    try {
+      console.log(`Fetching BPS areas: ${url.replace(apiKey, '***API_KEY***')}`);
+      
+      const startTime = Date.now();
+      const response = await axios.get(url, {
+        timeout: 30000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 TelkomInsightHub/1.0',
+          'Accept': 'application/json'
+        }
+      });
+      const responseTime = Date.now() - startTime;
+
+      // Log successful request
+      await this.logAPIRequest({
+        requestUrl: url,
+        requestMethod: 'GET',
+        requestParams: { endpoint: 'areas' },
+        responseStatus: response.status,
+        responseTime,
+        responseSize: JSON.stringify(response.data).length,
+        syncHistoryId: null
+      });
+
+      if (!response.data || typeof response.data !== 'object') {
+        throw new Error('Invalid response format from BPS API');
+      }
+
+      return {
+        success: true,
+        data: response.data,
+        meta: {
+          responseTime,
+          status: response.status,
+          url: url.replace(apiKey, '***API_KEY***')
+        }
+      };
+
+    } catch (error) {
+      // Log failed request
+      await this.logAPIRequest({
+        requestUrl: url,
+        requestMethod: 'GET',
+        requestParams: { endpoint: 'areas' },
+        responseStatus: error.response?.status,
+        responseTime: Date.now() - (Date.now() - (error.config?.timeout || 3000)),
+        errorMessage: error.message,
+        errorCode: error.response?.data?.error?.code || error.code,
+        syncHistoryId: null
+      });
+
+      return {
+        success: false,
+        error: `Failed to fetch areas: ${error.message}`,
+        details: {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          code: error.response?.data?.error?.code || error.code
+        }
       };
     }
   }
@@ -65,6 +145,7 @@ export class BPSAPIFetcherService {
     const yearsParam = Array.isArray(years) ? years.join(',') : years.toString();
 
     // Path-based parameter system (not query params!)
+    // Use the configured base URL which includes '/view'
     return `${this.baseURL}/domain/${domainCode}/model/dynamictable/lang/${language}/var/${variableID}/th/${yearsParam}/key/${apiKey}`;
   }
 
@@ -134,7 +215,7 @@ export class BPSAPIFetcherService {
         const response = await axios.get(url, {
           timeout: 30000, // 30 second timeout
           headers: {
-            'User-Agent': 'TelkomInsightHub/1.0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 TelkomInsightHub/1.0',
             'Accept': 'application/json'
           }
         });
@@ -490,6 +571,178 @@ export class BPSAPIFetcherService {
         success: false,
         error: `Failed to sync monitored areas: ${error.message}`
       };
+    }
+  }
+
+  /**
+   * Fetch and sync areas from BPS API
+   * @param {string} apiKey - BPS API key
+   * @returns {Promise<Object>}
+   */
+  async fetchAndSyncAreas(apiKey) {
+    try {
+      console.log('Starting BPS area fetch and sync process...');
+      
+      // Fetch areas from BPS API
+      const fetchResult = await this.fetchAreas(apiKey);
+      
+      if (!fetchResult.success) {
+        return fetchResult;
+      }
+
+      // Process and normalize area data
+      const areas = this.processAreaData(fetchResult.data);
+      
+      console.log(`Processing ${areas.length} areas from BPS API response`);
+      
+      // Sync areas to database
+      let syncedCount = 0;
+      let errors = [];
+      
+      for (const area of areas) {
+        try {
+          const result = await this.dataService.addMonitoredArea(area);
+          
+          if (result.success) {
+            syncedCount++;
+          } else {
+            errors.push({
+              area: area,
+              error: result.error
+            });
+          }
+        } catch (error) {
+          errors.push({
+            area: area,
+            error: error.message
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          totalFetched: areas.length,
+          syncedCount: syncedCount,
+          errorCount: errors.length,
+          errors: errors.length > 0 ? errors : null
+        },
+        meta: fetchResult.meta
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to fetch and sync areas: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Process raw BPS API area data into normalized format
+   * BPS API v1 response: [1] contains data array, [0] contains status
+   * Example: { "data-availability": "available", "data": [{ domain_id, domain_name, ... }] }
+   * Or sometimes: [ statusObj, dataArray ]
+   * @param {Object} rawData - Raw BPS API response
+   * @returns {Array} Processed area data
+   */
+  processAreaData(rawData) {
+    const areas = [];
+
+    try {
+      if (!rawData) return areas;
+
+      // Try multiple known BPS response shapes
+      let areaList = null;
+
+      // Shape 1 (most common): { status: "OK", data: [ pagingObj, itemsArray ] }
+      if (Array.isArray(rawData.data) && rawData.data.length === 2 && Array.isArray(rawData.data[1])) {
+        areaList = rawData.data[1];
+      }
+      // Shape 2: { data: [...items] } — flat array of items
+      else if (Array.isArray(rawData.data)) {
+        areaList = rawData.data;
+      }
+      // Shape 3: response is [pagingObj, itemsArray] directly
+      else if (Array.isArray(rawData) && rawData.length === 2 && Array.isArray(rawData[1])) {
+        areaList = rawData[1];
+      }
+      // Shape 4: response is flat array
+      else if (Array.isArray(rawData)) {
+        areaList = rawData;
+      }
+      // Shape 5: object with keys as area codes
+      else if (typeof rawData === 'object') {
+        areaList = Object.values(rawData).filter(v => v && typeof v === 'object' && !Array.isArray(v));
+      }
+
+      if (Array.isArray(areaList)) {
+        for (const item of areaList) {
+          if (item && typeof item === 'object') {
+            const area = this.normalizeAreaItem(item);
+            if (area) {
+              areas.push(area);
+            }
+          }
+        }
+      }
+
+      console.log(`Processed ${areas.length} areas from BPS API response`);
+    } catch (error) {
+      console.error('Error processing BPS area data:', error);
+    }
+
+    return areas;
+  }
+
+  /**
+   * Normalize individual area item from BPS API response
+   * BPS API returns items like: { domain_id: "3200", domain_name: "Jawa Barat", domain_url: "..." }
+   * @param {Object} item - Raw area item
+   * @returns {Object|null} Normalized area data
+   */
+  normalizeAreaItem(item) {
+    try {
+      // Extract area information - BPS API uses domain_id/domain_name
+      const areaCode = item.domain_id || item.code || item.area_code || item.domain || item.id;
+      const areaName = item.domain_name || item.name || item.area_name || item.label || item.title;
+
+      if (!areaCode || !areaName) {
+        return null;
+      }
+
+      const codeStr = areaCode.toString();
+
+      // BPS domain_id format:
+      // "0000" = national (Pusat) — skip
+      // "XX00" (4-digit ending in 00) = province (e.g. "1100" = Aceh, "3100" = DKI Jakarta)
+      // "XXYY" (4-digit not ending in 00) = district (e.g. "1101" = Simeulue, "3171" = Kota Jakarta Selatan)
+      if (codeStr === '0000') {
+        return null; // Skip national level
+      }
+
+      let normalizedAreaType = 'province';
+      let parentAreaCode = null;
+
+      if (codeStr.length === 4 && codeStr.endsWith('00')) {
+        normalizedAreaType = 'province';
+      } else if (codeStr.length === 4) {
+        normalizedAreaType = 'district';
+        parentAreaCode = codeStr.substring(0, 2) + '00';
+      } else if (codeStr.length === 2) {
+        normalizedAreaType = 'province';
+      }
+
+      return {
+        area_code: codeStr,
+        area_name: areaName.toString(),
+        area_type: normalizedAreaType,
+        priority_level: 1,
+        parent_area_code: parentAreaCode || item.parent_code || item.parent || null
+      };
+    } catch (error) {
+      console.error('Error normalizing area item:', error);
+      return null;
     }
   }
 }

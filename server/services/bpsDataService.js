@@ -108,11 +108,12 @@ export class BPSDataService {
   async getMonitoredAreas(filters = {}) {
     try {
       let sql = `
-        SELECT 
+        SELECT
           bma.id,
           bma.area_type,
-          bma.area_id,
           bma.area_code,
+          bma.area_name,
+          bma.parent_area_code,
           bma.is_active,
           bma.priority_level,
           bma.created_at,
@@ -123,9 +124,9 @@ export class BPSDataService {
           k.name as kabupaten_name,
           k.code as kabupaten_code,
           k.type as kabupaten_type
-        FROM ${this.tableNames.monitored_areas} bma
-        LEFT JOIN ${this.tableNames.provinces} p ON bma.area_type = 'province' AND bma.area_id = p.id
-        LEFT JOIN ${this.tableNames.kabupaten} k ON bma.area_type = 'kabupaten' AND bma.area_id = k.id
+        FROM ${this.tableNames.monitoredAreas} bma
+        LEFT JOIN ${this.tableNames.provinces} p ON bma.area_type = 'province' AND bma.area_code = p.code
+        LEFT JOIN ${this.tableNames.kabupaten} k ON bma.area_type = 'kabupaten' AND bma.area_code = k.code
         WHERE 1=1
       `;
       const params = [];
@@ -152,8 +153,8 @@ export class BPSDataService {
         const displayName = row.area_type === 'province' ? row.province_name : row.kabupaten_name;
         return {
           ...row,
-          area_name: displayName,
-          area_display_name: displayName
+          area_name: displayName || row.area_name,
+          area_display_name: displayName || row.area_name
         };
       });
       
@@ -177,19 +178,21 @@ export class BPSDataService {
    */
   async addMonitoredArea(areaData) {
     try {
-      const { area_type, area_id, area_code, priority_level = 1 } = areaData;
+      const { area_type, area_code, area_name, parent_area_code, priority_level = 1 } = areaData;
       
       const result = await query(`
-        INSERT INTO ${this.tableNames.monitored_areas} 
-        (area_type, area_id, area_code, priority_level)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (area_type, area_id) 
-        DO UPDATE SET 
-          area_code = EXCLUDED.area_code,
+        INSERT INTO ${this.tableNames.monitoredAreas}
+        (area_type, area_code, area_name, parent_area_code, priority_level)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (area_code)
+        DO UPDATE SET
+          area_name = EXCLUDED.area_name,
+          area_type = EXCLUDED.area_type,
+          parent_area_code = EXCLUDED.parent_area_code,
           priority_level = EXCLUDED.priority_level,
           updated_at = CURRENT_TIMESTAMP
         RETURNING *
-      `, [area_type, area_id, area_code, priority_level]);
+      `, [area_type, area_code, area_name, parent_area_code, priority_level]);
       
       return {
         success: true,
@@ -210,13 +213,16 @@ export class BPSDataService {
    */
   async getAreaByBPSCode(bpsCode) {
     try {
+      console.log('Getting area by BPS code:', bpsCode);
       const result = await query('SELECT * FROM get_area_by_bps_code($1)', [bpsCode]);
+      console.log('Area query result:', { rowCount: result.rowCount, rows: result.rows });
       
       return {
         success: true,
         data: result.rows[0] || null
       };
     } catch (error) {
+      console.error('Error getting area by BPS code:', error);
       return {
         success: false,
         error: `Failed to get area by BPS code: ${error.message}`
@@ -230,7 +236,9 @@ export class BPSDataService {
    */
   async syncMonitoredAreas() {
     try {
+      console.log('Starting monitored areas sync...');
       const result = await query('SELECT sync_bps_monitored_areas() as synced_count');
+      console.log('Sync result:', { rowCount: result.rowCount, rows: result.rows });
       
       return {
         success: true,
@@ -239,6 +247,7 @@ export class BPSDataService {
         }
       };
     } catch (error) {
+      console.error('Error syncing monitored areas:', error);
       return {
         success: false,
         error: `Failed to sync monitored areas: ${error.message}`
@@ -329,6 +338,58 @@ export class BPSDataService {
       return {
         success: false,
         error: `Failed to add variable: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Delete BPS variable
+   * @param {number} id - Variable record ID
+   * @returns {Promise<Object>}
+   */
+  async deleteVariable(id) {
+    try {
+      const result = await query(`
+        DELETE FROM ${this.tableNames.variables}
+        WHERE id = $1
+        RETURNING *
+      `, [id]);
+
+      return {
+        success: true,
+        data: result.rows[0]
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to delete variable: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Update BPS variable status
+   * @param {number} id - Variable record ID
+   * @param {boolean} isActive - Active status
+   * @returns {Promise<Object>}
+   */
+  async updateVariableStatus(id, isActive) {
+    try {
+      const result = await query(`
+        UPDATE ${this.tableNames.variables}
+        SET is_active = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *
+      `, [isActive, id]);
+
+      return {
+        success: true,
+        data: result.rows[0]
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to update variable status: ${error.message}`
       };
     }
   }
@@ -657,7 +718,9 @@ export class BPSDataService {
         error_details
       } = results;
 
-      const duration = Math.floor((Date.now() - new Date().getTime()) / 1000);
+      // Calculate duration properly - this will be updated when the sync completes
+      const startTime = new Date();
+      const duration = Math.floor((Date.now() - startTime.getTime()) / 1000);
 
       const result = await query(`
         UPDATE ${this.tableNames.syncHistory}
