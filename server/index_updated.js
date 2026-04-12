@@ -44,10 +44,10 @@ app.use(cors({
 }));
 
 // Register routes
-app.use('/panel/api', skloRoutes);
-app.use('/panel/api', telekomDataRoutes);
-app.use('/panel/api', tariffRoutes);
-app.use('/panel/api', kominfoSyncRoutes); // Kominfo sync routes
+app.use('/v2/panel/api', skloRoutes);
+app.use('/v2/panel/api', telekomDataRoutes);
+app.use('/v2/panel/api', tariffRoutes);
+app.use('/v2/panel/api', kominfoSyncRoutes); // Kominfo sync routes
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
@@ -58,7 +58,7 @@ backgroundJobService.initialize().catch(error => {
 });
 
 // User profile (untuk kompatibilitas frontend apiClient.getProfile())
-app.get('/panel/api/user/profile', requireAuth, getProfile);
+app.get('/v2/panel/api/user/profile', requireAuth, getProfile);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -92,13 +92,13 @@ const emailCheckLimiter = rateLimit({
 });
 
 // Auth
-app.post('/panel/api/auth/register', register);
-app.post('/panel/api/auth/login', loginLimiter, login);
+app.post('/v2/panel/api/auth/register', register);
+app.post('/v2/panel/api/auth/login', loginLimiter, login);
 // Refresh and logout for session handling
-app.post('/panel/api/auth/refresh', refresh);
-app.post('/panel/api/auth/logout', logout);
+app.post('/v2/panel/api/auth/refresh', refresh);
+app.post('/v2/panel/api/auth/logout', logout);
 // Cek ketersediaan email (pre-registration)
-app.get('/panel/api/auth/check-email', emailCheckLimiter, async (req, res) => {
+app.get('/v2/panel/api/auth/check-email', emailCheckLimiter, async (req, res) => {
   try {
     const { email } = req.query;
     if (!email || typeof email !== 'string') {
@@ -175,7 +175,7 @@ const uploadWithImages = multer({
 });
 
 // Enhanced registration with document support (after multer middleware is defined)
-app.post('/panel/api/auth/register-with-details', uploadWithImages.fields([
+app.post('/v2/panel/api/auth/register-with-details', uploadWithImages.fields([
   { name: 'profile_picture', maxCount: 1 },
   { name: 'nib_document', maxCount: 1 },
   { name: 'npwp_document', maxCount: 1 },
@@ -191,7 +191,7 @@ app.post('/panel/api/auth/register-with-details', uploadWithImages.fields([
 app.use('/uploads', express.static(UPLOAD_DIR));
 
 // Upload endpoint (returns absolute file URL)
-app.post('/panel/api/uploads', requireAuth, (req, res) => {
+app.post('/v2/panel/api/uploads', requireAuth, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
@@ -216,16 +216,16 @@ app.post('/panel/api/uploads', requireAuth, (req, res) => {
 });
 
 // Tickets
-app.get('/panel/api/tickets', requireAuth, listTickets);
-app.post('/panel/api/tickets', requireAuth, createTicket);
-app.patch('/panel/api/tickets/:id', requireAuth, updateTicket);
+app.get('/v2/panel/api/tickets', requireAuth, listTickets);
+app.post('/v2/panel/api/tickets', requireAuth, createTicket);
+app.patch('/v2/panel/api/tickets/:id', requireAuth, updateTicket);
 // Ticket messages
-app.get('/panel/api/tickets/:id/messages', requireAuth, listTicketMessages);
-app.post('/panel/api/tickets/:id/messages', requireAuth, createTicketMessage);
-app.post('/panel/api/tickets/:id/messages/read', requireAuth, markMessagesRead);
+app.get('/v2/panel/api/tickets/:id/messages', requireAuth, listTicketMessages);
+app.post('/v2/panel/api/tickets/:id/messages', requireAuth, createTicketMessage);
+app.post('/v2/panel/api/tickets/:id/messages/read', requireAuth, markMessagesRead);
 
 // Ticket assignments
-app.get('/panel/api/tickets/:id/assignments', requireAuth, async (req, res) => {
+app.get('/v2/panel/api/tickets/:id/assignments', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await query(
@@ -264,7 +264,7 @@ app.get('/panel/api/tickets/:id/assignments', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/panel/api/tickets/:id/assign', requireAuth, async (req, res) => {
+app.post('/v2/panel/api/tickets/:id/assign', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { assigned_to, notes } = req.body;
@@ -304,7 +304,7 @@ app.post('/panel/api/tickets/:id/assign', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/panel/api/tickets/:id/unassign', requireAuth, async (req, res) => {
+app.post('/v2/panel/api/tickets/:id/unassign', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -332,7 +332,7 @@ app.post('/panel/api/tickets/:id/unassign', requireAuth, async (req, res) => {
 });
 
 // Admin users endpoint
-app.get('/panel/api/admin/users/admins', requireAuth, requirePermission('user_management','read'), async (req, res) => {
+app.get('/v2/panel/api/admin/users/admins', requireAuth, requirePermission('user_management','read'), async (req, res) => {
   try {
     // Check if user is admin
     const { rows: roleRows } = await query(
@@ -377,7 +377,7 @@ process.on('SIGINT', async () => {
 // (Including all the existing routes, middleware, and server setup)
 
 // Telekom data list dengan pagination & filtering
-app.get('/panel/api/telekom-data', requireAuth, requirePermission(['dashboard','data_management'],'read'), async (req, res) => {
+app.get('/v2/panel/api/telekom-data', requireAuth, requirePermission(['dashboard','data_management'],'read'), async (req, res) => {
   try {
     const {
       page = '1',

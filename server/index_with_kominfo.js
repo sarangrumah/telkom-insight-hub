@@ -44,10 +44,10 @@ app.use(cors({
 }));
 
 // Register telekom data routes
-app.use('/panel/api', skloRoutes);
-app.use('/panel/api', telekomDataRoutes);
-app.use('/panel/api', tariffRoutes);
-app.use('/panel/api', kominfoSyncRoutes); // Kominfo sync routes
+app.use('/v2/panel/api', skloRoutes);
+app.use('/v2/panel/api', telekomDataRoutes);
+app.use('/v2/panel/api', tariffRoutes);
+app.use('/v2/panel/api', kominfoSyncRoutes); // Kominfo sync routes
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 app.use(authMiddleware);
@@ -58,7 +58,7 @@ backgroundJobService.initialize().catch(error => {
 });
 
 // User profile (untuk kompatibilitas frontend apiClient.getProfile())
-app.get('/panel/api/user/profile', requireAuth, getProfile);
+app.get('/v2/panel/api/user/profile', requireAuth, getProfile);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 

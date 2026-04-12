@@ -118,14 +118,14 @@ export default function UserManagement() {
 
   // Fetch all users with their profiles and roles
   const rawApiBase = import.meta.env.VITE_API_BASE_URL || '';
-  const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
+  const API_BASE = rawApiBase.endsWith('/v2/panel') ? rawApiBase.slice(0, -9) : rawApiBase;
   const token = localStorage.getItem('app.jwt.token');
   const authHeader = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const resp = await fetch(`${API_BASE}/panel/api/admin/users`, {
+      const resp = await fetch(`${API_BASE}/v2/panel/api/admin/users`, {
         headers: authHeader(),
       });
       if (!resp.ok) throw new Error('Failed to load users');
@@ -141,7 +141,7 @@ export default function UserManagement() {
         user?: { id: string };
       }
       // Send metadata to backend so it is saved into public.profiles
-      const resp = (await apiFetch('/panel/api/auth/register', {
+      const resp = (await apiFetch('/v2/panel/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({
           email: userData.email,
@@ -158,7 +158,7 @@ export default function UserManagement() {
 
       // Replace role to the selected role (if not guest)
       if (userId && userData.role && userData.role !== 'guest') {
-        const assignResp = await fetch(`${API_BASE}/panel/api/admin/users/${userId}/roles`, {
+        const assignResp = await fetch(`${API_BASE}/v2/panel/api/admin/users/${userId}/roles`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
           body: JSON.stringify({ role: userData.role }),
@@ -191,7 +191,7 @@ export default function UserManagement() {
       userData: z.infer<typeof editUserSchema>;
     }) => {
       const resp = await fetch(
-        `${API_BASE}/panel/api/admin/users/${userId}/profile`,
+        `${API_BASE}/v2/panel/api/admin/users/${userId}/profile`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -218,7 +218,7 @@ export default function UserManagement() {
   // Delete user
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const resp = await fetch(`${API_BASE}/panel/api/admin/users/${userId}`, {
+      const resp = await fetch(`${API_BASE}/v2/panel/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: authHeader(),
       });
@@ -251,7 +251,7 @@ export default function UserManagement() {
         | 'internal_group'
         | 'guest';
     }) => {
-      const resp = await fetch(`${API_BASE}/panel/api/admin/users/${userId}/roles`, {
+      const resp = await fetch(`${API_BASE}/v2/panel/api/admin/users/${userId}/roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ role }),
@@ -285,7 +285,7 @@ export default function UserManagement() {
         | 'guest';
     }) => {
       const resp = await fetch(
-        `${API_BASE}/panel/api/admin/users/${userId}/roles/${role}`,
+        `${API_BASE}/v2/panel/api/admin/users/${userId}/roles/${role}`,
         { method: 'DELETE', headers: authHeader() }
       );
       if (!resp.ok) throw new Error('Failed to remove role');
@@ -309,7 +309,7 @@ export default function UserManagement() {
       isValidated: boolean;
     }) => {
       const resp = await fetch(
-        `${API_BASE}/panel/api/admin/users/${userId}/validation`,
+        `${API_BASE}/v2/panel/api/admin/users/${userId}/validation`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', ...authHeader() },

@@ -138,7 +138,7 @@ export default function BPSConfiguration() {
       setIsLoading(true);
 
       // Load config
-      const configResponse = await apiFetch('/panel/api/bps/config');
+      const configResponse = await apiFetch('/v2/panel/api/bps/config');
       if (configResponse.success && configResponse.data) {
         setConfig(configResponse.data);
         setConfigForm({
@@ -151,13 +151,13 @@ export default function BPSConfiguration() {
       }
 
       // Load areas
-      const areasResponse = await apiFetch('/panel/api/bps/areas');
+      const areasResponse = await apiFetch('/v2/panel/api/bps/areas');
       if (areasResponse.success) {
         setAreas(areasResponse.data);
       }
 
       // Load variables
-      const variablesResponse = await apiFetch('/panel/api/bps/variables');
+      const variablesResponse = await apiFetch('/v2/panel/api/bps/variables');
       if (variablesResponse.success) {
         setVariables(variablesResponse.data);
       }
@@ -188,7 +188,7 @@ export default function BPSConfiguration() {
     try {
       setIsSaving(true);
 
-      const response = await apiFetch('/panel/api/bps/config', {
+      const response = await apiFetch('/v2/panel/api/bps/config', {
         method: 'POST',
         body: JSON.stringify({
           config_name: configForm.config_name,
@@ -239,7 +239,7 @@ export default function BPSConfiguration() {
       setIsTestingConnection(true);
       setTestResult(null);
 
-      const response = await apiFetch('/panel/api/bps/test/connection', {
+      const response = await apiFetch('/v2/panel/api/bps/test/connection', {
         method: 'POST',
       });
 
@@ -293,7 +293,7 @@ export default function BPSConfiguration() {
         throw new Error('Authentication required. Please login first.');
       }
 
-      const response = await apiFetch('/panel/api/bps/areas', {
+      const response = await apiFetch('/v2/panel/api/bps/areas', {
         method: 'POST',
         body: JSON.stringify(newArea),
       });
@@ -344,14 +344,14 @@ export default function BPSConfiguration() {
       console.log('Attempting to fetch areas with token:', token.substring(0, 20) + '...');
 
       // First get the configuration to get the API key
-      const configResponse = await apiFetch('/panel/api/bps/config');
+      const configResponse = await apiFetch('/v2/panel/api/bps/config');
       if (!configResponse.success || !configResponse.data?.api_key) {
         throw new Error('BPS API key not configured');
       }
 
       const apiKey = configResponse.data.api_key;
       
-      const response = await apiFetch('/panel/api/bps/areas/test', {
+      const response = await apiFetch('/v2/panel/api/bps/areas/test', {
         method: 'GET',
       });
 
@@ -412,7 +412,7 @@ export default function BPSConfiguration() {
 
       console.log('Attempting to sync areas with token:', token.substring(0, 20) + '...');
       
-      const response = await apiFetch('/panel/api/bps/areas/sync', {
+      const response = await apiFetch('/v2/panel/api/bps/areas/sync', {
         method: 'POST',
       });
 
@@ -469,7 +469,7 @@ export default function BPSConfiguration() {
         throw new Error('Authentication required. Please login first.');
       }
 
-      const response = await apiFetch('/panel/api/bps/variables', {
+      const response = await apiFetch('/v2/panel/api/bps/variables', {
         method: 'POST',
         body: JSON.stringify(newVariable),
       });

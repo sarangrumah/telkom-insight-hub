@@ -51,15 +51,15 @@ class WSClient {
     }
 
     const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
-    const apiBase = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
+    const apiBase = rawApiBase.endsWith('/v2/panel') ? rawApiBase.slice(0, -9) : rawApiBase;
     
     let wsUrl = '';
     if (apiBase) {
-      wsUrl = apiBase.replace(/^http/, 'ws') + '/panel/ws';
+      wsUrl = apiBase.replace(/^http/, 'ws') + '/v2/panel/ws';
     } else {
       // Construct absolute WS URL from current location
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.host}/panel/ws`;
+      wsUrl = `${protocol}//${window.location.host}/v2/panel/ws`;
     }
     const token = localStorage.getItem('app.jwt.token') || '';
 

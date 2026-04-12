@@ -178,22 +178,44 @@ export class BPSDataService {
    */
   async addMonitoredArea(areaData) {
     try {
-      const { area_type, area_code, area_name, parent_area_code, priority_level = 1 } = areaData;
-      
+      let { area_type, area_code, area_name, parent_area_code, priority_level = 1 } = areaData;
+
+      // Normalize BPS area_type: "district" -> "kabupaten"
+      if (area_type === 'district') area_type = 'kabupaten';
+
+      // Resolve area_id from existing provinces/kabupaten tables
+      // BPS province codes are 4-digit (e.g. "1100"), DB codes are 2-digit (e.g. "11")
+      let areaIdResult;
+      if (area_type === 'province') {
+        const shortCode = area_code.substring(0, 2);
+        areaIdResult = await query(
+          `SELECT id FROM ${this.tableNames.provinces} WHERE code = $1 LIMIT 1`,
+          [shortCode]
+        );
+      } else {
+        areaIdResult = await query(
+          `SELECT id FROM ${this.tableNames.kabupaten} WHERE code = $1 LIMIT 1`,
+          [area_code]
+        );
+      }
+
+      const area_id = areaIdResult.rows[0]?.id || null;
+
       const result = await query(`
         INSERT INTO ${this.tableNames.monitoredAreas}
-        (area_type, area_code, area_name, parent_area_code, priority_level)
-        VALUES ($1, $2, $3, $4, $5)
+        (area_type, area_id, area_code, area_name, parent_area_code, priority_level)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (area_code)
         DO UPDATE SET
           area_name = EXCLUDED.area_name,
           area_type = EXCLUDED.area_type,
+          area_id = COALESCE(EXCLUDED.area_id, ${this.tableNames.monitoredAreas}.area_id),
           parent_area_code = EXCLUDED.parent_area_code,
           priority_level = EXCLUDED.priority_level,
           updated_at = CURRENT_TIMESTAMP
         RETURNING *
-      `, [area_type, area_code, area_name, parent_area_code, priority_level]);
-      
+      `, [area_type, area_id, area_code, area_name, parent_area_code, priority_level]);
+
       return {
         success: true,
         data: result.rows[0]

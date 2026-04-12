@@ -144,7 +144,7 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
     setEtelkomLoading(true);
     setError(null);
     try {
-      const resp = await fetch('/panel/api/auth/login-etelekomunikasi', {
+      const resp = await fetch('/v2/panel/api/auth/login-etelekomunikasi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

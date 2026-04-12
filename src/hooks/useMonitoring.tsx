@@ -21,7 +21,7 @@ interface PerformanceMetrics {
 export function useMonitoring() {
   const { token } = useAuth();
   const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || '';
-  const backendUrl = rawBackendUrl.endsWith('/panel') ? rawBackendUrl.slice(0, -6) : rawBackendUrl;
+  const backendUrl = rawBackendUrl.endsWith('/v2/panel') ? rawBackendUrl.slice(0, -9) : rawBackendUrl;
 
   const logError = useCallback(async (error: Error, component?: string) => {
     try {
@@ -42,7 +42,7 @@ export function useMonitoring() {
 
       // Send to backend monitoring service
       if (token()) {
-        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/v2/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ export function useMonitoring() {
 
       // Send to backend analytics service
       if (token()) {
-        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/v2/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export function useMonitoring() {
 
       // Send to backend analytics service
       if (token()) {
-        await fetch(`${backendUrl}/panel/api/devsecops/log-activity`, {
+        await fetch(`${backendUrl}/v2/panel/api/devsecops/log-activity`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

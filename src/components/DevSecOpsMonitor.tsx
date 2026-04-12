@@ -26,7 +26,7 @@ export function DevSecOpsMonitor() {
   const { metrics: apiMetrics, loading: apiLoading } = useAPIMonitoring();
   const { token } = useAuth();
   const rawBackendUrl = (import.meta.env.VITE_API_BASE_URL as string) || '';
-  const backendUrl = rawBackendUrl.endsWith('/panel') ? rawBackendUrl.slice(0, -6) : rawBackendUrl;
+  const backendUrl = rawBackendUrl.endsWith('/v2/panel') ? rawBackendUrl.slice(0, -9) : rawBackendUrl;
 
   useEffect(() => {
     const fetchSecurityMetrics = async () => {

@@ -56,7 +56,7 @@ async function ensureSyncConfigTable() {
 }
 
 // =============================================================================
-// GET /panel/api/integrations
+// GET /v2/panel/api/integrations
 // List all sync configurations with status
 // =============================================================================
 router.get('/integrations', requireAuth, async (req, res) => {
@@ -80,7 +80,7 @@ router.get('/integrations', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// GET /panel/api/integrations/:systemName
+// GET /v2/panel/api/integrations/:systemName
 // Get single integration detail
 // =============================================================================
 router.get('/integrations/:systemName', requireAuth, async (req, res) => {
@@ -115,7 +115,7 @@ router.get('/integrations/:systemName', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// PATCH /panel/api/integrations/:systemName
+// PATCH /v2/panel/api/integrations/:systemName
 // Update integration config (toggle active, update URL, interval, auth)
 // =============================================================================
 router.patch('/integrations/:systemName', requireAuth, async (req, res) => {
@@ -175,7 +175,7 @@ router.patch('/integrations/:systemName', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// POST /panel/api/integrations/:systemName/sync
+// POST /v2/panel/api/integrations/:systemName/sync
 // Trigger a manual sync for a specific integration
 // =============================================================================
 router.post('/integrations/:systemName/sync', requireAuth, async (req, res) => {
@@ -266,7 +266,7 @@ router.post('/integrations/:systemName/sync', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// POST /panel/api/integrations
+// POST /v2/panel/api/integrations
 // Create a new integration
 // =============================================================================
 router.post('/integrations', requireAuth, async (req, res) => {
@@ -312,7 +312,7 @@ router.post('/integrations', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// DELETE /panel/api/integrations/:systemName
+// DELETE /v2/panel/api/integrations/:systemName
 // Delete an integration
 // =============================================================================
 router.delete('/integrations/:systemName', requireAuth, async (req, res) => {
@@ -337,7 +337,7 @@ router.delete('/integrations/:systemName', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// GET /panel/api/integrations/health/all
+// GET /v2/panel/api/integrations/health/all
 // Quick health check for all integrations
 // =============================================================================
 router.get('/integrations/health/all', requireAuth, async (req, res) => {

@@ -95,7 +95,7 @@ const PermissionManagement: React.FC = () => {
   const { toast } = useToast();
 
   const rawApiBase = import.meta.env.VITE_API_BASE_URL || '';
-  const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
+  const API_BASE = rawApiBase.endsWith('/v2/panel') ? rawApiBase.slice(0, -9) : rawApiBase;
 
   // Konsistensi: token disimpan sebagai app.jwt.token (lihat useAuth & apiClient)
   const token = localStorage.getItem('app.jwt.token');
@@ -121,10 +121,10 @@ const PermissionManagement: React.FC = () => {
       setLoading(true);
 
       const [modulesResp, fieldsResp] = await Promise.all([
-        fetch(`${API_BASE}/panel/api/admin/metadata/modules`, {
+        fetch(`${API_BASE}/v2/panel/api/admin/metadata/modules`, {
           headers: authHeader(),
         }),
-        fetch(`${API_BASE}/panel/api/admin/metadata/fields`, {
+        fetch(`${API_BASE}/v2/panel/api/admin/metadata/fields`, {
           headers: authHeader(),
         }),
       ]);
@@ -151,7 +151,7 @@ const PermissionManagement: React.FC = () => {
 
     try {
       const resp = await fetch(
-        `${API_BASE}/panel/api/admin/permissions?role=${selectedRole}`,
+        `${API_BASE}/v2/panel/api/admin/permissions?role=${selectedRole}`,
         { headers: authHeader() }
       );
       if (!resp.ok) throw new Error('Failed to load permissions');
@@ -187,7 +187,7 @@ const PermissionManagement: React.FC = () => {
 
     try {
       const resp = await fetch(
-        `${API_BASE}/panel/api/admin/permissions?role=${selectedRole}`,
+        `${API_BASE}/v2/panel/api/admin/permissions?role=${selectedRole}`,
         { headers: authHeader() }
       );
       if (!resp.ok) throw new Error('Failed to load field permissions');
@@ -297,7 +297,7 @@ const PermissionManagement: React.FC = () => {
           can_delete: false,
         };
       });
-      const resp = await fetch(`${API_BASE}/panel/api/admin/permissions/bulk`, {
+      const resp = await fetch(`${API_BASE}/v2/panel/api/admin/permissions/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({

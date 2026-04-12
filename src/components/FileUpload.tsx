@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 const rawApiBase = (import.meta.env.VITE_API_BASE_URL as string) || '';
-const API_BASE = rawApiBase.endsWith('/panel') ? rawApiBase.slice(0, -6) : rawApiBase;
+const API_BASE = rawApiBase.endsWith('/v2/panel') ? rawApiBase.slice(0, -9) : rawApiBase;
 
 interface FileUploadProps {
   value?: string;
@@ -92,7 +92,7 @@ export function FileUpload({
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE}/panel/api/uploads`);
+        xhr.open('POST', `${API_BASE}/v2/panel/api/uploads`);
         if (token) {
           xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         }

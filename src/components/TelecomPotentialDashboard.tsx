@@ -150,7 +150,7 @@ export default function TelecomPotentialDashboard() {
     try {
       setLoading(true);
       const lvl = level || areaLevel;
-      const res = await apiFetch(`/panel/api/telecom-potential/v2/scores?area_level=${lvl}`);
+      const res = await apiFetch(`/v2/panel/api/telecom-potential/v2/scores?area_level=${lvl}`);
       setScores(res.data || []);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to load scores', variant: 'destructive' });
@@ -161,7 +161,7 @@ export default function TelecomPotentialDashboard() {
 
   const fetchConfig = async () => {
     try {
-      const res = await apiFetch('/panel/api/telecom-potential/v2/config');
+      const res = await apiFetch('/v2/panel/api/telecom-potential/v2/config');
       const cfg = res.data as Config;
       setConfig(cfg);
       setConfigForm(cfg);
@@ -175,7 +175,7 @@ export default function TelecomPotentialDashboard() {
 
   const fetchAreaStats = async () => {
     try {
-      const res = await apiFetch(`/panel/api/telecom-potential/v2/area-stats?area_level=${areaLevel}`);
+      const res = await apiFetch(`/v2/panel/api/telecom-potential/v2/area-stats?area_level=${areaLevel}`);
       setAreaStats(res.data || []);
     } catch {
       // ignore
@@ -185,7 +185,7 @@ export default function TelecomPotentialDashboard() {
   const computeScores = async () => {
     try {
       setComputing(true);
-      await apiFetch('/panel/api/telecom-potential/v2/compute', { method: 'POST' });
+      await apiFetch('/v2/panel/api/telecom-potential/v2/compute', { method: 'POST' });
       toast({ title: 'Success', description: 'Scores computed successfully' });
       await fetchScores();
     } catch (err: any) {
@@ -198,7 +198,7 @@ export default function TelecomPotentialDashboard() {
   const saveConfig = async () => {
     try {
       setSavingConfig(true);
-      const res = await apiFetch('/panel/api/telecom-potential/v2/config', {
+      const res = await apiFetch('/v2/panel/api/telecom-potential/v2/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(configForm),
@@ -220,7 +220,7 @@ export default function TelecomPotentialDashboard() {
     const svc = (svcFilter !== undefined ? svcFilter : activeServiceFilter)
       ? `&service_type=${svcFilter !== undefined ? svcFilter : activeServiceFilter}` : '';
     try {
-      const res = await apiFetch(`/panel/api/telecom-potential/v2/map-data?area_level=${lvl}${svc}`);
+      const res = await apiFetch(`/v2/panel/api/telecom-potential/v2/map-data?area_level=${lvl}${svc}`);
       return res.data as GeoJSON.FeatureCollection;
     } catch {
       return null;

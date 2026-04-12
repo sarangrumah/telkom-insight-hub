@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:3000/panel/api/bps';
+const BASE_URL = 'http://localhost:3000/v2/panel/api/bps';
 
 async function testCompleteAreaSystem() {
   console.log('🧪 Testing Complete BPS Area Management System\n');

@@ -163,7 +163,7 @@ export default function TarifPage() {
   const handleManualSync = async () => {
     setSyncStatus('syncing');
     try {
-      const response = await fetch('/panel/api/kominfo-sync/sync/manual', {
+      const response = await fetch('/v2/panel/api/kominfo-sync/sync/manual', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

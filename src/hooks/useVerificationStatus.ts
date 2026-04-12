@@ -16,7 +16,7 @@ export const useVerificationStatus = () => {
   return useQuery<VerificationStatus, Error>({
     queryKey: ['verification-status'],
     queryFn: async () => {
-      return apiFetch('/panel/api/auth/verification-status') as Promise<VerificationStatus>;
+      return apiFetch('/v2/panel/api/auth/verification-status') as Promise<VerificationStatus>;
     },
     enabled: !!token(), // Only run query if token exists
     retry: 1,

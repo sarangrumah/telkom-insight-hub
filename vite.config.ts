@@ -5,20 +5,20 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // IMPORTANT: This ensures assets load from domain.com/panel/assets/
+  // IMPORTANT: This ensures assets load from domain.com/v2/panel/assets/
   // instead of domain.com/assets/
-  base: "/panel/",
+  base: "/v2/panel/",
 
   server: {
     host: "::",
     port: 8080,
     proxy: {
-      '/panel/api': {
+      '/v2/panel/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
       },
-      '/panel/uploads': {
+      '/v2/panel/uploads': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
@@ -31,10 +31,10 @@ export default defineConfig(({ mode }) => ({
       },
     },
     historyApiFallback: {
-      // This ensures that all routes under /panel/ are served by index.html
+      // This ensures that all routes under /v2/panel/ are served by index.html
       // allowing client-side routing to work properly
       rewrites: [
-        { from: /^\/panel\/.*$/, to: '/panel/index.html' },
+        { from: /^\/v2\/panel\/.*$/, to: '/v2/panel/index.html' },
       ],
     },
   },
@@ -42,12 +42,12 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     proxy: {
-      '/panel/api': {
+      '/v2/panel/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
       },
-      '/panel/uploads': {
+      '/v2/panel/uploads': {
         target: 'http://localhost:4000',
         changeOrigin: true,
         secure: false,
@@ -60,10 +60,10 @@ export default defineConfig(({ mode }) => ({
       },
     },
     historyApiFallback: {
-      // This ensures that all routes under /panel/ are served by index.html
+      // This ensures that all routes under /v2/panel/ are served by index.html
       // allowing client-side routing to work properly
       rewrites: [
-        { from: /^\/panel\/.*$/, to: '/panel/index.html' },
+        { from: /^\/v2\/panel\/.*$/, to: '/v2/panel/index.html' },
       ],
     },
   },

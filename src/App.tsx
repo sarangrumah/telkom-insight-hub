@@ -302,7 +302,7 @@ const AppRoutes: React.FC = () => {
 const AppWithMonitoring: React.FC = () => {
   useMonitoring();
   return (
-    <BrowserRouter basename="/panel">
+    <BrowserRouter basename="/v2/panel">
       <AppRoutes />
     </BrowserRouter>
   );

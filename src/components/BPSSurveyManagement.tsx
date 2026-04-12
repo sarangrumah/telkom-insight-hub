@@ -72,7 +72,7 @@ export default function BPSSurveyManagement() {
   const fetchVariables = useCallback(async () => {
     setLoadingVars(true);
     try {
-      const data = await apiFetch('/panel/api/bps/variables');
+      const data = await apiFetch('/v2/panel/api/bps/variables');
       const list = Array.isArray(data) ? data : data.data ?? data.variables ?? [];
       setVariables(list);
     } catch (err: any) {
@@ -120,7 +120,7 @@ export default function BPSSurveyManagement() {
   const handleToggleActive = async (variable: BPSVariable) => {
     setTogglingIds((prev) => new Set(prev).add(variable.id));
     try {
-      await apiFetch(`/panel/api/bps/variables/${variable.id}`, {
+      await apiFetch(`/v2/panel/api/bps/variables/${variable.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: !variable.is_active }),
       });
@@ -155,7 +155,7 @@ export default function BPSSurveyManagement() {
     }
     setDeletingIds((prev) => new Set(prev).add(variable.id));
     try {
-      await apiFetch(`/panel/api/bps/variables/${variable.id}`, {
+      await apiFetch(`/v2/panel/api/bps/variables/${variable.id}`, {
         method: 'DELETE',
       });
       setVariables((prev) => prev.filter((v) => v.id !== variable.id));
@@ -192,7 +192,7 @@ export default function BPSSurveyManagement() {
     setCatalogResults([]);
     try {
       const data = await apiFetch(
-        `/panel/api/bps/variables/search?keyword=${encodeURIComponent(catalogKeyword.trim())}&domain=0000`
+        `/v2/panel/api/bps/variables/search?keyword=${encodeURIComponent(catalogKeyword.trim())}&domain=0000`
       );
       const results = Array.isArray(data)
         ? data
@@ -219,7 +219,7 @@ export default function BPSSurveyManagement() {
   const handleAddFromCatalog = async (result: BPSCatalogResult) => {
     setAddingVarIds((prev) => new Set(prev).add(result.var_id));
     try {
-      await apiFetch('/panel/api/bps/variables', {
+      await apiFetch('/v2/panel/api/bps/variables', {
         method: 'POST',
         body: JSON.stringify({
           variable_id: result.var_id,

@@ -23,7 +23,7 @@ import {
 const router = express.Router();
 
 // =============================================================================
-// GET /panel/api/telecom-potential/scores
+// GET /v2/panel/api/telecom-potential/scores
 // Get computed telecom potential scores for all provinces
 // Query: ?year=2024
 // =============================================================================
@@ -48,7 +48,7 @@ router.get('/telecom-potential/scores', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// GET /panel/api/telecom-potential/indicators/:domainId
+// GET /v2/panel/api/telecom-potential/indicators/:domainId
 // Get raw BPS indicators for a specific province/domain
 // Query: ?year=2024
 // =============================================================================
@@ -66,7 +66,7 @@ router.get('/telecom-potential/indicators/:domainId', requireAuth, async (req, r
 });
 
 // =============================================================================
-// GET /panel/api/telecom-potential/years
+// GET /v2/panel/api/telecom-potential/years
 // Get available years for scoring
 // =============================================================================
 router.get('/telecom-potential/years', requireAuth, async (req, res) => {
@@ -79,7 +79,7 @@ router.get('/telecom-potential/years', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// POST /panel/api/telecom-potential/fetch
+// POST /v2/panel/api/telecom-potential/fetch
 // Trigger fetching BPS indicators and caching them
 // Body: { year?: number }
 // =============================================================================
@@ -98,7 +98,7 @@ router.post('/telecom-potential/fetch', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// POST /panel/api/telecom-potential/compute
+// POST /v2/panel/api/telecom-potential/compute
 // Compute scores from cached indicators
 // Body: { year?: number }
 // =============================================================================
@@ -129,7 +129,7 @@ router.post('/telecom-potential/compute', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// POST /panel/api/telecom-potential/sync
+// POST /v2/panel/api/telecom-potential/sync
 // Full pipeline: fetch indicators → compute scores
 // Body: { year?: number }
 // =============================================================================
@@ -185,7 +185,7 @@ router.post('/telecom-potential/sync', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
-// GET /panel/api/telecom-potential/definitions
+// GET /v2/panel/api/telecom-potential/definitions
 // Get indicator definitions and weights
 // =============================================================================
 router.get('/telecom-potential/definitions', requireAuth, async (_req, res) => {
@@ -207,7 +207,7 @@ router.get('/telecom-potential/definitions', requireAuth, async (_req, res) => {
 // V2 ENDPOINTS — License-based scoring with dual perspectives
 // =============================================================================
 
-// GET /panel/api/telecom-potential/v2/area-stats
+// GET /v2/panel/api/telecom-potential/v2/area-stats
 router.get('/telecom-potential/v2/area-stats', requireAuth, async (req, res) => {
   try {
     const areaLevel = req.query.area_level || 'province';
@@ -220,7 +220,7 @@ router.get('/telecom-potential/v2/area-stats', requireAuth, async (req, res) => 
   }
 });
 
-// GET /panel/api/telecom-potential/v2/scores
+// GET /v2/panel/api/telecom-potential/v2/scores
 router.get('/telecom-potential/v2/scores', requireAuth, async (req, res) => {
   try {
     const areaLevel = req.query.area_level || 'province';
@@ -232,7 +232,7 @@ router.get('/telecom-potential/v2/scores', requireAuth, async (req, res) => {
   }
 });
 
-// POST /panel/api/telecom-potential/v2/compute
+// POST /v2/panel/api/telecom-potential/v2/compute
 router.post('/telecom-potential/v2/compute', requireAuth, async (req, res) => {
   try {
     const result = await computeAreaScores();
@@ -243,7 +243,7 @@ router.post('/telecom-potential/v2/compute', requireAuth, async (req, res) => {
   }
 });
 
-// GET /panel/api/telecom-potential/v2/config
+// GET /v2/panel/api/telecom-potential/v2/config
 router.get('/telecom-potential/v2/config', requireAuth, async (_req, res) => {
   try {
     const config = await getV2Config();
@@ -253,7 +253,7 @@ router.get('/telecom-potential/v2/config', requireAuth, async (_req, res) => {
   }
 });
 
-// PUT /panel/api/telecom-potential/v2/config
+// PUT /v2/panel/api/telecom-potential/v2/config
 router.put('/telecom-potential/v2/config', requireAuth, async (req, res) => {
   try {
     const config = await saveV2Config(req.body);
@@ -264,7 +264,7 @@ router.put('/telecom-potential/v2/config', requireAuth, async (req, res) => {
   }
 });
 
-// GET /panel/api/telecom-potential/v2/map-data
+// GET /v2/panel/api/telecom-potential/v2/map-data
 router.get('/telecom-potential/v2/map-data', requireAuth, async (req, res) => {
   try {
     const areaLevel = req.query.area_level || 'province';
@@ -277,7 +277,7 @@ router.get('/telecom-potential/v2/map-data', requireAuth, async (req, res) => {
   }
 });
 
-// GET /panel/api/telecom-potential/v2/area/:areaId/detail
+// GET /v2/panel/api/telecom-potential/v2/area/:areaId/detail
 router.get('/telecom-potential/v2/area/:areaId/detail', requireAuth, async (req, res) => {
   try {
     const detail = await getAreaDetail(req.params.areaId);
@@ -289,7 +289,7 @@ router.get('/telecom-potential/v2/area/:areaId/detail', requireAuth, async (req,
   }
 });
 
-// GET /panel/api/telecom-potential/v2/service-types
+// GET /v2/panel/api/telecom-potential/v2/service-types
 router.get('/telecom-potential/v2/service-types', requireAuth, async (_req, res) => {
   return res.json({ success: true, data: SERVICE_TYPES });
 });

@@ -20,10 +20,10 @@ import certificateSubmissionRoutes from './routes/certificateSubmission.js';
 import bpsRoutes from './routes/bps.js';
 
 // Use routes
-app.use('/panel/api/auth', registrationRoutes);
-app.use('/panel/api/admin', adminVerificationRoutes);
-app.use('/panel/api/certificates', certificateSubmissionRoutes);
-app.use('/panel/api/bps', bpsRoutes);
+app.use('/v2/panel/api/auth', registrationRoutes);
+app.use('/v2/panel/api/admin', adminVerificationRoutes);
+app.use('/v2/panel/api/certificates', certificateSubmissionRoutes);
+app.use('/v2/panel/api/bps', bpsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

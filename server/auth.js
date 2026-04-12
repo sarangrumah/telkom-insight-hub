@@ -391,10 +391,27 @@ export async function loginViaEtelekomunikasi(req, res) {
     const eUserId = eUser.id;
 
     // Check if this e-telekomunikasi user already has a linked Panel account
-    const { rows: existingRows } = await query(
+    // First try by external_id, then fall back to email match
+    let { rows: existingRows } = await query(
       'SELECT id, email FROM auth.users WHERE external_id = $1 AND external_source = $2 LIMIT 1',
       [eUserId, 'etelekomunikasi']
     );
+
+    // Fallback: user may have registered on Panel directly with the same email
+    if (existingRows.length === 0) {
+      const { rows: emailRows } = await query(
+        'SELECT id, email FROM auth.users WHERE email = $1 LIMIT 1',
+        [email]
+      );
+      if (emailRows.length > 0) {
+        existingRows = emailRows;
+        // Link this existing account to e-telekomunikasi
+        await query(
+          'UPDATE auth.users SET external_id = $1, external_source = $2 WHERE id = $3',
+          [eUserId, 'etelekomunikasi', emailRows[0].id]
+        );
+      }
+    }
 
     let panelUserId;
 
@@ -439,39 +456,33 @@ export async function loginViaEtelekomunikasi(req, res) {
           ]
         );
 
-        // Create profile
+        // Update profile created by handle_new_user() trigger with company data
         const companyName = eUser.pelakuUsaha?.namaPelakuUsaha || null;
         await query(
-          `INSERT INTO public.profiles (user_id, full_name, company_name, is_validated, created_at, updated_at)
-           VALUES ($1, $2, $3, true, now(), now())
-           ON CONFLICT (user_id) DO UPDATE SET
-             full_name = EXCLUDED.full_name,
-             company_name = EXCLUDED.company_name,
+          `UPDATE public.profiles SET
+             full_name = $2,
+             company_name = $3,
              is_validated = true,
-             updated_at = now()`,
+             updated_at = now()
+           WHERE user_id = $1`,
           [panelUserId, eUser.nama || email, companyName]
         );
-
-        // Assign pelaku_usaha role
-        await query(
-          `INSERT INTO public.user_roles (id, user_id, role, created_at)
-           VALUES ($1, $2, 'pelaku_usaha', now())
-           ON CONFLICT DO NOTHING`,
-          [uuidv4(), panelUserId]
-        );
+        // Role 'pelaku_usaha' is already assigned by handle_new_user() trigger
 
         // Create company record if pelakuUsaha data available
         if (eUser.pelakuUsaha) {
           const pu = eUser.pelakuUsaha;
           await query(
             `INSERT INTO public.companies
-              (company_name, email, phone, nib_number, npwp_number, status)
-             VALUES ($1, $2, $3, $4, $5, 'verified')
+              (company_name, email, phone, company_address, business_field, nib_number, npwp_number, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'verified')
              ON CONFLICT DO NOTHING`,
             [
               pu.namaPelakuUsaha,
               pu.emailPerusahaan || email,
-              pu.noTeleponPerusahaan || null,
+              pu.noTeleponPerusahaan || '-',
+              pu.alamatPerusahaan || '-',
+              pu.bidangUsaha || '-',
               pu.nib || null,
               pu.npwp || null,
             ]
@@ -513,7 +524,7 @@ export async function loginViaEtelekomunikasi(req, res) {
       },
     });
   } catch (e) {
-    console.error('e-Telekomunikasi cross-login error:', e.message);
+    console.error('e-Telekomunikasi cross-login error:', e.message, e.stack);
     return res.status(500).json({ error: 'Cross-login failed' });
   }
 }

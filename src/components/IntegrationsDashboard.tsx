@@ -210,7 +210,7 @@ export default function IntegrationsDashboard() {
   const fetchConfigs = useCallback(async () => {
     try {
       setLoadError(null);
-      const data = await apiFetch('/panel/api/integrations');
+      const data = await apiFetch('/v2/panel/api/integrations');
       setConfigs(data.data || []);
     } catch (e: any) {
       console.error('Failed to fetch integrations:', e);
@@ -230,7 +230,7 @@ export default function IntegrationsDashboard() {
   // Toggle active/inactive
   const handleToggle = async (systemName: string, isActive: boolean) => {
     try {
-      await apiFetch(`/panel/api/integrations/${systemName}`, {
+      await apiFetch(`/v2/panel/api/integrations/${systemName}`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: isActive }),
       });
@@ -245,7 +245,7 @@ export default function IntegrationsDashboard() {
   const handleSync = async (systemName: string) => {
     setSyncing(prev => ({ ...prev, [systemName]: true }));
     try {
-      const data = await apiFetch(`/panel/api/integrations/${systemName}/sync`, {
+      const data = await apiFetch(`/v2/panel/api/integrations/${systemName}/sync`, {
         method: 'POST',
       });
       toast({
@@ -276,7 +276,7 @@ export default function IntegrationsDashboard() {
   const handleSaveConfig = async () => {
     if (!editingSystem) return;
     try {
-      await apiFetch(`/panel/api/integrations/${editingSystem}`, {
+      await apiFetch(`/v2/panel/api/integrations/${editingSystem}`, {
         method: 'PATCH',
         body: JSON.stringify({
           api_base_url: editForm.api_base_url,
@@ -302,7 +302,7 @@ export default function IntegrationsDashboard() {
     }
     setCreating(true);
     try {
-      await apiFetch('/panel/api/integrations', {
+      await apiFetch('/v2/panel/api/integrations', {
         method: 'POST',
         body: JSON.stringify({
           system_name: createForm.system_name.trim(),
@@ -338,7 +338,7 @@ export default function IntegrationsDashboard() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await apiFetch(`/panel/api/integrations/${deleteTarget.system_name}`, {
+      await apiFetch(`/v2/panel/api/integrations/${deleteTarget.system_name}`, {
         method: 'DELETE',
       });
       toast({ title: `${deleteTarget.display_name || deleteTarget.system_name} deleted` });

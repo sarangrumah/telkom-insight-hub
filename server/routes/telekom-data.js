@@ -1,6 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import { query } from '../db.js';
+import { getKodeAksesAlokasi } from '../services/external/etelekom-client.js';
 
 // Common function to format status
 function formatStatus(dbStatus) {
@@ -421,7 +422,7 @@ router.get('/isr', async (req, res) => {
  }
 });
 
-// Get Penomoran data with pagination and filtering
+// Get Penomoran data — source of truth: e-Telekomunikasi kode_akses_alokasi
 router.get('/penomoran', async (req, res) => {
   try {
     const {
@@ -429,112 +430,118 @@ router.get('/penomoran', async (req, res) => {
       pageSize = '10',
       search,
       status,
-      company_name,
-      license_number,
-      date_from,
-      date_to,
     } = req.query;
 
     const pageNum = Math.max(parseInt(String(page), 10) || 1, 1);
     const pageSizeNum = Math.min(Math.max(parseInt(String(pageSize), 10) || 10, 1), 100);
-    const offset = (pageNum - 1) * pageSizeNum;
 
-    // Build filters
-    const filters = [];
-    const params = [];
-    let i = 1;
+    // Try e-Telekomunikasi first (source of truth)
+    let useEtelekom = false;
+    try {
+      const result = await getKodeAksesAlokasi({
+        page: pageNum,
+        limit: pageSizeNum,
+        search: search && typeof search === 'string' ? search : undefined,
+        status: status && typeof status === 'string' ? status : undefined,
+      });
 
-    if (search && typeof search === 'string') {
-      filters.push(`(td.company_name ILIKE $${i} OR td.license_number ILIKE $${i} OR td.region ILIKE $${i})`);
-      params.push(`%${search}%`);
-      i++;
+      if (result.ok && result.data?.success) {
+        const { items, total, totalPages } = result.data.data;
+        useEtelekom = true;
+
+        const formattedData = items.map(item => ({
+          id: String(item.id),
+          penyelenggara: item.namaPelakuUsaha || '—',
+          nib: item.nib || '',
+          jenisPenyelenggara: item.isPenyelenggara === 1 ? 'Penyelenggara' : item.isPenyelenggara === 0 ? 'Non-Penyelenggara' : 'Bersama',
+          jenis: item.jenisPenomoran || '',
+          jenisKode: item.formatKodeAkses || '',
+          kodeAkses: item.kodeAkses || '',
+          nomor: item.nomorPenetapan || '',
+          tanggalPenetapan: item.tanggalPenetapan || '',
+          status: item.status || 'Idle',
+        }));
+
+        return res.json({
+          data: formattedData,
+          page: pageNum,
+          pageSize: pageSizeNum,
+          total,
+          totalPages,
+          source: 'etelekomunikasi',
+        });
+      }
+    } catch (etelekErr) {
+      console.warn('e-Telekomunikasi kode akses alokasi unavailable, falling back to local DB:', etelekErr.message);
     }
-    if (status && typeof status === 'string') {
-      filters.push(`td.status = $${i}`);
-      params.push(status);
-      i++;
-    }
-    if (company_name && typeof company_name === 'string') {
-      filters.push(`td.company_name ILIKE $${i}`);
-      params.push(`%${company_name}%`);
-      i++;
-    }
-    if (license_number && typeof license_number === 'string') {
-      filters.push(`td.license_number ILIKE $${i}`);
-      params.push(`%${license_number}%`);
-      i++;
-    }
-    if (date_from && typeof date_from === 'string') {
-      filters.push(`td.license_date >= $${i}`);
-      params.push(date_from);
-      i++;
-    }
-    if (date_to && typeof date_to === 'string') {
-      filters.push(`td.license_date <= $${i}`);
-      params.push(date_to);
-      i++;
-    }
 
-    const whereSql = filters.length ? `WHERE ${filters.join(' AND ')} AND td.service_type = 'tarif'` : 'WHERE td.service_type = \'tarif\'';
+    // Fallback: local database
+    if (!useEtelekom) {
+      const offset = (pageNum - 1) * pageSizeNum;
+      const filters = [];
+      const params = [];
+      let i = 1;
 
-    // Total count for pagination
-    const countSql = `
-      SELECT COUNT(*)::int AS count
-      FROM public.telekom_data td
-      LEFT JOIN public.sub_services ss ON td.sub_service_id = ss.id
-      LEFT JOIN public.services s ON ss.service_id = s.id
-      LEFT JOIN public.provinces p ON td.province_id = p.id
-      LEFT JOIN public.kabupaten k ON td.kabupaten_id = k.id
-      ${whereSql}
-    `;
-    const countResult = await query(countSql, params);
-    const total = countResult.rows[0]?.count ?? 0;
+      if (search && typeof search === 'string') {
+        filters.push(`(td.company_name ILIKE $${i} OR td.license_number ILIKE $${i} OR td.region ILIKE $${i})`);
+        params.push(`%${search}%`);
+        i++;
+      }
+      if (status && typeof status === 'string') {
+        filters.push(`td.status = $${i}`);
+        params.push(status);
+        i++;
+      }
 
-    // Data query
-    const dataSql = `
-      SELECT td.id, td.company_name, td.license_number, td.license_date, td.status, td.region, td.latitude, td.longitude,
-             td.sub_service_type, td.created_at, td.updated_at, td.file_url,
-             ss.name as sub_service_name, ss.code as sub_service_code,
-             s.name as service_name, s.code as service_code,
-             p.name as province_name, k.name as kabupaten_name
-      FROM public.telekom_data td
-      LEFT JOIN public.sub_services ss ON td.sub_service_id = ss.id
-      LEFT JOIN public.services s ON ss.service_id = s.id
-      LEFT JOIN public.provinces p ON td.province_id = p.id
-      LEFT JOIN public.kabupaten k ON td.kabupaten_id = k.id
-      ${whereSql}
-      ORDER BY td.created_at DESC
-      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-    `;
-    const dataParams = [...params, pageSizeNum, offset];
-    const { rows } = await query(dataSql, dataParams);
+      const whereSql = filters.length ? `WHERE ${filters.join(' AND ')} AND td.service_type = 'tarif'` : "WHERE td.service_type = 'tarif'";
 
-    // Format the response to match the frontend expectation
-    const formattedData = rows.map(row => ({
-      id: row.id,
-      penyelenggara: row.company_name || '—',
-      nib: row.license_number || '',
-      jenisPenyelenggara: row.company_name ? 'Penyelenggara Telekomunikasi' : '',
-      jenis: row.sub_service_name || row.sub_service_type || 'Kode Akses Pusat Panggilan Informasi (Call Center)',
-      jenisKode: row.sub_service_code || '150XYZ',
-      kodeAkses: row.license_number || '150164',
-      nomor: row.license_number || '',
-      tanggalPenetapan: row.license_date ? new Date(row.license_date).toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      }) : '',
-      status: row.status === 'active' ? 'Aktif' : row.status === 'inactive' ? 'Nonaktif' : 'Idle'
-    }));
+      const countSql = `
+        SELECT COUNT(*)::int AS count
+        FROM public.telekom_data td
+        ${whereSql}
+      `;
+      const countResult = await query(countSql, params);
+      const total = countResult.rows[0]?.count ?? 0;
 
-    res.json({
-      data: formattedData,
-      page: pageNum,
-      pageSize: pageSizeNum,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / pageSizeNum))
-    });
- } catch (e) {
+      const dataSql = `
+        SELECT td.id, td.company_name, td.license_number, td.license_date, td.status,
+               td.sub_service_type,
+               ss.name as sub_service_name, ss.code as sub_service_code
+        FROM public.telekom_data td
+        LEFT JOIN public.sub_services ss ON td.sub_service_id = ss.id
+        ${whereSql}
+        ORDER BY td.created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+      `;
+      const { rows } = await query(dataSql, [...params, pageSizeNum, offset]);
+
+      const formattedData = rows.map(row => ({
+        id: row.id,
+        penyelenggara: row.company_name || '—',
+        nib: row.license_number || '',
+        jenisPenyelenggara: row.company_name ? 'Penyelenggara Telekomunikasi' : '',
+        jenis: row.sub_service_name || row.sub_service_type || '',
+        jenisKode: row.sub_service_code || '',
+        kodeAkses: row.license_number || '',
+        nomor: row.license_number || '',
+        tanggalPenetapan: row.license_date ? new Date(row.license_date).toLocaleDateString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }) : '',
+        status: row.status === 'active' ? 'Aktif' : row.status === 'inactive' ? 'Nonaktif' : 'Idle',
+      }));
+
+      res.json({
+        data: formattedData,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSizeNum)),
+        source: 'local',
+      });
+    }
+  } catch (e) {
     console.error('Failed to fetch Penomoran data', e);
     res.status(500).json({ error: 'Failed to fetch Penomoran data' });
   }

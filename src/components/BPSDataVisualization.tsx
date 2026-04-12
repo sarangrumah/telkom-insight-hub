@@ -137,19 +137,19 @@ export default function BPSDataVisualization() {
       setIsLoading(true);
 
       // Load areas
-      const areasResponse = await apiFetch('/panel/api/bps/areas?active=true');
+      const areasResponse = await apiFetch('/v2/panel/api/bps/areas?active=true');
       if (areasResponse.success) {
         setAreas(areasResponse.data);
       }
 
       // Load variables
-      const variablesResponse = await apiFetch('/panel/api/bps/variables?active=true');
+      const variablesResponse = await apiFetch('/v2/panel/api/bps/variables?active=true');
       if (variablesResponse.success) {
         setVariables(variablesResponse.data);
       }
 
       // Load sync history
-      const historyResponse = await apiFetch('/panel/api/bps/sync/history?limit=5');
+      const historyResponse = await apiFetch('/v2/panel/api/bps/sync/history?limit=5');
       if (historyResponse.success) {
         setSyncHistory(historyResponse.data);
       }
@@ -196,7 +196,7 @@ export default function BPSDataVisualization() {
         ...(selectedPeriod ? { period: selectedPeriod } : {}),
       });
 
-      const response = await apiFetch(`/panel/api/bps/data?${params.toString()}`) as BPSDataResponse;
+      const response = await apiFetch(`/v2/panel/api/bps/data?${params.toString()}`) as BPSDataResponse;
 
       if (response.success) {
         setData(response.data);
@@ -247,7 +247,7 @@ export default function BPSDataVisualization() {
         syncType: 'manual'
       };
 
-      const response = await apiFetch('/panel/api/bps/sync/trigger', {
+      const response = await apiFetch('/v2/panel/api/bps/sync/trigger', {
         method: 'POST',
         body: JSON.stringify(syncData)
       });
@@ -285,7 +285,7 @@ export default function BPSDataVisualization() {
   // Load sync history
   const loadSyncHistory = useCallback(async () => {
     try {
-      const response = await apiFetch('/panel/api/bps/sync/history?limit=5');
+      const response = await apiFetch('/v2/panel/api/bps/sync/history?limit=5');
       if (response.success) {
         setSyncHistory(response.data);
       }
@@ -299,7 +299,7 @@ export default function BPSDataVisualization() {
     try {
       setIsSyncingAreas(true);
 
-      const response = await apiFetch('/panel/api/bps/areas/sync', {
+      const response = await apiFetch('/v2/panel/api/bps/areas/sync', {
         method: 'POST',
       });
 
@@ -345,7 +345,7 @@ export default function BPSDataVisualization() {
     if (!selectedAreas.length || !selectedVariable) return;
     try {
       const response = await apiFetch(
-        `/panel/api/bps/periods?domain=${selectedAreas[0]}&var=${selectedVariable}`
+        `/v2/panel/api/bps/periods?domain=${selectedAreas[0]}&var=${selectedVariable}`
       );
       if (response.success && response.data) {
         const { years, periods, periodType: pt, latestYear } = response.data;
@@ -386,7 +386,7 @@ export default function BPSDataVisualization() {
       setIsSearchingVars(true);
       const domain = selectedAreas[0] || '0000';
       const response = await apiFetch(
-        `/panel/api/bps/variables/search?domain=${domain}&keyword=${encodeURIComponent(varSearchKeyword)}`
+        `/v2/panel/api/bps/variables/search?domain=${domain}&keyword=${encodeURIComponent(varSearchKeyword)}`
       );
       if (response.success) {
         setVarSearchResults(response.data);
@@ -401,7 +401,7 @@ export default function BPSDataVisualization() {
   // Add variable from search results
   const addVariableFromSearch = useCallback(async (varItem: { var_id: string; title: string; unit: string; subject: string }) => {
     try {
-      const response = await apiFetch('/panel/api/bps/variables', {
+      const response = await apiFetch('/v2/panel/api/bps/variables', {
         method: 'POST',
         body: JSON.stringify({
           variable_id: varItem.var_id,
