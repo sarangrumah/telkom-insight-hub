@@ -1,0 +1,193 @@
+name: Panel CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DOCKER_IMAGE_BACKEND: bimacreativetech/komdigi-panel-backend
+  DOCKER_IMAGE_FRONTEND: bimacreativetech/komdigi-panel-frontend
+  DEPLOY_DIR: /home/bctadmin/deployments/komdigi
+
+jobs:
+  # ── SAST & Linting ──────────────────────────────────────────────────────────
+  security-and-lint:
+    name: Security Scan & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npx eslint . --ext .ts,.tsx --config eslint.config.js
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          ignore-unfixed: true
+          format: "table"
+          severity: "CRITICAL,HIGH"
+
+  # ── Tests ────────────────────────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    needs: security-and-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npx vitest run --reporter=verbose
+
+  # ── Build & Push Docker Images ───────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Build Panel backend
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_BACKEND }}:latest
+            ${{ env.DOCKER_IMAGE_BACKEND }}:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      # Build Panel frontend (Vite static output)
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_FRONTEND }}:latest
+            ${{ env.DOCKER_IMAGE_FRONTEND }}:${{ github.sha }}
+          build-args: |
+            VITE_API_BASE_URL=${{ secrets.PANEL_VITE_API_BASE_URL }}
+            VITE_MAPBOX_PUBLIC_TOKEN=${{ secrets.PANEL_MAPBOX_TOKEN }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # Scan built images for vulnerabilities
+      - name: Trivy scan backend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE_BACKEND }}:${{ github.sha }}
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+
+  # ── Deploy ───────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy Panel to Production
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ${{ env.DEPLOY_DIR }}
+
+            echo "=== Pulling Panel images ==="
+            docker pull ${{ env.DOCKER_IMAGE_BACKEND }}:latest
+            docker pull ${{ env.DOCKER_IMAGE_FRONTEND }}:latest
+
+            echo "=== Building Panel frontend static files ==="
+            # Run frontend build container to populate panel-static volume
+            docker compose run --rm panel-frontend-build
+
+            echo "=== Restarting Panel backend ==="
+            docker compose up -d --no-deps --force-recreate panel-backend
+
+            echo "=== Reloading Nginx (pick up new static files) ==="
+            docker compose exec nginx nginx -s reload
+
+            echo "=== Cleanup ==="
+            docker image prune -f
+
+            echo "=== Health check ==="
+            sleep 5
+            curl -sf http://localhost:4000/health || (echo "Panel health check failed!" && exit 1)
+            echo ""
+            echo "Panel deployment complete."
+
+  # ── Database Migration ──────────────────────────────────────────────────────
+  migrate:
+    name: Run Database Migrations
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run migrations via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ${{ env.DEPLOY_DIR }}
+
+            echo "=== Running Panel database migrations ==="
+            # Execute migration SQL files inside the db container
+            for f in /home/bctadmin/panel-migrations/*.sql; do
+              if [ -f "$f" ]; then
+                echo "Running: $(basename $f)"
+                docker compose exec -T db psql \
+                  -U "${PANEL_DB_USER:-panel_user}" \
+                  -d "${PANEL_DB_NAME:-panel_hub}" \
+                  -f "/dev/stdin" < "$f"
+              fi
+            done
+            echo "Migrations complete."
