@@ -15,7 +15,6 @@ import {
   BarChart3,
   Users,
   Building2,
-  Globe,
   ArrowRight,
   Phone,
   Mail,
@@ -513,7 +512,11 @@ const EnhancedLandingPage = () => {
                 <CardTitle className="text-base sm:text-lg font-medium">
                   Menunggu Persetujuan
                 </CardTitle>
-                <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-chart-5 flex-shrink-0" />
+                <img
+                  src={`${import.meta.env.BASE_URL}logo-komdigi.png`}
+                  alt="Komdigi"
+                  className="h-5 w-5 sm:h-6 sm:w-6 object-contain flex-shrink-0"
+                />
               </CardHeader>
               <CardContent>
                 <div
