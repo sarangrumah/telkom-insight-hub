@@ -3,12 +3,12 @@ import jwt from 'jsonwebtoken';
 import { query } from './db.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { env } from './config/env.js';
 
-// Define JWT constants
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
-
-const TOKEN_EXPIRES_IN = process.env.ACCESS_EXPIRES_IN || '1h';
-const REFRESH_EXPIRES_DAYS = parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10);
+// JWT / refresh-token config — validated at startup by config/env.js
+const JWT_SECRET = env.JWT_SECRET;
+const TOKEN_EXPIRES_IN = env.ACCESS_EXPIRES_IN;
+const REFRESH_EXPIRES_DAYS = parseInt(env.REFRESH_EXPIRES_DAYS, 10);
 
 function generateAccessToken(userId, email) {
   return jwt.sign({ sub: userId, email }, JWT_SECRET, { expiresIn: TOKEN_EXPIRES_IN });
@@ -149,6 +149,9 @@ export async function register(req, res) {
       const roles = roleRes.rows.map(r => r.role);
 
       await query('COMMIT');
+
+      // Consume CAPTCHA token post-commit (set by requireRegistrationConsent).
+      try { req.consumeCaptcha?.(); } catch { /* best effort */ }
 
       // Create session + refresh token (httpOnly cookie)
       const { sessionId, refreshToken } = await createSessionAndRefreshToken(req, userId);
@@ -337,6 +340,10 @@ export async function registerWithDetails(req, res) {
 
       await query('COMMIT');
 
+      // Invalidate the CAPTCHA token now that registration succeeded — prevents
+      // token reuse. Middleware attached this function if it validated the token.
+      try { req.consumeCaptcha?.(); } catch { /* best effort */ }
+
       // Issue access token for auto-login
       const accessToken = generateAccessToken(userId, email);
 
@@ -505,6 +512,9 @@ export async function loginViaEtelekomunikasi(req, res) {
     );
     const roles = roleRes.rows.map(r => r.role);
 
+    // Consume login CAPTCHA token (set by requireLoginCaptcha middleware).
+    try { req.consumeCaptcha?.(); } catch { /* best effort */ }
+
     // Create session + refresh token
     const { sessionId, refreshToken } = await createSessionAndRefreshToken(req, panelUserId);
     setRefreshCookies(res, sessionId, refreshToken);
@@ -601,6 +611,9 @@ export async function login(req, res) {
       );
     }
 
+    // Consume login CAPTCHA token (set by requireLoginCaptcha middleware).
+    try { req.consumeCaptcha?.(); } catch { /* best effort */ }
+
     // Create session + refresh token (httpOnly cookie)
     const { sessionId, refreshToken } = await createSessionAndRefreshToken(req, user.id);
     setRefreshCookies(res, sessionId, refreshToken);
@@ -632,24 +645,16 @@ export function authMiddleware(req, _res, next) {
   if (header?.startsWith('Bearer ')) {
     const token = header.substring(7);
     try {
-      const payload = jwt.verify(token, JWT_SECRET);
-      req.user = payload;
-      console.log('Auth middleware: Token verified successfully for user:', payload.sub);
+      req.user = jwt.verify(token, JWT_SECRET);
     } catch (e) {
-      console.log('Auth middleware: Token verification failed:', e.message);
-      // Log more detailed error information for debugging
-      if (e.name === 'TokenExpiredError') {
-        console.log('Auth middleware: Token expired at:', e.expiredAt);
-      } else if (e.name === 'JsonWebTokenError') {
-        console.log('Auth middleware: Invalid token format');
-      } else if (e.name === 'NotBeforeError') {
-        console.log('Auth middleware: Token not active yet');
+      // Only log unexpected verification errors. Expired tokens are normal for
+      // long-running SPA sessions and should not spam the log.
+      if (e.name !== 'TokenExpiredError') {
+        console.warn('Auth middleware: token verification failed:', e.message);
       }
-      // ignore invalid token
     }
-  } else {
-    console.log('Auth middleware: No authorization header found');
   }
+  // Anonymous request is expected for public endpoints — no log.
   next();
 }
 

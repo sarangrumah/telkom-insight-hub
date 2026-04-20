@@ -217,10 +217,11 @@ const EnhancedLandingPage = () => {
           <div className="flex justify-between items-center h-14 lg:h-16">
             {/* Logo & Brand */}
             <div className="flex items-center space-x-2 lg:space-x-3 flex-shrink-0">
-              <div className="relative">
-                <Globe className="h-6 w-6 lg:h-8 lg:w-8 text-primary animate-pulse" />
-                <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
-              </div>
+              <img
+                src={`${import.meta.env.BASE_URL}logo-komdigi.png`}
+                alt="Komdigi"
+                className="h-8 lg:h-10 w-auto object-contain"
+              />
               <h1 className="text-lg lg:text-xl xl:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 Panel Penyelenggaraan
               </h1>
@@ -696,7 +697,11 @@ const EnhancedLandingPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             <div className="sm:col-span-2 lg:col-span-2">
               <div className="flex items-center space-x-3 mb-6">
-                <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-primary flex-shrink-0" />
+                <img
+                  src={`${import.meta.env.BASE_URL}logo-komdigi.png`}
+                  alt="Komdigi"
+                  className="h-8 sm:h-10 w-auto object-contain flex-shrink-0"
+                />
                 <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   Panel Peneyelenggaraan
                 </h3>

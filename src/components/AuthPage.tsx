@@ -18,6 +18,7 @@ import { Loader2, Globe } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useEmailAvailability } from '@/hooks/useEmailAvailability';
 import EnhancedRegistrationForm from '@/components/EnhancedRegistrationForm';
+import { IndonesianCaptcha } from '@/components/auth/IndonesianCaptcha';
 
 interface AuthPageProps {
   onAuthSuccess: () => void;
@@ -48,6 +49,14 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
   });
 
   const [etelkomLoading, setEtelkomLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'login' | 'etelkom' | 'signup'>('login');
+
+  // Per-tab CAPTCHA state — each tab gets its own token because tokens are
+  // consumed on use by the server.
+  const [loginCaptchaVerified, setLoginCaptchaVerified] = useState(false);
+  const [loginCaptchaToken, setLoginCaptchaToken] = useState<string | null>(null);
+  const [etelkomCaptchaVerified, setEtelkomCaptchaVerified] = useState(false);
+  const [etelkomCaptchaToken, setEtelkomCaptchaToken] = useState<string | null>(null);
 
   const [signupForm, setSignupForm] = useState({
     email: '',
@@ -83,11 +92,14 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!loginCaptchaVerified || !loginCaptchaToken) {
+      setError('Silakan selesaikan verifikasi CAPTCHA terlebih dahulu.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      await login(loginForm.email, loginForm.password);
-      // Hanya tampilkan toast sukses jika benar-benar tidak throw error
+      await login(loginForm.email, loginForm.password, loginCaptchaToken);
       toast({
         title: 'Login successful',
         description: 'Welcome to Telkom Insight Hub',
@@ -141,6 +153,10 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
 
   const handleEtelkomLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!etelkomCaptchaVerified || !etelkomCaptchaToken) {
+      setError('Silakan selesaikan verifikasi CAPTCHA terlebih dahulu.');
+      return;
+    }
     setEtelkomLoading(true);
     setError(null);
     try {
@@ -151,6 +167,7 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
         body: JSON.stringify({
           email: etelkomForm.email,
           password: etelkomForm.password,
+          captcha_token: etelkomCaptchaToken,
         }),
       });
 
@@ -185,10 +202,21 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
     }
   };
 
+  const isSignup = activeTab === 'signup';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+      <Card
+        className={`w-full transition-[max-width] duration-200 ${
+          isSignup ? 'max-w-5xl' : 'max-w-md'
+        }`}
+      >
         <CardHeader className="text-center">
+          <img
+            src="/v2/panel/logo-komdigi.png"
+            alt="Komdigi"
+            className="mx-auto mb-3 h-14 w-14 object-contain"
+          />
           <CardTitle className="text-2xl font-bold">
             Telkom Insight Hub
           </CardTitle>
@@ -197,7 +225,11 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as 'login' | 'etelkom' | 'signup')}
+            className="w-full"
+          >
             <TabsList
               className="grid w-full grid-cols-3"
               onClick={() => {
@@ -242,7 +274,18 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <IndonesianCaptcha
+                  verified={loginCaptchaVerified}
+                  onVerified={(ok, token) => {
+                    setLoginCaptchaVerified(ok);
+                    setLoginCaptchaToken(ok && token ? token : null);
+                  }}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || !loginCaptchaVerified}
+                >
                   {isLoading && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
@@ -283,7 +326,18 @@ export default function AuthPage({ onAuthSuccess }: AuthPageProps) {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={etelkomLoading}>
+                <IndonesianCaptcha
+                  verified={etelkomCaptchaVerified}
+                  onVerified={(ok, token) => {
+                    setEtelkomCaptchaVerified(ok);
+                    setEtelkomCaptchaToken(ok && token ? token : null);
+                  }}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={etelkomLoading || !etelkomCaptchaVerified}
+                >
                   {etelkomLoading && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

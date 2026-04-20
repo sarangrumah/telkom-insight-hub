@@ -37,7 +37,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LocationSelector } from './LocationSelector';
+import { IndonesianCaptcha } from './auth/IndonesianCaptcha';
 
 interface DocumentUploadSectionProps {
   label: string;
@@ -176,6 +178,9 @@ const EnhancedRegistrationForm: React.FC = () => {
   const [filteredPicKabupaten, setFilteredPicKabupaten] = useState<{ id: string; name: string; type: string }[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [pdpConsent, setPdpConsent] = useState(false);
   const [formData, setFormData] = useState({
     // Personal Information
     email: '',
@@ -782,18 +787,22 @@ const EnhancedRegistrationForm: React.FC = () => {
   const registerMutation = useMutation({
     mutationFn: async () => {
       const formDataToSend = new FormData();
-      
+
       // Add form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== '' && value !== null && value !== undefined) formDataToSend.append(key, value);
       });
-      
+
       // Add documents
       Object.entries(documents).forEach(([key, file]) => {
         if (file && file !== null) {
           formDataToSend.append(key, file);
         }
       });
+
+      // CAPTCHA + UU PDP consent (required by server-side guard)
+      if (captchaToken) formDataToSend.append('captcha_token', captchaToken);
+      formDataToSend.append('pdp_consent', pdpConsent ? 'true' : 'false');
 
       const response = await fetch('/v2/panel/api/auth/register-with-details', {
         method: 'POST',
@@ -869,6 +878,9 @@ const EnhancedRegistrationForm: React.FC = () => {
         company_stamp: null,
         company_certificate: null
       });
+      setCaptchaVerified(false);
+      setCaptchaToken(null);
+      setPdpConsent(false);
       setCurrentStep(1);
     },
     onError: (error) => {
@@ -881,6 +893,14 @@ const EnhancedRegistrationForm: React.FC = () => {
 
   const handleSubmit = () => {
     if (!validateStep(6)) return;
+    if (!pdpConsent) {
+      setError('Anda harus menyetujui pernyataan perlindungan data pribadi (UU PDP) sebelum mengirim pendaftaran.');
+      return;
+    }
+    if (!captchaVerified || !captchaToken) {
+      setError('Silakan selesaikan verifikasi CAPTCHA terlebih dahulu.');
+      return;
+    }
     setIsSubmitting(true);
     registerMutation.mutate();
   };
@@ -1920,6 +1940,49 @@ const EnhancedRegistrationForm: React.FC = () => {
                   </div>
                 </AlertDescription>
               </Alert>
+
+              {/* Private data notification & consent (UU PDP / ISO 27001) */}
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertDescription className="text-amber-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 mt-0.5 text-amber-600 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium mb-2">Pemberitahuan Pemrosesan Data Pribadi</p>
+                      <p className="text-sm">
+                        Data pribadi yang Anda berikan (NIK, NPWP, nomor telepon, alamat, dokumen identitas)
+                        akan dikumpulkan dan diproses untuk keperluan verifikasi pelaku usaha dan penerbitan
+                        izin telekomunikasi, sesuai dengan Undang-Undang No. 27 Tahun 2022 tentang
+                        Pelindungan Data Pribadi dan standar keamanan informasi ISO 27001. Data akan
+                        ditampilkan dalam bentuk tersamar (masked) pada antarmuka admin kecuali pada saat
+                        diperlukan untuk verifikasi.
+                      </p>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex items-start gap-3 rounded-lg border p-4">
+                <Checkbox
+                  id="pdp-consent"
+                  checked={pdpConsent}
+                  onCheckedChange={(v) => setPdpConsent(v === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="pdp-consent" className="text-sm leading-snug cursor-pointer">
+                  Saya menyatakan bahwa seluruh data yang disampaikan adalah benar dan menyetujui
+                  pemrosesan data pribadi sesuai ketentuan Undang-Undang Pelindungan Data Pribadi
+                  (UU PDP) dan standar ISO 27001.
+                </Label>
+              </div>
+
+              {/* Kabupaten CAPTCHA — server-verified */}
+              <IndonesianCaptcha
+                verified={captchaVerified}
+                onVerified={(ok, token) => {
+                  setCaptchaVerified(ok);
+                  setCaptchaToken(ok && token ? token : null);
+                }}
+              />
             </div>
           </CardContent>
         </Card>
@@ -1939,9 +2002,14 @@ const EnhancedRegistrationForm: React.FC = () => {
             Next
           </Button>
         ) : (
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isSubmitting || registerMutation.isPending}
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isSubmitting ||
+              registerMutation.isPending ||
+              !pdpConsent ||
+              !captchaVerified
+            }
           >
             {isSubmitting || registerMutation.isPending ? 'Submitting...' : 'Submit Registration'}
           </Button>

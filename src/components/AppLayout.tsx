@@ -317,10 +317,22 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
     <Sidebar className="border-r border-sidebar-border/60" collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border/60 p-4">
         {!isCollapsed && (
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold bg-gradient-primary bg-clip-text text-transparent">
-              Panel Penyelenggaraan
-            </h2>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <img
+                src="/v2/panel/logo-komdigi.png"
+                alt="Komdigi"
+                className="h-9 w-9 object-contain flex-shrink-0"
+              />
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold leading-tight text-sidebar-foreground">
+                  Panel Penyelenggaraan
+                </h2>
+                <p className="text-[11px] text-sidebar-foreground/70 leading-tight">
+                  KEMKOMDIGI
+                </p>
+              </div>
+            </div>
             <div className="space-y-1">
               <p className="text-sm text-sidebar-foreground/80 truncate">
                 {user?.full_name || user?.email || 'User'}
@@ -333,9 +345,11 @@ function AppSidebar({ user, userRole, onLogout, counts }: AppSidebarProps) {
         )}
         {isCollapsed && (
           <div className="flex justify-center">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
+            <img
+              src="/v2/panel/logo-komdigi.png"
+              alt="Komdigi"
+              className="h-8 w-8 object-contain"
+            />
           </div>
         )}
       </SidebarHeader>

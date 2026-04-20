@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { MaskedField, maskEmail, maskPhone, maskNpwp } from "@/components/ui/masked-field";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tabs,
@@ -411,8 +412,11 @@ const CompanyManagement = () => {
                       <TableCell>
                         <div>
                           <div className="font-medium">{company.company_name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            NIB: {company.nib_number || 'N/A'}
+                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                            <span>NIB:</span>
+                            {company.nib_number
+                              ? <MaskedField value={company.nib_number} label="NIB" />
+                              : <span>N/A</span>}
                           </div>
                         </div>
                       </TableCell>
@@ -420,11 +424,11 @@ const CompanyManagement = () => {
                         <div className="space-y-1">
                           <div className="flex items-center gap-1 text-sm">
                             <Mail className="h-3 w-3" />
-                            {company.email}
+                            <MaskedField value={company.email} maskFn={maskEmail} label="email" />
                           </div>
                           <div className="flex items-center gap-1 text-sm">
                             <Phone className="h-3 w-3" />
-                            {company.phone}
+                            <MaskedField value={company.phone} maskFn={maskPhone} label="telepon" />
                           </div>
                         </div>
                       </TableCell>
@@ -501,22 +505,34 @@ const CompanyManagement = () => {
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Email</Label>
-                        <div className="mt-1 text-sm">{companyDetails.company.email}</div>
+                        <div className="mt-1 text-sm">
+                          <MaskedField value={companyDetails.company.email} maskFn={maskEmail} label="email" />
+                        </div>
                       </div>
-                      
+
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">Telepon</Label>
-                        <div className="mt-1 text-sm">{companyDetails.company.phone}</div>
+                        <div className="mt-1 text-sm">
+                          <MaskedField value={companyDetails.company.phone} maskFn={maskPhone} label="telepon" />
+                        </div>
                       </div>
-                      
+
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">NIB</Label>
-                        <div className="mt-1 text-sm">{companyDetails.company.nib_number || 'N/A'}</div>
+                        <div className="mt-1 text-sm">
+                          {companyDetails.company.nib_number
+                            ? <MaskedField value={companyDetails.company.nib_number} label="NIB" />
+                            : 'N/A'}
+                        </div>
                       </div>
-                      
+
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">NPWP</Label>
-                        <div className="mt-1 text-sm">{companyDetails.company.npwp_number || 'N/A'}</div>
+                        <div className="mt-1 text-sm">
+                          {companyDetails.company.npwp_number
+                            ? <MaskedField value={companyDetails.company.npwp_number} maskFn={maskNpwp} label="NPWP" />
+                            : 'N/A'}
+                        </div>
                       </div>
                       
                       <div>
@@ -593,11 +609,15 @@ const CompanyManagement = () => {
                                 </div>
                                 <div>
                                   <Label className="text-xs font-medium text-muted-foreground">Nomor KTP</Label>
-                                  <div className="text-sm">{pic.id_number}</div>
+                                  <div className="text-sm">
+                                    <MaskedField value={pic.id_number} label="KTP" />
+                                  </div>
                                 </div>
                                 <div>
                                   <Label className="text-xs font-medium text-muted-foreground">Telepon</Label>
-                                  <div className="text-sm">{pic.phone_number}</div>
+                                  <div className="text-sm">
+                                    <MaskedField value={pic.phone_number ?? ''} maskFn={maskPhone} label="telepon" />
+                                  </div>
                                 </div>
                                 <div>
                                   <Label className="text-xs font-medium text-muted-foreground">Jabatan</Label>

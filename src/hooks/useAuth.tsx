@@ -25,7 +25,7 @@ interface AuthContextValue {
   loading: boolean;
   sessionExpired: boolean; // hanya untuk token invalid / expired
   authActionError: string | null; // error dari aksi login/register terakhir
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, captchaToken?: string) => Promise<void>;
   register: (
     email: string,
     password: string,
@@ -204,14 +204,14 @@ function useProvideAuth() {
     };
   }, [loadFromStorage]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, captchaToken?: string) => {
     setLoading(true);
     try {
       const resp = await fetch(`/v2/panel/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, captcha_token: captchaToken }),
       });
       if (!resp.ok) {
         // coba ambil pesan error dari body

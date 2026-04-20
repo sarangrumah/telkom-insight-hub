@@ -1,9 +1,22 @@
+// config/env.js loads dotenv and validates required env vars. Must be imported
+// first so downstream modules (auth.js, db.js) see a populated process.env.
+import { env } from './config/env.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
+import { originCheck } from './middleware/originCheck.js';
+import {
+  apiLimiter,
+  loginLimiter,
+  registerLimiter,
+  emailCheckLimiter,
+  uploadLimiter,
+  refreshLimiter,
+  globalLimiter,
+} from './middleware/rateLimits.js';
+import { multerErrorHandler } from './middleware/uploads.js';
+import { requestLogger } from './lib/activityLogger.js';
 import { authMiddleware, register, registerWithDetails, login, loginViaEtelekomunikasi, requireAuth, refresh, logout } from './auth.js';
 import { listTickets, updateTicket, createTicket } from './tickets.js';
 import { getProfile } from './user.js';
@@ -31,10 +44,13 @@ import kominfoSyncRoutes from './routes/kominfo-sync.js';
 import bpsRoutes from './routes/bps.js';
 import integrationsRoutes from './routes/integrations.js';
 import telecomPotentialRoutes from './routes/telecom-potential.js';
-
-dotenv.config();
+import captchaRoutes, { verifyCaptchaToken, consumeCaptchaToken } from './routes/captcha.js';
 
 const app = express();
+
+// Trust reverse proxy (Nginx) so req.ip and X-Forwarded-For work correctly for
+// rate limiters and activity logging.
+app.set('trust proxy', 1);
 
 // ── Security Headers (aligned with e-telekomunikasi Nginx headers) ────────────
 app.use(helmet({
@@ -58,7 +74,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'same-origin' },
 }));
 
-const allowedOrigins = (process.env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173', 'http://localhost:8080', 'https://dev-etelekomunikasi.komdigi.go.id'];
+const allowedOrigins = (env.CORS_ORIGIN?.split(',').map(o => o.trim()).filter(Boolean)) || ['http://localhost:5173', 'http://localhost:8080', 'https://dev-etelekomunikasi.komdigi.go.id'];
 app.use(cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
@@ -68,10 +84,28 @@ app.use(cors({
   credentials: true,
 }));
 
-// Register telekom data routes
+// Body parser with tight limit (matches e-telekomunikasi-js api-security defaults)
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+
+// Global abuse ceiling (all requests). Narrower per-route limiters applied below.
+app.use(globalLimiter);
+
+// Auth extracts req.user from Bearer JWT (no-op for anonymous).
 app.use(authMiddleware);
+
+// CSRF / origin validation for state-changing requests (after auth so req.user
+// is available if needed for telemetry).
+app.use(originCheck);
+
+// Per-request activity logging (batched writes to public.activity_logs).
+app.use(requestLogger);
+
+// Per-API-namespace rate limit (60 req/min/IP). Mirrors e-telekomunikasi-js `api` preset.
+app.use('/v2/panel/api', apiLimiter);
+
+// Kabupaten CAPTCHA (challenge + verify)
+app.use('/v2/panel/api', captchaRoutes);
 
 app.use('/v2/panel/api', skloRoutes);
 app.use('/v2/panel/api', telekomDataRoutes);
@@ -86,41 +120,57 @@ app.get('/v2/panel/api/user/profile', requireAuth, getProfile);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-// ---- Rate Limiters ----
-// Global (optional) - moderate limits to prevent abuse (can be tuned / disabled)
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10000, // high enough not to disturb normal users
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(globalLimiter);
+// ── Login guard: require verified CAPTCHA ───────────────────────────────────
+// Brute-force mitigation on top of loginLimiter — ensures each login attempt
+// costs a human interaction.
+function requireLoginCaptcha(req, res, next) {
+  const captchaToken = req.body?.captcha_token;
+  if (!verifyCaptchaToken(captchaToken)) {
+    return res.status(400).json({
+      error: 'Verifikasi CAPTCHA gagal atau kedaluwarsa. Silakan muat ulang CAPTCHA.',
+    });
+  }
+  req.consumeCaptcha = () => consumeCaptchaToken(captchaToken);
+  next();
+}
 
-// Login attempts: stricter
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 100,
-  max: 100, // 10 attempts / 15m / IP
- standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts, please try again later' },
-  skipSuccessfulRequests: true, // successful logins do not count toward limit
-});
+// ── Registration guard: require verified CAPTCHA + UU PDP consent ──────────
+// Matches e-telekomunikasi-js behavior: registration only proceeds when the
+// caller supplies `captcha_token` that was previously verified via
+// POST /auth/captcha/verify AND explicit `pdp_consent === true`.
+function requireRegistrationConsent(req, res, next) {
+  const captchaToken = req.body?.captcha_token;
+  const pdpConsent = req.body?.pdp_consent;
 
-// Email availability check: lighter but still prevents hammering
-const emailCheckLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
- max: 3000, // 30 checks per minute per IP
-  standardHeaders: true,
- legacyHeaders: false,
-  message: { error: 'Too many email checks, slow down' },
-});
+  const pdpAccepted =
+    pdpConsent === true ||
+    pdpConsent === 'true' ||
+    pdpConsent === '1' ||
+    pdpConsent === 1;
 
-// Auth
-app.post('/v2/panel/api/auth/register', register);
-app.post('/v2/panel/api/auth/login', loginLimiter, login);
-app.post('/v2/panel/api/auth/login-etelekomunikasi', loginLimiter, loginViaEtelekomunikasi);
-// Refresh and logout for session handling
-app.post('/v2/panel/api/auth/refresh', refresh);
+  if (!pdpAccepted) {
+    return res.status(400).json({
+      error:
+        'Persetujuan pemrosesan data pribadi (UU PDP) wajib dicentang sebelum pendaftaran.',
+    });
+  }
+
+  if (!verifyCaptchaToken(captchaToken)) {
+    return res.status(400).json({
+      error: 'Verifikasi CAPTCHA gagal atau kedaluwarsa. Silakan muat ulang CAPTCHA.',
+    });
+  }
+
+  // Let downstream handler consume the token after its transaction commits.
+  req.consumeCaptcha = () => consumeCaptchaToken(captchaToken);
+  next();
+}
+
+// Auth — tightened rate limits (presets from middleware/rateLimits.js)
+app.post('/v2/panel/api/auth/register', registerLimiter, requireRegistrationConsent, register);
+app.post('/v2/panel/api/auth/login', loginLimiter, requireLoginCaptcha, login);
+app.post('/v2/panel/api/auth/login-etelekomunikasi', loginLimiter, requireLoginCaptcha, loginViaEtelekomunikasi);
+app.post('/v2/panel/api/auth/refresh', refreshLimiter, refresh);
 app.post('/v2/panel/api/auth/logout', logout);
 // Cek ketersediaan email (pre-registration)
 app.get('/v2/panel/api/auth/check-email', emailCheckLimiter, async (req, res) => {
@@ -199,24 +249,41 @@ const uploadWithImages = multer({
   },
 });
 
-// Enhanced registration with document support (after multer middleware is defined)
-app.post('/v2/panel/api/auth/register-with-details', uploadWithImages.fields([
-  { name: 'profile_picture', maxCount: 1 },
-  { name: 'nib_document', maxCount: 1 },
-  { name: 'npwp_document', maxCount: 1 },
-  { name: 'akta_document', maxCount: 1 },
-  { name: 'ktp_document', maxCount: 1 },
-  { name: 'assignment_letter', maxCount: 1 },
-  { name: 'business_license_document', maxCount: 1 },
-  { name: 'company_stamp', maxCount: 1 },
-  { name: 'company_certificate', maxCount: 1 }
-]), registerWithDetails);
+// Enhanced registration with document support.
+// multer parses the multipart body FIRST, then the CAPTCHA+PDP guard runs
+// against `req.body` (string fields survive multer).
+app.post(
+  '/v2/panel/api/auth/register-with-details',
+  registerLimiter,
+  uploadWithImages.fields([
+    { name: 'profile_picture', maxCount: 1 },
+    { name: 'nib_document', maxCount: 1 },
+    { name: 'npwp_document', maxCount: 1 },
+    { name: 'akta_document', maxCount: 1 },
+    { name: 'ktp_document', maxCount: 1 },
+    { name: 'assignment_letter', maxCount: 1 },
+    { name: 'business_license_document', maxCount: 1 },
+    { name: 'company_stamp', maxCount: 1 },
+    { name: 'company_certificate', maxCount: 1 }
+  ]),
+  multerErrorHandler,
+  requireRegistrationConsent,
+  registerWithDetails,
+);
 
-// Serve static uploads
-app.use('/uploads', express.static(UPLOAD_DIR));
+// Serve static uploads with conservative headers (no sniff, no hotlink).
+app.use(
+  '/uploads',
+  (_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'inline');
+    next();
+  },
+  express.static(UPLOAD_DIR),
+);
 
 // Upload endpoint (returns absolute file URL)
-app.post('/v2/panel/api/uploads', requireAuth, (req, res) => {
+app.post('/v2/panel/api/uploads', uploadLimiter, requireAuth, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
