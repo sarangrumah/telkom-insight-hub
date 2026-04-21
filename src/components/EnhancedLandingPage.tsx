@@ -359,9 +359,9 @@ const EnhancedLandingPage = () => {
 
         <div className="container mx-auto px-4 lg:px-8 text-center relative z-10">
           <div className="animate-fade-in max-w-6xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 lg:mb-8 leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground mb-6 lg:mb-8 leading-[1.2]">
               Visualisasi Data
-              <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-pulse mt-2">
+              <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-pulse mt-3 pb-3 leading-[1.2]">
                 Penyelenggaraan Telekomunikasi
               </span>
             </h1>

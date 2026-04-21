@@ -220,6 +220,7 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    line-height: 1.4;
   }
 
   .line-clamp-3 {
@@ -227,11 +228,18 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    line-height: 1.4;
   }
 
   /* Shadow utilities */
   .shadow-glow {
     box-shadow: var(--shadow-glow);
+  }
+
+  /* Fix descender clipping on gradient-clipped text (bg-clip-text + text-transparent crops g/y/p/q tails) */
+  .bg-clip-text.text-transparent {
+    padding-bottom: 0.15em;
+    line-height: 1.2;
   }
 }
 

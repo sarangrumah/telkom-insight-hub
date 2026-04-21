@@ -45,6 +45,7 @@ import bpsRoutes from './routes/bps.js';
 import integrationsRoutes from './routes/integrations.js';
 import telecomPotentialRoutes from './routes/telecom-potential.js';
 import captchaRoutes, { verifyCaptchaToken, consumeCaptchaToken } from './routes/captcha.js';
+import metricsRoutes from './routes/metrics.js';
 
 const app = express();
 
@@ -108,6 +109,7 @@ app.use('/v2/panel/api', apiLimiter);
 app.use('/v2/panel/api', captchaRoutes);
 
 app.use('/v2/panel/api', skloRoutes);
+app.use('/v2/panel/api', metricsRoutes); // Internal metrics (service-key gated)
 app.use('/v2/panel/api', telekomDataRoutes);
 app.use('/v2/panel/api', tariffRoutes);
 app.use('/v2/panel/api', kominfoSyncRoutes); // Kominfo sync routes

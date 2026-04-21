@@ -44,6 +44,10 @@ const envSchema = z.object({
   // External services
   ETELKOM_API_URL: z.string().url().optional(),
   ETELKOM_API_KEY: z.string().optional(),
+
+  // Service-to-service key for internal endpoints (e.g. /internal/metrics).
+  // jika kosong, endpoint /internal/metrics tidak bisa diakses
+  PANEL_SERVICE_API_KEY: z.string().optional(),
 });
 
 function validateEnv() {
