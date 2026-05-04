@@ -130,3 +130,94 @@ export async function healthCheck() {
         return false;
     }
 }
+
+// =============================================================================
+// Public endpoints (no service key required) — used by the panel registration
+// flow so that accounts created via the panel land in the e-telekomunikasi DB
+// and can immediately log in to either system.
+// =============================================================================
+
+/** Fetch without the service-key header — used for public register/captcha/etc. */
+async function fetchEtelekomPublic(path, options = {}) {
+    const url = `${ETELEKOM_API_URL}${path}`;
+    const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+        const response = await fetch(url, { ...options, headers, signal: controller.signal });
+        const text = await response.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+        return { ok: response.ok, status: response.status, data };
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            return { ok: false, status: 504, data: { message: 'e-Telekomunikasi request timeout' } };
+        }
+        return { ok: false, status: 502, data: { message: `e-Telekomunikasi unreachable: ${error.message}` } };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+/** GET /v2/api/auth/captcha — returns { token, challenge } */
+export async function getCaptcha() {
+    return fetchEtelekomPublic('/v2/api/auth/captcha', { method: 'GET' });
+}
+
+/** POST /v2/api/auth/captcha — verifies { token, answer } → { valid } */
+export async function verifyCaptcha(token, answer) {
+    return fetchEtelekomPublic('/v2/api/auth/captcha', {
+        method: 'POST',
+        body: JSON.stringify({ token, answer }),
+    });
+}
+
+/** GET /v2/api/public/wilayah?level=... */
+export async function getWilayah({ level, provinsiId, kabupatenKotaId, kecamatanId } = {}) {
+    const params = new URLSearchParams();
+    params.set('level', level);
+    if (provinsiId) params.set('provinsiId', provinsiId);
+    if (kabupatenKotaId) params.set('kabupatenKotaId', kabupatenKotaId);
+    if (kecamatanId) params.set('kecamatanId', kecamatanId);
+    return fetchEtelekomPublic(`/v2/api/public/wilayah?${params}`, { method: 'GET' });
+}
+
+/**
+ * POST /v2/api/upload — forwards a single file (registration context) and
+ * returns { success, data: { filePath, ... } }. Uses multipart/form-data.
+ */
+export async function uploadFile({ buffer, filename, mimetype, docType }) {
+    const url = `${ETELEKOM_API_URL}/v2/api/upload`;
+    const form = new FormData();
+    // Node 20's global FormData + Blob are required
+    form.append('file', new Blob([buffer], { type: mimetype }), filename);
+    form.append('context', 'registrasi');
+    if (docType) form.append('docType', docType);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    try {
+        const response = await fetch(url, { method: 'POST', body: form, signal: controller.signal });
+        const data = await response.json().catch(() => ({}));
+        return { ok: response.ok, status: response.status, data };
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            return { ok: false, status: 504, data: { message: 'Upload timeout' } };
+        }
+        return { ok: false, status: 502, data: { message: `Upload gagal: ${error.message}` } };
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+/** POST /v2/api/auth/register — forwards the full validated payload. */
+export async function registerAccount(payload) {
+    return fetchEtelekomPublic('/v2/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+}

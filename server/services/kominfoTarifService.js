@@ -31,7 +31,7 @@ const DEFAULT_PERIODE = process.env.KOMINFO_TARIF_DEFAULT_PERIODE || 'bulanan';
 export class KominfoTarifService {
   constructor() {
     if (!API_KEY) {
-      throw new Error('KOMINFO_TARIF_API_KEY environment variable is required');
+      console.warn('[KominfoTarifService] KOMINFO_TARIF_API_KEY not set — tariff sync features disabled');
     }
   }
 
